@@ -1,0 +1,70 @@
+# Miscellaneous
+
+*.class
+
+*.log
+
+*.pyc
+
+*.swp
+
+.DS_Store
+
+
+
+# IDE
+
+.idea/
+
+*.iml
+
+.vscode/
+
+
+
+# Node (backend + frontend)
+
+node_modules/
+
+backend/uploads/*
+
+!backend/uploads/.gitkeep
+
+backend/.env
+
+
+
+# Flutter (mobile-app)
+
+mobile-app/.dart_tool/
+
+mobile-app/.flutter-plugins
+
+mobile-app/.flutter-plugins-dependencies
+
+mobile-app/.pub-cache/
+
+mobile-app/.pub/
+
+mobile-app/build/
+
+mobile-app/android/local.properties
+
+mobile-app/android/app/debug
+
+mobile-app/android/app/profile
+
+mobile-app/android/app/release
+
+
+
+# Frontend build
+
+admin-frontend/dist/
+
+
+
+# OS
+
+Thumbs.db
+

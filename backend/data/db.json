@@ -1,0 +1,162 @@
+{
+  "branches": [
+    {
+      "id": "BR_DELHI",
+      "name": "Delhi Main Branch",
+      "code": "DELHI",
+      "city": "New Delhi",
+      "state": "Delhi",
+      "isActive": true,
+      "createdAt": "2026-09-19T10:33:13.888Z"
+    },
+    {
+      "id": "BR_MUM",
+      "name": "Mumbai Branch",
+      "code": "MUMBAI",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "isActive": true,
+      "createdAt": "2026-09-19T10:33:13.890Z"
+    }
+  ],
+  "users": [
+    {
+      "id": "U_ADM001",
+      "name": "Admin User",
+      "mobile": "9000000001",
+      "employeeId": "ADM001",
+      "branch": null,
+      "role": "admin",
+      "password": "$2a$10$VjD8v3wMrq9hVA0yvOvDD.xrQEOM5OENCLWfLPibt6e89.UrAGFlG",
+      "permissions": {
+        "dashboard": true,
+        "customerListings": true,
+        "customers": true,
+        "attendance": true,
+        "tracking": true,
+        "callLogs": true,
+        "users": true,
+        "branches": true
+      },
+      "isActive": true
+    },
+    {
+      "id": "U_BM001",
+      "name": "Branch Manager Delhi",
+      "mobile": "9000000002",
+      "employeeId": "BM001",
+      "branch": "Delhi Main Branch",
+      "role": "branchManager",
+      "password": "$2a$10$VjD8v3wMrq9hVA0yvOvDD.xrQEOM5OENCLWfLPibt6e89.UrAGFlG",
+      "permissions": {
+        "dashboard": true,
+        "customerListings": true,
+        "customers": true,
+        "attendance": true,
+        "tracking": true,
+        "callLogs": true,
+        "users": true,
+        "branches": false
+      },
+      "isActive": true
+    },
+    {
+      "id": "U_BM002",
+      "name": "Branch Manager Mumbai",
+      "mobile": "9000000004",
+      "employeeId": "BM002",
+      "branch": "Mumbai Branch",
+      "role": "branchManager",
+      "password": "$2a$10$VjD8v3wMrq9hVA0yvOvDD.xrQEOM5OENCLWfLPibt6e89.UrAGFlG",
+      "permissions": {
+        "dashboard": true,
+        "customerListings": true,
+        "customers": true,
+        "attendance": true,
+        "tracking": true,
+        "callLogs": true,
+        "users": true,
+        "branches": false
+      },
+      "isActive": true
+    },
+    {
+      "id": "U_FO001",
+      "name": "Field Officer Delhi",
+      "mobile": "9000000003",
+      "employeeId": "FO001",
+      "branch": "Delhi Main Branch",
+      "role": "fieldOfficer",
+      "password": "$2a$10$VjD8v3wMrq9hVA0yvOvDD.xrQEOM5OENCLWfLPibt6e89.UrAGFlG",
+      "permissions": {
+        "dashboard": true,
+        "customerListings": true,
+        "customers": true,
+        "attendance": true,
+        "tracking": true,
+        "callLogs": true,
+        "users": false,
+        "branches": false
+      },
+      "isActive": true
+    },
+    {
+      "id": "U_FO002",
+      "name": "Field Officer Mumbai",
+      "mobile": "9000000005",
+      "employeeId": "FO002",
+      "branch": "Mumbai Branch",
+      "role": "fieldOfficer",
+      "password": "$2a$10$VjD8v3wMrq9hVA0yvOvDD.xrQEOM5OENCLWfLPibt6e89.UrAGFlG",
+      "permissions": {
+        "dashboard": true,
+        "customerListings": true,
+        "customers": true,
+        "attendance": true,
+        "tracking": true,
+        "callLogs": true,
+        "users": false,
+        "branches": false
+      },
+      "isActive": true
+    }
+  ],
+  "customers": [],
+  "customerListings": [],
+  "attendance": [
+    {
+      "id": "ATT_26a6148e",
+      "userId": "U_FO001",
+      "employeeId": "FO001",
+      "branch": "Delhi Main Branch",
+      "date": "2026-09-19T11:22:40.414Z",
+      "status": "Present",
+      "checkInTime": "2026-09-19T11:22:40.414Z",
+      "checkInLat": 26.869673,
+      "checkInLng": 81.015564,
+      "distanceFromBranch": 421810,
+      "checkOutTime": "2026-09-19T11:22:42.285Z",
+      "checkOutLat": 26.869673,
+      "checkOutLng": 81.015564
+    }
+  ],
+  "tracking": [
+    {
+      "id": "TRK_bd9282ec",
+      "userId": "U_FO001",
+      "employeeId": "FO001",
+      "branch": "Delhi Main Branch",
+      "date": "2026-09-19T11:48:31.111Z",
+      "routePoints": [
+        {
+          "latitude": 26.869837153648067,
+          "longitude": 81.01506988927038,
+          "timestamp": "2026-09-19T17:18:29.999423"
+        }
+      ],
+      "totalKm": 0,
+      "endTime": "2026-09-19T11:48:31.111Z"
+    }
+  ],
+  "callLogs": []
+}
