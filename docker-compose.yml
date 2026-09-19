@@ -16,7 +16,7 @@ services:
       context: .
       dockerfile: deploy/Dockerfile.admin
       args:
-        VITE_API_BASE: /api/v1
+        VITE_API_BASE: https://ndclients.co.in/api/v1
     ports:
       - "8080:80"
     depends_on:

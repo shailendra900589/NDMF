@@ -1,34 +1,62 @@
-# AWS Production Deployment — NDFA v2
+# AWS Production — ndclients.co.in
 
-Lead / Loan / Approval modules removed. Stack: Customer Listing, Collections, Calls, Attendance, Tracking.
+Domain: **https://ndclients.co.in**  
+API: **https://ndclients.co.in/api/v1**  
+Admin: **https://ndclients.co.in**
 
-## Backend (ECS/EC2)
+## Pull on server
 
 ```bash
-cd backend
+cd ~/NDMF
+git pull origin main
+```
+
+## Backend env
+
+```bash
+cd ~/NDMF/backend
 cp .env.example .env
+# edit if needed — defaults already use ndclients.co.in + JWT
+nano .env
 npm ci --omit=dev
-npm run seed
+npm run seed   # first time only
 npm start
+# or: pm2 restart ndfa-api
 ```
 
-Docker: `docker compose up --build` (see `docker-compose.yml`)
+Required keys (see `.env.example`):
 
-## Admin (S3 + CloudFront)
+```
+JWT_SECRET=ndclients_ndfa_jwt_secret_2026_change_on_server_if_needed
+FRONTEND_URL=https://ndclients.co.in
+CORS_ORIGINS=https://ndclients.co.in,https://www.ndclients.co.in
+PUBLIC_API_URL=https://ndclients.co.in/api/v1
+TRUST_PROXY=true
+```
+
+## Admin build
 
 ```bash
-cd admin-frontend
-# .env.production: VITE_API_BASE=https://api.yourdomain.com/api/v1
+cd ~/NDMF/admin-frontend
+cp .env.example .env.production
+npm ci
 npm run build
-# deploy dist/
+# deploy dist/ behind nginx on ndclients.co.in
 ```
+
+`VITE_API_BASE=https://ndclients.co.in/api/v1`
 
 ## Mobile
 
-`api_constants.dart`: `useProduction = true`, set `productionBaseUrl`.
+`api_constants.dart` already has:
+
+- `useProduction = true`
+- `productionBaseUrl = https://ndclients.co.in/api/v1`
+
+## Nginx (same host)
+
+Proxy `/api/` and `/uploads/` to Node `:5000`, serve admin `dist/` on `/`.
 
 ## Login
 
-Demo logins: see **DEMO_LOGINS.md** — Admin `9000000001` / `ndfa1234` on dashboard.
-
-See `docker-compose.yml` and `deploy/` for containers.
+See **DEMO_LOGINS.md** — Admin `9000000001` / `ndfa1234` @ https://ndclients.co.in

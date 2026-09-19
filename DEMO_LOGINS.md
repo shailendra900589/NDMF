@@ -5,9 +5,9 @@
 
 | Role | Mobile | Branch | Kahan login |
 |------|--------|--------|-------------|
-| **Admin** | `9000000001` | All branches | Web http://localhost:5173 |
+| **Admin** | `9000000001` | All branches | Web https://ndclients.co.in (local: :5173) |
 | **Branch Manager (Delhi)** | `9000000002` | Delhi Main Branch | Web |
-| **Field Officer (Delhi)** | `9000000003` | Delhi Main Branch | Mobile app |
+| **Field Officer (Delhi)** | `9000000003` | Delhi Main Branch | Mobile → https://ndclients.co.in/api/v1 |
 | **Branch Manager (Mumbai)** | `9000000004` | Mumbai Branch | Web |
 | **Field Officer (Mumbai)** | `9000000005` | Mumbai Branch | Mobile app |
 

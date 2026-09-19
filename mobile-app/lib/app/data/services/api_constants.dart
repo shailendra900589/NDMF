@@ -5,11 +5,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class ApiConstants {
   ApiConstants._();
 
-  /// Production (AWS): set to your API, e.g. https://api.yourdomain.com/api/v1
-  static const String productionBaseUrl = 'https://api.yourdomain.com/api/v1';
+  /// Production — ndclients.co.in
+  static const String productionBaseUrl = 'https://ndclients.co.in/api/v1';
 
-  /// Local dev — emulator vs real device
-  static const bool useProduction = false;
+  /// true = live AWS (ndclients.co.in). false = local backend.
+  static const bool useProduction = true;
   /// true = Android emulator (10.0.2.2). false = real phone on same WiFi as PC.
   static const bool useEmulatorHost = true;
   /// PC LAN IP — run `ipconfig` and set this when useEmulatorHost is false.
