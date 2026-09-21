@@ -19,12 +19,12 @@ if (!db.users?.length) {
   console.log('⚠️  No users found. Run: npm run seed');
 }
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log('');
   console.log('========================================');
   console.log('  NDFA Backend API Server');
-  console.log(`  URL: http://localhost:${port}/api/v1`);
-  console.log(`  Health: http://localhost:${port}/api/v1/health`);
+  console.log(`  URL: http://0.0.0.0:${port}/api/v1`);
+  console.log(`  Health: http://0.0.0.0:${port}/api/v1/health`);
   console.log('========================================');
   console.log('');
 });
