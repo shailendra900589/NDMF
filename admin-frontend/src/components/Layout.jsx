@@ -46,7 +46,7 @@ function NavIcon({ name }) {
 
 function roleLabel(role) {
   if (role === 'branchManager') return 'Branch Manager';
-  if (role === 'fieldOfficer') return 'Field Officer';
+  if (role === 'fieldOfficer') return 'Employee';
   if (role === 'admin') return 'Administrator';
   return role;
 }

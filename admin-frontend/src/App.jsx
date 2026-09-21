@@ -14,17 +14,7 @@ import { canAccess } from './utils/permissions';
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('ndfa_token');
-  const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
   if (!token) return <Navigate to="/login" />;
-  if (user.role === 'fieldOfficer') {
-    return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
-        <h2>Field Officer App</h2>
-        <p style={{ color: '#6b7280' }}>Please use the mobile Android app. Admin panel is for Branch Manager & Admin only.</p>
-        <button className="btn btn-primary" onClick={() => { localStorage.clear(); window.location.href = '/login'; }}>Logout</button>
-      </div>
-    );
-  }
   return children;
 }
 

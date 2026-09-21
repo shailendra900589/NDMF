@@ -23,10 +23,6 @@ export default function Login() {
     setError('');
     try {
       const res = await authApi.login(mobile, password);
-      if (res.data?.role === 'fieldOfficer') {
-        setError('Field officers sign in with the NDFA mobile app.');
-        return;
-      }
       localStorage.setItem('ndfa_token', res.data.token);
       localStorage.setItem('ndfa_user', JSON.stringify(res.data));
       navigate('/');
@@ -49,12 +45,14 @@ export default function Login() {
             N
           </div>
           <h1 className="login-brand__name">Nirmaldhara</h1>
-          <p className="login-brand__tag">Micro Foundation · Admin console</p>
+          <p className="login-brand__tag">Micro Foundation · Operations console</p>
         </header>
 
         <form className="login-form" onSubmit={handleLogin} noValidate>
           <h2 className="login-form__title">Sign in</h2>
-          <p className="login-form__lead">Admin and branch managers only</p>
+          <p className="login-form__lead">
+            Admin, branch managers &amp; employees
+          </p>
 
           <div className="form-group">
             <label htmlFor="login-mobile">Mobile number</label>
@@ -94,7 +92,9 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="login-foot">Field staff use the NDFA Android app</p>
+        <p className="login-foot">
+          Admin sees all branches · others see their branch only
+        </p>
       </div>
     </div>
   );
