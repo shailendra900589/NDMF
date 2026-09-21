@@ -598,6 +598,23 @@ tbody tr:last-child td { border-bottom: none; }
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.18);
 }
 
+.modal-card { width: min(460px, 100%); }
+.modal-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 520px) {
+  .form-row-2 { grid-template-columns: 1fr; }
+}
+.field-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 4px 0 12px;
+}
+
 /* ——— Tabs ——— */
 .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
 .tab {

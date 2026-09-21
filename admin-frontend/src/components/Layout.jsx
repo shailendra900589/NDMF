@@ -4,7 +4,7 @@
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { authApi } from '../api/api';
 import { filterNavByPermissions } from '../utils/permissions';
-import { displayLocation, displayRole } from '../utils/displayLabels';
+import { displayLocation, displayRole, displayPersonName } from '../utils/displayLabels';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', end: true, permission: 'dashboard', icon: 'dashboard' },
@@ -118,7 +118,7 @@ export default function Layout() {
             <div className="user-chip">
               <div className="user-chip__avatar">{initials}</div>
               <div className="user-chip__meta">
-                <strong>{user.name || 'User'}</strong>
+                <strong>{displayPersonName(user.name) || 'User'}</strong>
                 <span>{roleLabel(user.role)} · {scopeLabel}</span>
               </div>
             </div>

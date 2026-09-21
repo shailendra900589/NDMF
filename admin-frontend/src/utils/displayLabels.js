@@ -1,4 +1,4 @@
-/** UI copy — hide the word "Branch" from labels/locations */
+/** UI copy — hide the word "Branch" from labels/locations/names */
 
 export function displayLocation(name) {
   if (!name) return '—';
@@ -6,6 +6,10 @@ export function displayLocation(name) {
     .replace(/\bBranches?\b/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim() || '—';
+}
+
+export function displayPersonName(name) {
+  return displayLocation(name);
 }
 
 export function displayRole(role) {

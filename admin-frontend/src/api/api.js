@@ -57,6 +57,8 @@ export const branchesApi = {
 
 export const customersApi = {
   getAll: (params) => api.get('/customers', { params }),
+  getById: (id) => api.get(`/customers/${id}`),
+  create: (data) => api.post('/customers', data),
 };
 
 export const attendanceApi = {
@@ -76,6 +78,8 @@ export const callLogsApi = {
 export const listingsApi = {
   getAll: (params) => api.get('/customer-listings', { params }),
   getById: (id) => api.get(`/customer-listings/${id}`),
+  create: (data) => api.post('/customer-listings', data),
+  approve: (data) => api.post('/customer-listings/approve', data),
 };
 
 export default api;

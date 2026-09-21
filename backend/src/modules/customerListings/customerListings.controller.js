@@ -53,7 +53,10 @@ exports.getAll = (req, res) => {
   if (search) {
     const q = search.toLowerCase();
     listings = listings.filter(
-      (l) => l.name.toLowerCase().includes(q) || l.mobile.includes(q)
+      (l) =>
+        (l.name || '').toLowerCase().includes(q) ||
+        (l.mobile || '').includes(q) ||
+        (l.shopFullAddress || '').toLowerCase().includes(q)
     );
   }
   return success(res, listings);
