@@ -862,6 +862,227 @@ tbody tr:last-child td { border-bottom: none; }
 .status-pill--miss { color: #dc2626; }
 .status-pill--muted { color: var(--color-text-muted); }
 
+/* ——— Attendance monthly ——— */
+.att-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.att-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.att-month-nav__label {
+  font-family: var(--font-display, var(--font));
+  font-weight: 600;
+  font-size: 1.15rem;
+  min-width: 160px;
+  text-align: center;
+  color: var(--color-text);
+}
+
+.att-toolbar__meta {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.att-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.att-roster { padding: 0; overflow: hidden; }
+.att-roster__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+.att-roster__head h3 { margin: 0; font-size: 15px; }
+.att-roster__head span {
+  font-size: 12px;
+  font-weight: 700;
+  background: #ecfdf5;
+  color: var(--color-primary-dark);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.att-roster__list { list-style: none; margin: 0; padding: 8px; max-height: 640px; overflow-y: auto; }
+.att-roster__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  margin-bottom: 4px;
+}
+.att-roster__item:hover { background: #f8fafc; }
+.att-roster__item.is-active {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+.att-roster__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2da894, #0f766e);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.att-roster__meta { flex: 1; min-width: 0; }
+.att-roster__meta strong { display: block; font-size: 13px; color: var(--color-text); }
+.att-roster__meta small {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.att-roster__stat { text-align: right; }
+.att-roster__stat em {
+  display: block;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-primary-dark);
+}
+.att-roster__stat small { font-size: 11px; color: var(--color-text-muted); }
+
+.att-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+.att-calendar-card__head,
+.att-matrix-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.att-calendar-card__head h3,
+.att-matrix-card__head h3 { margin: 0 0 4px; font-size: 16px; }
+.att-calendar-card__head p,
+.att-matrix-card__head p { margin: 0; font-size: 13px; color: var(--color-text-muted); }
+
+.att-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.att-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-right: 2px;
+}
+.att-dot--present { background: #059669; }
+.att-dot--partial { background: #d97706; }
+.att-dot--absent { background: #dc2626; }
+.att-dot--holiday { background: #94a3b8; }
+
+.att-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 6px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.att-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.att-cal-cell {
+  min-height: 72px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: #f8fafc;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.att-cal-cell--empty { visibility: hidden; border: none; background: transparent; }
+.att-cal-cell__day { font-size: 12px; font-weight: 700; color: #334155; }
+.att-cal-cell__mark { font-size: 13px; font-weight: 700; }
+.att-cal-cell__times { font-size: 10px; color: var(--color-text-muted); line-height: 1.2; }
+.att-cal-cell--present { background: #ecfdf5; border-color: #6ee7b7; }
+.att-cal-cell--present .att-cal-cell__mark { color: #047857; }
+.att-cal-cell--partial { background: #fffbeb; border-color: #fcd34d; }
+.att-cal-cell--partial .att-cal-cell__mark { color: #b45309; }
+.att-cal-cell--absent { background: #fef2f2; border-color: #fecaca; }
+.att-cal-cell--absent .att-cal-cell__mark { color: #b91c1c; }
+.att-cal-cell--holiday { background: #f1f5f9; }
+.att-cal-cell--holiday .att-cal-cell__mark { color: #64748b; }
+.att-cal-cell--today,
+.att-cal-cell.is-today {
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.45);
+}
+
+.att-matrix-wrap { max-height: 420px; overflow: auto; }
+.att-matrix { font-size: 12px; border-collapse: separate; border-spacing: 0; }
+.att-matrix th,
+.att-matrix td {
+  text-align: center;
+  padding: 6px 4px;
+  min-width: 28px;
+  border-bottom: 1px solid var(--color-border);
+}
+.att-matrix th.is-today-col { color: var(--color-primary-dark); background: #f0fdfa; }
+.att-matrix__sticky {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  text-align: left !important;
+  min-width: 140px;
+  z-index: 1;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.04);
+}
+.att-matrix__sticky strong { display: block; font-size: 12px; }
+.att-matrix__sticky small { color: var(--color-text-muted); font-size: 10px; }
+.att-matrix tbody tr { cursor: pointer; }
+.att-matrix tbody tr:hover td { background: #f8fafc; }
+.att-matrix tbody tr.is-selected-row td { background: #f0fdfa; }
+.att-matrix__cell--present { color: #047857; font-weight: 700; background: #ecfdf5; }
+.att-matrix__cell--partial { color: #b45309; font-weight: 700; background: #fffbeb; }
+.att-matrix__cell--absent { color: #b91c1c; font-weight: 600; background: #fef2f2; }
+.att-matrix__cell--holiday { color: #94a3b8; }
+
+@media (max-width: 1000px) {
+  .att-layout { grid-template-columns: 1fr; }
+  .att-roster__list { max-height: 240px; }
+}
+
 /* ——— Responsive sidebar ——— */
 @media (max-width: 900px) {
   .layout { flex-direction: column; }

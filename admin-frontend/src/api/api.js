@@ -61,6 +61,7 @@ export const customersApi = {
 
 export const attendanceApi = {
   getHistory: () => api.get('/attendance/history'),
+  getMonthly: (params) => api.get('/attendance/monthly', { params }),
 };
 
 export const trackingApi = {
