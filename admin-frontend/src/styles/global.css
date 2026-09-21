@@ -740,6 +740,43 @@ tbody tr:last-child td { border-bottom: none; }
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+.login-password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-password-wrap input {
+  padding-right: 72px;
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--login-moss);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.login-password-toggle:hover:not(:disabled) {
+  background: rgba(45, 168, 148, 0.12);
+  color: #0f766e;
+}
+
+.login-password-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .login-form input:focus {
   outline: none;
   border-color: var(--login-leaf);
