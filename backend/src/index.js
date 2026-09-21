@@ -1,30 +1,37 @@
 /**
- * SERVER ENTRY POINT
- * ------------------
- * Ye file server start karti hai.
- * Run: npm run dev   OR   npm start
+ * SERVER ENTRY POINT — PostgreSQL + Express
  */
 const app = require('./app');
 const { port } = require('./config/env');
-const { readDb, DB_PATH } = require('./lib/db');
-const fs = require('fs');
+const { initDb, flush } = require('./lib/db');
 
-// Pehli baar db.json check karo
-readDb();
-console.log(`📁 Database file: ${DB_PATH}`);
+async function start() {
+  try {
+    await initDb();
+  } catch (err) {
+    console.error('❌ Database init failed:', err.message);
+    console.error('   Set DATABASE_URL and ensure PostgreSQL is running.');
+    process.exit(1);
+  }
 
-// Seed check
-const db = readDb();
-if (!db.users?.length) {
-  console.log('⚠️  No users found. Run: npm run seed');
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log('');
+    console.log('========================================');
+    console.log('  NDFA Backend API Server');
+    console.log(`  URL: http://0.0.0.0:${port}/api/v1`);
+    console.log(`  Health: http://0.0.0.0:${port}/api/v1/health`);
+    console.log('  DB: PostgreSQL (ndfa_docs)');
+    console.log('========================================');
+    console.log('');
+  });
+
+  const shutdown = async () => {
+    console.log('Shutting down…');
+    await flush();
+    server.close(() => process.exit(0));
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
-app.listen(port, '0.0.0.0', () => {
-  console.log('');
-  console.log('========================================');
-  console.log('  NDFA Backend API Server');
-  console.log(`  URL: http://0.0.0.0:${port}/api/v1`);
-  console.log(`  Health: http://0.0.0.0:${port}/api/v1/health`);
-  console.log('========================================');
-  console.log('');
-});
+start();

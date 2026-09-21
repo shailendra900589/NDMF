@@ -25,4 +25,8 @@ module.exports = {
   corsOrigins,
   publicApiUrl: process.env.PUBLIC_API_URL || 'http://13.60.224.155/api/v1',
   trustProxy: process.env.TRUST_PROXY === 'true' || process.env.NODE_ENV === 'production',
+  /** PostgreSQL connection string */
+  databaseUrl:
+    process.env.DATABASE_URL ||
+    'postgresql://ndfa:ndfa1234@127.0.0.1:5432/ndfa',
 };

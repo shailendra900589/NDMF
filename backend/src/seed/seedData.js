@@ -1,8 +1,10 @@
 /**
- * SEED DATA — v2.1 (RBAC + branches, no collections)
+ * SEED DATA — v2.2 (PostgreSQL)
+ * Run: npm run seed
  */
+require('dotenv').config();
 const bcrypt = require('bcryptjs');
-const { writeDb } = require('../lib/db');
+const { initDb, writeDb, flush } = require('../lib/db');
 const { ROLE_DEFAULTS } = require('../lib/rbac');
 
 const DEMO_PASSWORD = 'ndfa1234';
@@ -94,10 +96,24 @@ const seedData = {
   attendance: [],
   tracking: [],
   callLogs: [],
+  leads: [],
+  loans: [],
+  collections: [],
+  digilockerSessions: [],
 };
 
-writeDb(seedData);
-console.log('✅ Seed v2.1 — RBAC + branches (collections removed)');
-console.log('Password (all):', DEMO_PASSWORD);
-console.log('Admin:', '9000000001', '| BM Delhi:', '9000000002', '| FO Delhi:', '9000000003');
-console.log('BM Mumbai:', '9000000004', '| FO Mumbai:', '9000000005');
+(async () => {
+  try {
+    await initDb();
+    writeDb(seedData);
+    await flush();
+    console.log('✅ Seed v2.2 — PostgreSQL RBAC + branches');
+    console.log('Password (all):', DEMO_PASSWORD);
+    console.log('Admin:', '9000000001', '| BM Delhi:', '9000000002', '| FO Delhi:', '9000000003');
+    console.log('BM Mumbai:', '9000000004', '| FO Mumbai:', '9000000005');
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Seed failed:', err.message);
+    process.exit(1);
+  }
+})();
