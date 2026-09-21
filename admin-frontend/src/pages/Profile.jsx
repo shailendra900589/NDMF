@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
+import { displayLocation, displayRole } from '../utils/displayLabels';
 
 function roleLabel(role) {
-  if (role === 'branchManager') return 'Branch Manager';
-  if (role === 'fieldOfficer') return 'Employee';
-  if (role === 'admin') return 'Administrator';
-  return role || '—';
+  return displayRole(role);
 }
 
 export default function Profile() {
@@ -60,7 +58,7 @@ export default function Profile() {
     <div className="profile-page">
       <PageHeader
         title="My Profile"
-        description="Update your display name and password. Manage branch employees under Users & Permissions."
+        description="Update your display name and password. Manage team employees under Users & Permissions."
       />
 
       <div className="profile-hero card">
@@ -72,7 +70,7 @@ export default function Profile() {
           <div className="chip-row">
             <span className="chip">{roleLabel(stored.role)}</span>
             <span className="chip chip--muted">{stored.mobile}</span>
-            <span className="chip chip--muted">{stored.branch || 'All branches'}</span>
+            <span className="chip chip--muted">{displayLocation(stored.branch) === '—' && stored.role === 'admin' ? 'All locations' : displayLocation(stored.branch)}</span>
           </div>
         </div>
         {stored.role === 'branchManager' && (

@@ -52,7 +52,7 @@ export default function Login() {
         <form className="login-form" onSubmit={handleLogin} noValidate>
           <h2 className="login-form__title">Sign in</h2>
           <p className="login-form__lead">
-            Admin, branch managers &amp; employees
+            Admin, managers &amp; employees
           </p>
 
           <div className="form-group">
@@ -105,7 +105,7 @@ export default function Login() {
         </form>
 
         <p className="login-foot">
-          Admin sees all branches · others see their branch only
+          Admin sees all locations · others see their location only
         </p>
       </div>
     </div>

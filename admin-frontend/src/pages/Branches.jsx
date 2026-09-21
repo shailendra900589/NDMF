@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { branchesApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
+import { displayLocation } from '../utils/displayLabels';
 
 export default function Branches() {
   const [branches, setBranches] = useState([]);
@@ -31,13 +32,13 @@ export default function Branches() {
     }
   };
 
-  if (loading) return <PageLoader label="Loading branches..." />;
+  if (loading) return <PageLoader label="Loading locations..." />;
 
   return (
     <div>
-      <PageHeader title="Branches" description="Organization branches — admin can add and manage locations.">
+      <PageHeader title="Locations" description="Organization locations — admin can add and manage offices.">
         <button type="button" className="btn btn-primary" onClick={() => setForm({ name: '', city: '', state: '', address: '' })}>
-          + Add branch
+          + Add location
         </button>
       </PageHeader>
       <div className="card">
@@ -55,7 +56,7 @@ export default function Branches() {
           <tbody>
             {branches.map((b) => (
               <tr key={b.id}>
-                <td>{b.name}</td>
+                <td>{displayLocation(b.name)}</td>
                 <td>{b.code}</td>
                 <td>{b.city}</td>
                 <td>{b.state}</td>
@@ -69,7 +70,7 @@ export default function Branches() {
       {form && (
         <div className="modal-backdrop">
           <div className="card" style={{ width: 400 }}>
-            <h3>New branch</h3>
+            <h3>New location</h3>
             {['name', 'city', 'state', 'address'].map((field) => (
               <div key={field} className="form-group">
                 <label>{field}</label>

@@ -6,7 +6,7 @@ export const PERMISSION_LABELS = {
   tracking: 'GPS Tracking',
   callLogs: 'Call Logs',
   users: 'User management',
-  branches: 'Branches',
+  branches: 'Locations',
 };
 
 export function getUserPermissions(user) {

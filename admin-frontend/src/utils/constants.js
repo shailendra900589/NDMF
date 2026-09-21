@@ -1,13 +1,13 @@
 export const ROLES = {
-  fieldOfficer: 'Field Officer',
-  branchManager: 'Branch Manager',
+  fieldOfficer: 'Employee',
+  branchManager: 'Manager',
   admin: 'Admin',
 };
 
 export const LOAN_STATUS = {
   draft: 'Draft',
   verificationPending: 'Verification Pending',
-  branchPending: 'Branch Pending',
+  branchPending: 'Manager Pending',
   adminPending: 'Admin Pending',
   approved: 'Approved',
   rejected: 'Rejected',
@@ -16,7 +16,7 @@ export const LOAN_STATUS = {
 
 export const LISTING_STATUS = {
   draft: 'Draft',
-  branchPending: 'Branch Pending',
+  branchPending: 'Manager Pending',
   adminPending: 'Admin Pending',
   listed: 'Listed',
   rejected: 'Rejected',

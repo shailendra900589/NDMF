@@ -4,10 +4,11 @@ import { usersApi, branchesApi } from '../api/api';
 import { PERMISSION_LABELS } from '../utils/permissions';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
+import { displayLocation, displayRole } from '../utils/displayLabels';
 
 const ROLE_LABELS = {
-  fieldOfficer: 'Field Officer',
-  branchManager: 'Branch Manager',
+  fieldOfficer: 'Employee',
+  branchManager: 'Manager',
   admin: 'Admin',
 };
 
@@ -114,11 +115,11 @@ export default function Users() {
   return (
     <div>
       <PageHeader
-        title={isAdmin ? 'Users & Permissions' : 'Branch employees'}
+        title={isAdmin ? 'Users & Permissions' : 'Team employees'}
         description={
           isAdmin
-            ? 'Manage all branches, roles, and module access.'
-            : `Field Officers in ${me.branch} only. Update your account in My Profile.`
+            ? 'Manage all locations, roles, and module access.'
+            : `Employees in ${displayLocation(me.branch)} only. Update your account in My Profile.`
         }
       >
         <button type="button" className="btn btn-primary" onClick={openCreate}>
@@ -134,7 +135,7 @@ export default function Users() {
               <th>Name</th>
               <th>Mobile</th>
               <th>Role</th>
-              <th>Branch</th>
+              <th>Location</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -143,7 +144,7 @@ export default function Users() {
             {users.length === 0 && (
               <tr>
                 <td colSpan={6} style={{ padding: 24, color: '#6b7280' }}>
-                  No employees yet. Use &quot;Add employee&quot; to create a Field Officer.
+                  No employees yet. Use &quot;Add employee&quot; to create an Employee.
                 </td>
               </tr>
             )}
@@ -152,7 +153,7 @@ export default function Users() {
                 <td>{u.name}</td>
                 <td>{u.mobile}</td>
                 <td>{ROLE_LABELS[u.role] || u.role}</td>
-                <td>{u.branch}</td>
+                <td>{displayLocation(u.branch)}</td>
                 <td>{u.isActive === false ? 'Disabled' : 'Active'}</td>
                 <td>
                   <button type="button" className="btn btn-outline btn-sm" onClick={() => openEdit(u)}>
@@ -169,7 +170,7 @@ export default function Users() {
       {form && (
         <div className="modal-backdrop">
           <div className="card" style={{ width: 'min(520px, 94vw)' }}>
-            <h3>{editId ? 'Edit employee' : isAdmin ? 'Create user' : 'Add Field Officer'}</h3>
+            <h3>{editId ? 'Edit employee' : isAdmin ? 'Create user' : 'Add Employee'}</h3>
             <div className="form-group">
               <label>Name</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -214,7 +215,7 @@ export default function Users() {
               </p>
             )}
             <div className="form-group">
-              <label>Branch</label>
+              <label>Location</label>
               <select
                 value={form.branch}
                 disabled={!isAdmin}

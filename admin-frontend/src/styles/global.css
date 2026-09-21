@@ -967,7 +967,72 @@ tbody tr:last-child td { border-bottom: none; }
   padding: 2px 8px;
   border-radius: 999px;
 }
-.att-roster__list { list-style: none; margin: 0; padding: 8px; max-height: 640px; overflow-y: auto; }
+.att-roster__list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  /* ~10 employee rows then scroll */
+  max-height: 620px;
+  overflow-y: auto;
+}
+
+.att-filters {
+  margin-bottom: 20px;
+  padding: 16px 18px;
+}
+
+.att-filters__grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1.2fr 1.2fr auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.att-filters .form-group { margin-bottom: 0; }
+
+.att-filters label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.att-filters input,
+.att-filters select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  background: #fff;
+}
+
+.att-filters input:focus,
+.att-filters select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+}
+
+.att-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1000px) {
+  .att-filters__grid { grid-template-columns: 1fr 1fr; }
+  .att-filters__actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+@media (max-width: 640px) {
+  .att-filters__grid { grid-template-columns: 1fr; }
+}
 .att-roster__item {
   width: 100%;
   display: flex;

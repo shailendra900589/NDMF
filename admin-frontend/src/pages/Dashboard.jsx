@@ -3,6 +3,7 @@ import { dashboardApi } from '../api/api';
 import RecordingPlayer from '../components/RecordingPlayer';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
+import { displayLocation } from '../utils/displayLabels';
 
 const STAT_META = {
   'Team members': { tone: 'teal', abbr: 'TM' },
@@ -48,15 +49,15 @@ export default function Dashboard() {
       />
 
       <div className={`scope-banner${isAllBranches ? ' scope-banner--admin' : ''}`}>
-        <div className="scope-banner__icon">{isAllBranches ? 'ALL' : 'BR'}</div>
+        <div className="scope-banner__icon">{isAllBranches ? 'ALL' : 'LOC'}</div>
         <div>
           <div className="scope-banner__title">
-            {isAllBranches ? 'Organization-wide view' : 'Branch-scoped view'}
+            {isAllBranches ? 'Organization-wide view' : 'Location-scoped view'}
           </div>
           <div className="scope-banner__text">
             {isAllBranches
-              ? `${stats?.branchCount ?? 0} active branches · all employee & customer data`
-              : `${stats?.branch || user.branch} · only this branch’s data is shown`}
+              ? `${stats?.branchCount ?? 0} active locations · all employee & customer data`
+              : `${displayLocation(stats?.branch || user.branch)} · only this location’s data is shown`}
           </div>
         </div>
         <div className="scope-banner__badge">
@@ -99,7 +100,7 @@ export default function Dashboard() {
               </div>
               <span className="recording-row__info">
                 {r.employeeName || r.employeeId} · {r.duration} · {r.time}
-                {r.branch ? ` · ${r.branch}` : ''}
+                {r.branch ? ` · ${displayLocation(r.branch)}` : ''}
               </span>
               {r.callSummary && (
                 <p className="recording-row__summary">{r.callSummary}</p>

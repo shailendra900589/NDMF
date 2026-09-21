@@ -21,7 +21,7 @@ export default function Customers() {
 
   return (
     <div>
-      <PageHeader title="Customers" description="Listed customers after approval — scoped to your branch." />
+      <PageHeader title="Customers" description="Listed customers after approval — scoped to your location." />
       <div className="search-bar">
         <input
           placeholder="Search by name or mobile..."

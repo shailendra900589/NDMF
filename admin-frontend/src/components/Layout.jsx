@@ -4,6 +4,7 @@
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { authApi } from '../api/api';
 import { filterNavByPermissions } from '../utils/permissions';
+import { displayLocation, displayRole } from '../utils/displayLabels';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', end: true, permission: 'dashboard', icon: 'dashboard' },
@@ -13,7 +14,7 @@ const NAV_ITEMS = [
   { to: '/tracking', label: 'Tracking', permission: 'tracking', icon: 'tracking' },
   { to: '/call-logs', label: 'Call Logs', permission: 'callLogs', icon: 'calls' },
   { to: '/users', label: 'Users & Permissions', permission: 'users', icon: 'users' },
-  { to: '/branches', label: 'Branches', permission: 'branches', adminOnly: true, icon: 'branches' },
+  { to: '/branches', label: 'Locations', permission: 'branches', adminOnly: true, icon: 'branches' },
 ];
 
 function NavIcon({ name }) {
@@ -47,10 +48,7 @@ function NavIcon({ name }) {
 }
 
 function roleLabel(role) {
-  if (role === 'branchManager') return 'Branch Manager';
-  if (role === 'fieldOfficer') return 'Employee';
-  if (role === 'admin') return 'Administrator';
-  return role;
+  return displayRole(role);
 }
 
 export default function Layout() {
@@ -69,7 +67,7 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const scopeLabel = isAdmin ? 'All branches' : user.branch || '—';
+  const scopeLabel = isAdmin ? 'All locations' : displayLocation(user.branch);
   const initials = (user.name || 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   const onProfile = location.pathname === '/profile';
 
