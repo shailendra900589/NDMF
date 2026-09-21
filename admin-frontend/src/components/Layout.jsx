@@ -39,6 +39,8 @@ function NavIcon({ name }) {
       return <svg {...props}><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><path d="M9 22V12h6v10" /></svg>;
     case 'profile':
       return <svg {...props}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
+    case 'logout':
+      return <svg {...props}><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
     default:
       return null;
   }
@@ -102,6 +104,10 @@ export default function Layout() {
             <span className="nav-link__icon"><NavIcon name="profile" /></span>
             <span className="nav-link__label">My Profile</span>
           </Link>
+          <button type="button" className="sidebar-logout-btn" onClick={logout}>
+            <span className="nav-link__icon"><NavIcon name="logout" /></span>
+            <span>Logout</span>
+          </button>
         </div>
       </aside>
 
@@ -118,7 +124,6 @@ export default function Layout() {
                 <span>{roleLabel(user.role)} · {scopeLabel}</span>
               </div>
             </div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={logout}>Logout</button>
           </div>
         </header>
         <main className="content">
