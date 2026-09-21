@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Full fix for ndclients.co.in — run on AWS:
-#   cd ~/NDMF && bash deploy/fix-all.sh
+# Full production fix on EC2 — run: bash deploy/fix-all.sh
 set -euo pipefail
 cd ~/NDMF
 
 echo "==> 1. Git pull"
-mv -f admin-frontend/.env.production /tmp/env.prod.bak 2>/dev/null || true
 git fetch origin
 git reset --hard origin/main
 
@@ -13,24 +11,18 @@ echo "==> 2. Env (domain)"
 cp -f deploy/ndclients.backend.env backend/.env
 cp -f deploy/ndclients.admin.env admin-frontend/.env.production
 
-echo "==> 3. Install pg + deps (use npm install, not ci if lock was old)"
+echo "==> 3. Backend deps (npm install keeps lock in sync)"
 cd ~/NDMF/backend
-npm install
+npm install --omit=dev
 
 echo "==> 4. PostgreSQL check"
-if ! command -v psql >/dev/null 2>&1; then
-  sudo apt-get update
-  sudo apt-get install -y postgresql postgresql-contrib
-  sudo systemctl enable --now postgresql
-fi
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='ndfa'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE USER ndfa WITH PASSWORD 'ndfa1234';"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='ndfa'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE DATABASE ndfa OWNER ndfa;"
-sudo -u postgres psql -d ndfa -c "GRANT ALL ON SCHEMA public TO ndfa;" || true
+sudo -u postgres psql -c "SELECT 1" >/dev/null 2>&1 || {
+  echo "PostgreSQL not ready — see deploy/POSTGRES_SETUP.md"
+  exit 1
+}
+sudo -u postgres psql -c "GRANT ALL ON SCHEMA public TO ndfa;" 2>/dev/null || true
 
 echo "==> 5. Seed"
-cd ~/NDMF/backend
 npm run seed
 
 echo "==> 6. Free port 5000 + pm2"
@@ -54,7 +46,7 @@ sudo ln -sf /etc/nginx/sites-available/ndmf /etc/nginx/sites-enabled/ndmf
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl enable nginx
-sudo systemctl restart nginx
+sudo systemctl reload nginx
 
 echo "==> 9. Firewall"
 sudo ufw allow OpenSSH || true
@@ -63,17 +55,23 @@ sudo ufw allow 443/tcp || true
 echo "y" | sudo ufw enable || true
 
 echo "==> 10. SSL (Let's Encrypt) for ndclients.co.in"
-if ! command -v certbot >/dev/null 2>&1; then
+# Only runs if DNS A record already points here
+if dig +short ndclients.co.in A | grep -q .; then
   sudo apt-get install -y certbot python3-certbot-nginx
+  sudo certbot --nginx -d ndclients.co.in -d www.ndclients.co.in \
+    --non-interactive --agree-tos -m admin@ndclients.co.in --redirect \
+    || echo "WARN: certbot failed — DNS may still be propagating. Site works on HTTP."
+else
+  echo "SKIP SSL: no A record for ndclients.co.in yet."
+  echo "Add Route53 A → 13.60.224.155 then re-run:"
+  echo "  sudo certbot --nginx -d ndclients.co.in -d www.ndclients.co.in --non-interactive --agree-tos -m admin@ndclients.co.in --redirect"
 fi
-sudo certbot --nginx -d ndclients.co.in -d www.ndclients.co.in --non-interactive --agree-tos -m admin@ndclients.co.in --redirect || \
-  echo "WARN: certbot failed — DNS may still be propagating. Site works on HTTP."
 
 echo ""
 echo "DONE."
-echo " HTTP:  http://ndclients.co.in/"
+echo " HTTP:  http://13.60.224.155/"
 echo " HTTPS: https://ndclients.co.in/  (if certbot OK)"
-echo " Health: http://ndclients.co.in/api/v1/health"
+echo " Health: http://13.60.224.155/api/v1/health"
 curl -sS http://127.0.0.1/api/v1/health || true
 echo ""
 pm2 status

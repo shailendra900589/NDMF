@@ -1,9 +1,9 @@
 /**
- * API CLIENT — production: https://ndclients.co.in/api/v1 (VITE_API_BASE)
+ * API CLIENT — same-origin /api/v1 behind nginx (works on IP + domain)
  */
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://ndclients.co.in/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE,

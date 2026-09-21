@@ -18,7 +18,7 @@ fi
 
 echo "==> Backend deps + seed"
 cd ~/NDMF/backend
-npm ci --omit=dev
+npm install --omit=dev
 npm run seed || true
 
 echo "==> Start API with pm2"
@@ -30,8 +30,11 @@ pm2 startup systemd -u ubuntu --hp /home/ubuntu | tail -n 1 | bash || true
 
 echo "==> Build admin"
 cd ~/NDMF/admin-frontend
-npm ci
+npm install
 npm run build
+sudo mkdir -p /var/www/ndmf
+sudo rsync -a --delete dist/ /var/www/ndmf/
+sudo chown -R www-data:www-data /var/www/ndmf
 
 echo "==> Nginx"
 sudo apt-get install -y nginx
@@ -46,13 +49,12 @@ echo "==> Firewall (ufw)"
 sudo ufw allow OpenSSH || true
 sudo ufw allow 80/tcp || true
 sudo ufw allow 443/tcp || true
-sudo ufw allow 5000/tcp || true
 echo "y" | sudo ufw enable || true
 
 echo ""
 echo "DONE. Open:  http://13.60.224.155/"
 echo "Health:      http://13.60.224.155/api/v1/health"
-echo "NOTE: use HTTP not HTTPS until SSL certificate is set."
+echo "NOTE: HTTP only until Route53 A record + certbot. See deploy/DNS_SSL.md"
 pm2 status
 curl -sS http://127.0.0.1/api/v1/health || true
 echo ""

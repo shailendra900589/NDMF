@@ -5,8 +5,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class ApiConstants {
   ApiConstants._();
 
-  /// Production — https://ndclients.co.in
+  /// Production domain (after DNS A record + Let's Encrypt).
   static const String productionBaseUrl = 'https://ndclients.co.in/api/v1';
+  /// Use while DNS/SSL not ready yet.
+  static const String productionIpBaseUrl = 'http://13.60.224.155/api/v1';
+  /// true = hit EC2 IP over HTTP until ndclients.co.in resolves + HTTPS works.
+  static const bool useProductionIp = true;
 
   /// true = live server. false = local backend.
   static const bool useProduction = true;
@@ -16,7 +20,9 @@ class ApiConstants {
   static const String deviceHost = '192.168.1.19';
 
   static String get baseUrl {
-    if (useProduction) return productionBaseUrl;
+    if (useProduction) {
+      return useProductionIp ? productionIpBaseUrl : productionBaseUrl;
+    }
     if (!kIsWeb &&
         (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       return 'http://127.0.0.1:5000/api/v1';
