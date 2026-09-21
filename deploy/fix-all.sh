@@ -54,24 +54,36 @@ sudo ufw allow 80/tcp || true
 sudo ufw allow 443/tcp || true
 echo "y" | sudo ufw enable || true
 
-echo "==> 10. SSL (Let's Encrypt) for ndclients.co.in"
-# Only runs if DNS A record already points here
-if dig +short ndclients.co.in A | grep -q .; then
+echo "==> 10. SSL (Let's Encrypt) — only if DNS A exists"
+DNS_IP=$(dig +short ndclients.co.in A @8.8.8.8 | head -n1 || true)
+if [[ "${DNS_IP}" == "13.60.224.155" ]]; then
   sudo apt-get install -y certbot python3-certbot-nginx
   sudo certbot --nginx -d ndclients.co.in -d www.ndclients.co.in \
     --non-interactive --agree-tos -m admin@ndclients.co.in --redirect \
-    || echo "WARN: certbot failed — DNS may still be propagating. Site works on HTTP."
+    || echo "WARN: certbot failed — wait for DNS propagation, then re-run certbot only."
 else
-  echo "SKIP SSL: no A record for ndclients.co.in yet."
-  echo "Add Route53 A → 13.60.224.155 then re-run:"
-  echo "  sudo certbot --nginx -d ndclients.co.in -d www.ndclients.co.in --non-interactive --agree-tos -m admin@ndclients.co.in --redirect"
+  echo ""
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "  DOMAIN STILL BROKEN — no A record for ndclients.co.in"
+  echo "  dig @8.8.8.8 currently: '${DNS_IP:-<empty>}'"
+  echo ""
+  echo "  Scripts CANNOT fix this. Open AWS Console:"
+  echo "  https://console.aws.amazon.com/route53/v2/hostedzones"
+  echo "  Hosted zone ndclients.co.in → Create record:"
+  echo "    A  (blank name) → 13.60.224.155"
+  echo "    A  www          → 13.60.224.155"
+  echo "  Guide: cat deploy/ROUTE53_CLICK.md"
+  echo ""
+  echo "  Until then use: http://13.60.224.155/"
+  echo "  Do NOT re-run fix-all hoping domain will work."
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo ""
 fi
 
 echo ""
-echo "DONE."
-echo " HTTP:  http://13.60.224.155/"
-echo " HTTPS: https://ndclients.co.in/  (if certbot OK)"
-echo " Health: http://13.60.224.155/api/v1/health"
+echo "DONE (server OK on IP)."
+echo " HTTP IP: http://13.60.224.155/"
+echo " Health:  http://13.60.224.155/api/v1/health"
 curl -sS http://127.0.0.1/api/v1/health || true
 echo ""
 pm2 status
