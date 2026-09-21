@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/app_logo.dart';
 import '../../../data/models/enums/app_enums.dart';
-import '../../../config/demo_credentials.dart';
 import '../controllers/auth_controller.dart';
 
 class LoginView extends GetView<AuthController> {
@@ -12,115 +11,204 @@ class LoginView extends GetView<AuthController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 40),
-              const AppLogo(height: 120, showTagline: true),
-              const SizedBox(height: 16),
-              const Text(
-                'Field Force Management',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF071512),
+              Color(0xFF1A4A42),
+              Color(0xFF0F2E2A),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Demo login', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: 12),
+                    const AppLogo(height: 96, showTagline: false),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Nirmaldhara',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Text(
-                      DemoCredentials.helpText,
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+                      'Micro Foundation · Field app',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.72),
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        TextButton(
-                          onPressed: controller.fillFieldOfficerDemo,
-                          child: const Text('Fill Field Officer'),
-                        ),
-                      ],
+                    const SizedBox(height: 28),
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xF2E8F2EC),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.22),
+                            blurRadius: 28,
+                            offset: const Offset(0, 14),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            'Sign in',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Connected to live NDFA server',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Obx(
+                            () => DropdownButtonFormField<UserRole>(
+                              value: controller.selectedRole.value,
+                              decoration: const InputDecoration(
+                                labelText: 'Login as',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: UserRole.values
+                                  .map(
+                                    (r) => DropdownMenuItem(
+                                      value: r,
+                                      child: Text(r.label),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) controller.selectedRole.value = v;
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: controller.mobileField,
+                            decoration: const InputDecoration(
+                              labelText: 'Mobile number',
+                              prefixIcon: Icon(Icons.phone_outlined),
+                              border: OutlineInputBorder(),
+                              counterText: '',
+                            ),
+                            keyboardType: TextInputType.phone,
+                            maxLength: 10,
+                          ),
+                          const SizedBox(height: 14),
+                          Obx(
+                            () => TextFormField(
+                              controller: controller.passwordField,
+                              decoration: InputDecoration(
+                                labelText: 'Password',
+                                prefixIcon: const Icon(Icons.lock_outline),
+                                border: const OutlineInputBorder(),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    controller.obscurePassword.value
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                  ),
+                                  onPressed: controller.togglePasswordVisibility,
+                                ),
+                              ),
+                              obscureText: controller.obscurePassword.value,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Obx(
+                                () => Checkbox(
+                                  value: controller.rememberMe.value,
+                                  activeColor: AppColors.primary,
+                                  onChanged: (v) =>
+                                      controller.rememberMe.value = v ?? false,
+                                ),
+                              ),
+                              const Text('Remember me'),
+                              const Spacer(),
+                              TextButton(
+                                onPressed: controller.showOtpLogin,
+                                child: const Text('OTP login'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Obx(
+                            () => SizedBox(
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed:
+                                    controller.isLoading.value ? null : controller.login,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: controller.isLoading.value
+                                    ? const SizedBox(
+                                        height: 22,
+                                        width: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.4,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Sign in',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Live API · ndclients.co.in',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              Obx(() => DropdownButtonFormField<UserRole>(
-                    value: controller.selectedRole.value,
-                    decoration: const InputDecoration(labelText: 'Login As'),
-                    items: UserRole.values
-                        .map((r) => DropdownMenuItem(value: r, child: Text(r.label)))
-                        .toList(),
-                    onChanged: (v) => controller.selectedRole.value = v!,
-                  )),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: controller.mobileField,
-                decoration: const InputDecoration(
-                  labelText: 'Mobile Number',
-                  prefixIcon: Icon(Icons.phone),
-                ),
-                keyboardType: TextInputType.phone,
-                maxLength: 10,
-              ),
-              const SizedBox(height: 8),
-              Obx(() => TextFormField(
-                    controller: controller.passwordField,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock),
-                      suffixIcon: IconButton(
-                        icon: Icon(controller.obscurePassword.value
-                            ? Icons.visibility_off
-                            : Icons.visibility),
-                        onPressed: controller.togglePasswordVisibility,
-                      ),
-                    ),
-                    obscureText: controller.obscurePassword.value,
-                  )),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Obx(() => Checkbox(
-                        value: controller.rememberMe.value,
-                        activeColor: AppColors.primary,
-                        onChanged: (v) => controller.rememberMe.value = v ?? false,
-                      )),
-                  const Text('Remember me'),
-                  const Spacer(),
-                  TextButton(onPressed: controller.forgotPassword, child: const Text('Forgot Password?')),
-                ],
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: controller.showOtpLogin,
-                icon: const Icon(Icons.sms),
-                label: const Text('Login with OTP'),
-              ),
-              const SizedBox(height: 24),
-              Obx(() => ElevatedButton(
-                    onPressed: controller.isLoading.value ? null : controller.login,
-                    child: controller.isLoading.value
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text('Login'),
-                  )),
-            ],
+            ),
           ),
         ),
       ),

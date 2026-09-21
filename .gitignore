@@ -48,6 +48,8 @@ mobile-app/.pub/
 
 mobile-app/build/
 
+mobile-app/*.apk
+
 mobile-app/android/local.properties
 
 mobile-app/android/app/debug

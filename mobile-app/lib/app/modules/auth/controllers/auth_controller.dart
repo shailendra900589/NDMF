@@ -22,7 +22,7 @@ class AuthController extends GetxController {
   void onInit() {
     super.onInit();
     rememberMe.value = _storage.rememberMe;
-    fillFieldOfficerDemo();
+    // Production: do not auto-fill demo credentials
   }
 
   @override
@@ -65,9 +65,13 @@ class AuthController extends GetxController {
       }
       _navigateAfterLogin();
     } catch (e) {
-      final msg = e.toString().contains('Connection') || e.toString().contains('internet')
-          ? 'Cannot reach server. Start backend (npm run dev) and check api_constants.dart (10.0.2.2 emulator or PC WiFi IP on phone).'
-          : e.toString();
+      final raw = e.toString();
+      final msg = raw.contains('SocketException') ||
+              raw.contains('Connection') ||
+              raw.contains('Failed host lookup') ||
+              raw.contains('internet')
+          ? 'Cannot reach live server. Check internet and try again.'
+          : raw.replaceFirst('Exception: ', '');
       Get.snackbar('Login Failed', msg);
     } finally {
       isLoading.value = false;

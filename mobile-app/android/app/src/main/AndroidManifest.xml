@@ -22,10 +22,10 @@
     <uses-feature android:name="android.hardware.location.gps" android:required="false"/>
 
     <application
-        android:label="Nirmaldhara Micro Foundation"
+        android:label="Nirmaldhara"
         android:name="${applicationName}"
-        android:icon="@drawable/ic_launcher_legacy"
-        android:roundIcon="@drawable/ic_launcher_legacy"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
 
         <activity

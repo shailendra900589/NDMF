@@ -24,7 +24,7 @@ class NirmaldharaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'Nirmaldhara Micro Finance',
+      title: 'Nirmaldhara',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialBinding: InitialBinding(),

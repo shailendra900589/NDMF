@@ -54,7 +54,11 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
       if (Get.isRegistered<CallService>()) {
         await Get.find<CallService>().refreshFromServer();
       }
-      await _pullListingsCache();
+      await Future.wait([
+        _pullListingsCache(),
+        _pullCustomersCache(),
+        _pullAttendanceCache(),
+      ]);
       lastRefreshAt.value = DateTime.now();
       if (!silent) {
         Get.snackbar('Updated', 'Latest data synced from server');
@@ -71,6 +75,26 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
       final list = await _api.getCustomerListings();
       _storage.writeList(
         ApiConstants.customerListingsKey,
+        list.map((e) => e.toJson()).toList(),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _pullCustomersCache() async {
+    try {
+      final list = await _api.getCustomers();
+      _storage.writeList(
+        'customers_cache',
+        list.map((e) => e.toJson()).toList(),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _pullAttendanceCache() async {
+    try {
+      final list = await _api.getAttendanceHistory();
+      _storage.writeList(
+        ApiConstants.attendanceKey,
         list.map((e) => e.toJson()).toList(),
       );
     } catch (_) {}
