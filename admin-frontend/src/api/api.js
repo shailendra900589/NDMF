@@ -29,7 +29,8 @@ api.interceptors.response.use(
 );
 
 export const authApi = {
-  login: (mobile, password, role) => api.post('/auth/login', { mobile, password, role }),
+  login: (mobile, password, role) =>
+    api.post('/auth/login', role ? { mobile, password, role } : { mobile, password }),
   me: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
   updateProfile: (data) => api.put('/auth/profile', data),
