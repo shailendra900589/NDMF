@@ -18,10 +18,15 @@ if (trustProxy) app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// CORS - React admin aur Flutter app dono connect kar saken
+// CORS — admin web + Flutter (mobile often has no Origin header)
 app.use(
   cors({
-    origin: corsOrigins,
+    origin(origin, callback) {
+      if (!origin || corsOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true,
   })
 );
