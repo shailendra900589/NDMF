@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class ApiConstants {
   ApiConstants._();
 
-  /// Production — AWS public IP (switch to https://ndclients.co.in/api/v1 after DNS/SSL)
-  static const String productionBaseUrl = 'http://13.60.224.155/api/v1';
+  /// Production — https://ndclients.co.in
+  static const String productionBaseUrl = 'https://ndclients.co.in/api/v1';
 
   /// true = live server. false = local backend.
   static const bool useProduction = true;
