@@ -1,54 +1,69 @@
-# DNS + SSL for ndclients.co.in
+# Fix ndclients.co.in DNS (NXDOMAIN / site can't be reached)
 
-## Current status
+## What works now
 
-| Check | Result |
-|-------|--------|
-| API on IP | ✅ `http://13.60.224.155/api/v1/health` |
-| Admin on IP | ✅ `http://13.60.224.155/` |
-| PostgreSQL + seed | ✅ |
-| pm2 `ndfa-api` | ✅ |
-| Domain nameservers | ✅ Route53 (`*.awsdns-*.com`) |
-| **A record** | ❌ **missing** — this blocks domain + SSL |
-| www | ❌ NXDOMAIN |
+| URL | Status |
+|-----|--------|
+| http://13.60.224.155/login | ✅ Admin login (HTTP = "Not secure" is normal) |
+| http://13.60.224.155/api/v1/health | ✅ API OK |
+| http://ndclients.co.in | ❌ **No A record** in Route 53 |
 
-Certbot failed earlier with: `no valid A records found for ndclients.co.in`.
+Chrome `DNS_PROBE_FINISHED_NXDOMAIN` = browser ko domain ka IP nahi milta.
 
-## Fix in AWS Route 53 (required)
+Nameservers already AWS Route 53 pe hain (`ns-*.awsdns-*`). Zone empty hai — sirf **A record** add karna hai.
 
-1. AWS Console → **Route 53** → **Hosted zones** → `ndclients.co.in`
-2. **Create record**:
-   - Record name: *(blank / `@`)*
+---
+
+## FIX (pick one)
+
+### Option 1 — AWS Console (2 minutes)
+
+1. Open **AWS Console** → search **Route 53**
+2. **Hosted zones** → click **`ndclients.co.in`**
+3. **Create record**
+   - Record name: leave **empty**
    - Record type: **A**
    - Value: **`13.60.224.155`**
-   - TTL: 300
-3. **Create record** again for www:
+   - TTL: **300**
+   - Create
+4. **Create record** again
    - Record name: **`www`**
-   - Type: **A** (or CNAME → `ndclients.co.in`)
+   - Record type: **A**
    - Value: **`13.60.224.155`**
-4. Save. Wait 2–10 minutes.
+   - Create
 
-### Verify
+### Option 2 — From EC2 terminal
 
 ```bash
-nslookup ndclients.co.in 8.8.8.8
-# Address: 13.60.224.155
-
-nslookup www.ndclients.co.in 8.8.8.8
+cd ~/NDMF
+git pull origin main
+chmod +x deploy/create-dns-a-records.sh
+bash deploy/create-dns-a-records.sh
 ```
+
+Agar IAM role missing ho to script Option 1 batayega.
+
+---
+
+## Verify (laptop)
+
+```powershell
+nslookup ndclients.co.in 8.8.8.8
+```
+
+Must show: `Address: 13.60.224.155`
 
 Online: https://dnschecker.org/#A/ndclients.co.in
 
-Registrar pe nameserver already AWS pe hona chahiye (already hai). Sirf **A record** add karna hai Route53 mein.
+---
 
-## After A record shows 13.60.224.155
+## After DNS shows the IP — SSL + rebuild
 
 On EC2:
 
 ```bash
 cd ~/NDMF
 git pull origin main
-chmod +x deploy/fix-all.sh
 bash deploy/fix-all.sh
 ```
 
@@ -59,14 +74,12 @@ sudo certbot --nginx -d ndclients.co.in -d www.ndclients.co.in \
   --non-interactive --agree-tos -m admin@ndclients.co.in --redirect
 ```
 
-## Until DNS is ready — use IP
+Then open: **https://ndclients.co.in/**
 
-- Admin: http://13.60.224.155/
-- API: http://13.60.224.155/api/v1/health
-- Login: `9000000001` / `ndfa1234`
+---
 
-Chrome pe **https://** IP mat kholo — SSL IP pe nahi hai. Sirf **http://**.
+## Until then
 
-## Security Group
-
-Inbound: **22**, **80**, **443** from `0.0.0.0/0` (or your IP for 22).
+Use: **http://13.60.224.155/**  
+Login: `9000000001` / `ndfa1234`  
+Do **not** use `https://` on the raw IP.
