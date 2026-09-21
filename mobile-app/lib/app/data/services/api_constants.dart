@@ -5,14 +5,13 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class ApiConstants {
   ApiConstants._();
 
-  /// Production domain (after DNS A record + Let's Encrypt).
+  /// Live production API (HTTPS).
   static const String productionBaseUrl = 'https://ndclients.co.in/api/v1';
-  /// Use while DNS/SSL not ready yet.
+  /// Emergency fallback only — keep false while SSL works.
   static const String productionIpBaseUrl = 'http://13.60.224.155/api/v1';
-  /// true = hit EC2 IP over HTTP until ndclients.co.in resolves + HTTPS works.
-  static const bool useProductionIp = true;
+  static const bool useProductionIp = false;
 
-  /// true = live server. false = local backend.
+  /// true = live https://ndclients.co.in — false = local backend.
   static const bool useProduction = true;
   /// true = Android emulator (10.0.2.2). false = real phone on same WiFi as PC.
   static const bool useEmulatorHost = true;

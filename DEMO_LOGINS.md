@@ -1,25 +1,29 @@
-# NDFA — Demo login
+# NDFA — Live production logins
 
-> **Password (sab users):** `ndfa1234`  
-> **OTP (mobile app demo):** `123456`
+**Site:** https://ndclients.co.in/  
+**API:** https://ndclients.co.in/api/v1  
+**Password (all users):** `ndfa1234`  
+**OTP (mobile demo):** `123456`
 
-| Role | Mobile | Branch | Kahan login |
-|------|--------|--------|-------------|
-| **Admin** | `9000000001` | All branches | Web https://ndclients.co.in (local: :5173) |
-| **Branch Manager (Delhi)** | `9000000002` | Delhi Main Branch | Web |
-| **Field Officer (Delhi)** | `9000000003` | Delhi Main Branch | Mobile → https://ndclients.co.in/api/v1 |
-| **Branch Manager (Mumbai)** | `9000000004` | Mumbai Branch | Web |
-| **Field Officer (Mumbai)** | `9000000005` | Mumbai Branch | Mobile app |
+| Role | Mobile (Login ID) | Where |
+|------|-------------------|--------|
+| **Admin** | `9000000001` | Web admin |
+| **Branch Manager — Delhi** | `9000000002` | Web admin |
+| **Field Officer — Delhi** | `9000000003` | **Mobile app** |
+| **Branch Manager — Mumbai** | `9000000004` | Web admin |
+| **Field Officer — Mumbai** | `9000000005` | **Mobile app** |
 
-## Branch data rule
+## Mobile app
 
-- **Admin** — saari branches ka data + user/branch management  
-- **Branch Manager** — sirf apni branch + users create (Field Officer) + permissions  
-- **Field Officer** — mobile app, apni branch ka kaam  
+`api_constants.dart` → `useProduction = true`, `useProductionIp = false`  
+→ base URL = `https://ndclients.co.in/api/v1`
 
-## Reset database
+Rebuild / hot-restart the app after pull:
 
 ```bash
-cd backend
-npm run seed
+cd mobile-app
+flutter pub get
+flutter run
 ```
+
+Login as Field Officer: `9000000003` / `ndfa1234`
