@@ -64,8 +64,11 @@ class RemoteApiService extends GetxService {
 
   Future<UserModel?> login(String loginId, String password) async {
     try {
+      final id = loginId.trim();
       final res = await _http.post(ApiConstants.login, data: {
-        'loginId': loginId,
+        'loginId': id,
+        // Backward compatible with older API that only read `mobile`
+        'mobile': id,
         'password': password,
       });
       final user = UserModel.fromJson(_unwrapMap(res));
