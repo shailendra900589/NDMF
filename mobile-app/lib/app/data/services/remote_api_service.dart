@@ -6,6 +6,7 @@ import '../models/loan_model.dart';
 import '../models/customer_model.dart';
 import '../models/dashboard_stats.dart';
 import '../models/attendance_model.dart';
+import '../models/enums/app_enums.dart';
 import '../models/customer_listing_model.dart';
 import 'api_constants.dart';
 import 'api_service.dart';
