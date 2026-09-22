@@ -178,11 +178,11 @@ export default function Users() {
             {!editId && (
               <>
                 <div className="form-group">
-                  <label>Mobile (login ID)</label>
+                  <label>Mobile number</label>
                   <input value={form.mobile} maxLength={10} onChange={(e) => setForm({ ...form, mobile: e.target.value.replace(/\D/g, '') })} />
                 </div>
                 <div className="form-group">
-                  <label>Employee ID</label>
+                  <label>Employee ID (Login ID)</label>
                   <input value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} />
                 </div>
                 <div className="form-group">

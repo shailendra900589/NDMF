@@ -5,9 +5,13 @@ class NotificationService extends GetxService {
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
 
   Future<NotificationService> init() async {
-    const androidSettings = AndroidInitializationSettings('@drawable/ic_launcher_legacy');
-    const initSettings = InitializationSettings(android: androidSettings);
-    await _plugin.initialize(initSettings);
+    try {
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const initSettings = InitializationSettings(android: androidSettings);
+      await _plugin.initialize(initSettings);
+    } catch (_) {
+      // Never block app open if notification channel fails.
+    }
     return this;
   }
 

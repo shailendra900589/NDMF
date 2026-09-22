@@ -23,7 +23,8 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
   Future<DataRefreshService> init() async {
     WidgetsBinding.instance.addObserver(this);
     _timer = Timer.periodic(_interval, (_) => refreshAll(silent: true));
-    await refreshAll(silent: true);
+    // Do not await — refresh in background so app open stays fast.
+    unawaited(refreshAll(silent: true));
     return this;
   }
 

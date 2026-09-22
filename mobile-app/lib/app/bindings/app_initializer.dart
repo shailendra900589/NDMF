@@ -18,11 +18,15 @@ import '../data/services/upload_service.dart';
 import '../data/services/call_service.dart';
 import '../data/services/data_refresh_service.dart';
 
-/// Registers all app services before [runApp]. Order matters for dependencies.
+/// Fast cold start: only storage/connectivity/API before first frame.
+/// Network sync & notifications run after UI is visible.
 class AppInitializer {
   AppInitializer._();
 
-  static Future<void> init() async {
+  static bool _deferredStarted = false;
+
+  /// Must finish before [runApp] — keep this under ~200ms.
+  static Future<void> initCritical() async {
     if (Get.isRegistered<StorageService>()) return;
 
     await Get.putAsync<StorageService>(() => StorageService().init(), permanent: true);
@@ -35,16 +39,46 @@ class AppInitializer {
     Get.put<CameraService>(CameraService(), permanent: true);
     Get.put<VoiceRecordingService>(VoiceRecordingService(), permanent: true);
     Get.put<UploadService>(UploadService(), permanent: true);
-    Get.put<CallService>(CallService(), permanent: true);
 
     await Get.putAsync<ApiService>(() => ApiService().init(), permanent: true);
 
     Get.put<DummyApiService>(DummyApiService(), permanent: true);
     Get.put<RemoteApiService>(RemoteApiService(), permanent: true);
     Get.put<NdfaApiService>(NdfaApiService(), permanent: true);
-    await Get.putAsync<TrackingService>(() => TrackingService().init(), permanent: true);
-    await Get.putAsync<SyncService>(() => SyncService().init(), permanent: true);
-    await Get.putAsync<DataRefreshService>(() => DataRefreshService().init(), permanent: true);
-    await Get.putAsync<NotificationService>(() => NotificationService().init(), permanent: true);
+    Get.put<SyncService>(SyncService(), permanent: true);
+    Get.put<TrackingService>(TrackingService(), permanent: true);
+    Get.put<DataRefreshService>(DataRefreshService(), permanent: true);
+    Get.put<CallService>(CallService(), permanent: true);
+    Get.put<NotificationService>(NotificationService(), permanent: true);
+  }
+
+  /// Background work after first UI frame — never blocks open.
+  static Future<void> initDeferred() async {
+    if (_deferredStarted) return;
+    _deferredStarted = true;
+
+    try {
+      if (Get.isRegistered<SyncService>()) {
+        await Get.find<SyncService>().init();
+      }
+    } catch (_) {}
+
+    try {
+      if (Get.isRegistered<TrackingService>()) {
+        await Get.find<TrackingService>().init();
+      }
+    } catch (_) {}
+
+    try {
+      if (Get.isRegistered<DataRefreshService>()) {
+        await Get.find<DataRefreshService>().init();
+      }
+    } catch (_) {}
+
+    try {
+      if (Get.isRegistered<NotificationService>()) {
+        await Get.find<NotificationService>().init();
+      }
+    } catch (_) {}
   }
 }

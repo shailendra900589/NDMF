@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -14,8 +15,15 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  await AppInitializer.init();
+
+  // Critical only — show UI immediately (no network wait).
+  await AppInitializer.initCritical();
   runApp(const NirmaldharaApp());
+
+  // Sync / tracking / notifications after first frame.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(AppInitializer.initDeferred());
+  });
 }
 
 class NirmaldharaApp extends StatelessWidget {

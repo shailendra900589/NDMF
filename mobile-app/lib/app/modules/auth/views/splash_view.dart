@@ -23,7 +23,7 @@ class _SplashViewState extends State<SplashView>
     super.initState();
     _anim = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 420),
     );
     _fade = CurvedAnimation(parent: _anim, curve: Curves.easeOut);
     _scale = Tween<double>(begin: 0.92, end: 1).animate(
@@ -40,7 +40,8 @@ class _SplashViewState extends State<SplashView>
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 1800));
+    await Future.delayed(const Duration(milliseconds: 450));
+    if (!mounted) return;
     final storage = Get.find<StorageService>();
     if (storage.isLoggedIn) {
       if (storage.hasPin) {

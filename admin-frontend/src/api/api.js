@@ -19,18 +19,27 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res.data,
   (err) => {
-    if (err.response?.status === 401) {
+    const url = err.config?.url || '';
+    const isAuthAttempt =
+      url.includes('/auth/login') ||
+      url.includes('/auth/otp/');
+    if (err.response?.status === 401 && !isAuthAttempt) {
       localStorage.removeItem('ndfa_token');
       localStorage.removeItem('ndfa_user');
-      window.location.href = '/login';
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
-    return Promise.reject(err.response?.data || err);
+    const payload = err.response?.data;
+    return Promise.reject(
+      payload?.message ? { ...payload, message: payload.message } : payload || err
+    );
   }
 );
 
 export const authApi = {
-  login: (mobile, password, role) =>
-    api.post('/auth/login', role ? { mobile, password, role } : { mobile, password }),
+  login: (loginId, password) =>
+    api.post('/auth/login', { loginId, password }),
   me: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
   updateProfile: (data) => api.put('/auth/profile', data),

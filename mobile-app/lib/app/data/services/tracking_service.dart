@@ -23,9 +23,16 @@ class TrackingService extends GetxService {
   StreamSubscription<Position>? _positionStream;
 
   Future<TrackingService> init() async {
-    await _loadTodayReport();
-    await _resumeFromAttendanceIfNeeded();
+    // Fire-and-forget — never block app open on GPS/API.
+    unawaited(_bootstrap());
     return this;
+  }
+
+  Future<void> _bootstrap() async {
+    try {
+      await _loadTodayReport();
+      await _resumeFromAttendanceIfNeeded();
+    } catch (_) {}
   }
 
   Future<void> _resumeFromAttendanceIfNeeded() async {

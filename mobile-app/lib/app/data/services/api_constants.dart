@@ -31,8 +31,8 @@ class ApiConstants {
 
   static const bool useRemoteApi = true;
 
-  static const Duration connectTimeout = Duration(seconds: 30);
-  static const Duration receiveTimeout = Duration(seconds: 30);
+  static const Duration connectTimeout = Duration(seconds: 12);
+  static const Duration receiveTimeout = Duration(seconds: 20);
 
   static const String login = '/auth/login';
   static const String logout = '/auth/logout';

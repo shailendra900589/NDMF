@@ -211,12 +211,19 @@ class DummyApiService extends GetxService {
     storage.writeList(ApiConstants.callLogsKey, logs.map((e) => e.toJson()).toList());
   }
 
-  Future<UserModel?> login(String mobile, String password, UserRole role) async {
-    await Future.delayed(const Duration(seconds: 1));
+  Future<UserModel?> login(String loginId, String password) async {
+    await Future.delayed(const Duration(milliseconds: 400));
 
-    if (mobile.length < 10 || password.length < 4) {
-      throw Exception('Invalid credentials');
+    if (loginId.trim().length < 3 || password.length < 4) {
+      throw Exception('Invalid Login ID or password');
     }
+
+    final id = loginId.trim().toUpperCase();
+    final role = id.startsWith('ADM')
+        ? UserRole.admin
+        : id.startsWith('BM')
+            ? UserRole.branchManager
+            : UserRole.fieldOfficer;
 
     final user = UserModel(
       id: 'U001',
@@ -225,7 +232,7 @@ class DummyApiService extends GetxService {
           : role == UserRole.branchManager
               ? 'Branch Manager'
               : 'Field Officer',
-      mobile: mobile,
+      mobile: loginId.length >= 10 ? loginId : '9000000003',
       employeeId: role == UserRole.admin
           ? 'ADM001'
           : role == UserRole.branchManager

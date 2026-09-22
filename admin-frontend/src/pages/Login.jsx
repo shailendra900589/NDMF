@@ -4,7 +4,7 @@ import { authApi } from '../api/api';
 
 export default function Login() {
   const navigate = useNavigate();
-  const [mobile, setMobile] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -12,8 +12,9 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (mobile.length < 10) {
-      setError('Enter a valid 10-digit mobile number');
+    const id = loginId.trim();
+    if (id.length < 3) {
+      setError('Enter Login ID (Employee ID or mobile)');
       return;
     }
     if (!password) {
@@ -23,7 +24,7 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      const res = await authApi.login(mobile, password);
+      const res = await authApi.login(id, password);
       localStorage.setItem('ndfa_token', res.data.token);
       localStorage.setItem('ndfa_user', JSON.stringify(res.data));
       navigate('/');
@@ -52,19 +53,17 @@ export default function Login() {
         <form className="login-form" onSubmit={handleLogin} noValidate>
           <h2 className="login-form__title">Sign in</h2>
           <p className="login-form__lead">
-            Admin, managers &amp; employees
+            Employee ID or mobile + password — no role select
           </p>
 
           <div className="form-group">
-            <label htmlFor="login-mobile">Mobile number</label>
+            <label htmlFor="login-id">Login ID</label>
             <input
-              id="login-mobile"
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              maxLength={10}
-              inputMode="numeric"
+              id="login-id"
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value.trimStart())}
               autoComplete="username"
-              placeholder="10-digit mobile"
+              placeholder="FO001 or 9000000003"
               disabled={loading}
             />
           </div>

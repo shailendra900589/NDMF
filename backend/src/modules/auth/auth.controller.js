@@ -1,16 +1,15 @@
 /**
  * AUTH CONTROLLER
  * ---------------
- * Login, OTP verify - Flutter app aur React admin dono use karenge.
- *
- * Demo credentials — see DEMO_LOGINS.md:
- *   Admin 9000000001 | BM 9000000002 | FO 9000000003 | Password: ndfa1234 | OTP: 123456
+ * Login by Login ID (employeeId OR mobile) + password only — no role select.
+ * Flutter app aur React admin dono use karenge.
  */
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { findById, getCollection, upsert } = require('../../lib/db');
+const { getCollection, upsert } = require('../../lib/db');
 const { jwtSecret } = require('../../config/env');
 const { success, error } = require('../../lib/response');
+const { effectivePermissions } = require('../../lib/rbac');
 
 const DEMO_OTP = '123456';
 
@@ -18,46 +17,72 @@ function generateToken(user) {
   return jwt.sign({ userId: user.id, role: user.role }, jwtSecret, { expiresIn: '7d' });
 }
 
-const { effectivePermissions } = require('../../lib/rbac');
-
 function sanitizeUser(user) {
   const { password, ...safe } = user;
   safe.permissions = effectivePermissions(user);
   return safe;
 }
 
-exports.login = (req, res) => {
-  const { mobile, password, role } = req.body;
+/** Normalize Login ID from body (loginId | mobile | employeeId). */
+function resolveLoginId(body = {}) {
+  return String(body.loginId || body.mobile || body.employeeId || '')
+    .trim()
+    .replace(/\s+/g, '');
+}
 
-  if (!mobile || !password) {
-    return error(res, 'Mobile and password required');
-  }
-
+/** Find users by employeeId (case-insensitive) or exact mobile. */
+function findByLoginId(loginId) {
   const users = getCollection('users');
-  const candidates = users.filter((u) => u.mobile === mobile);
+  const needle = loginId.toLowerCase();
+  return users.filter((u) => {
+    const mobile = String(u.mobile || '').trim();
+    const emp = String(u.employeeId || '').trim().toLowerCase();
+    return mobile === loginId || emp === needle;
+  });
+}
+
+/**
+ * Pick account: if optional role provided use it (legacy), else first matching password.
+ * Same mobile can have multiple roles — password decides which account.
+ */
+function pickUser(candidates, password, preferredRole) {
+  const withPassword = candidates.filter((u) => {
+    try {
+      return bcrypt.compareSync(password, u.password);
+    } catch {
+      return false;
+    }
+  });
+  if (!withPassword.length) return null;
+  if (preferredRole) {
+    const byRole = withPassword.find((u) => u.role === preferredRole);
+    if (byRole) return byRole;
+  }
+  // Prefer field staff for mobile-style logins when multiple passwords somehow match
+  const fo = withPassword.find((u) => u.role === 'fieldOfficer');
+  return fo || withPassword[0];
+}
+
+exports.login = (req, res) => {
+  const loginId = resolveLoginId(req.body);
+  const password = req.body.password;
+  const role = req.body.role; // optional legacy — not required
+
+  if (!loginId || !password) {
+    return error(res, 'Login ID and password required');
+  }
+
+  const candidates = findByLoginId(loginId);
   if (!candidates.length) {
-    return error(res, 'Invalid mobile number', 401);
+    return error(res, 'Invalid Login ID or password', 401);
   }
 
-  let user = null;
-  if (role) {
-    user = candidates.find((u) => u.role === role);
-  } else if (candidates.length === 1) {
-    user = candidates[0];
-  } else {
-    return error(res, 'Multiple roles on this mobile — select role', 400);
-  }
-
+  const user = pickUser(candidates, password, role || null);
   if (!user) {
-    return error(res, 'Invalid role for this mobile', 401);
+    return error(res, 'Invalid Login ID or password', 401);
   }
   if (user.isActive === false) {
     return error(res, 'Account is disabled. Contact admin.', 403);
-  }
-
-  const valid = bcrypt.compareSync(password, user.password);
-  if (!valid) {
-    return error(res, 'Wrong password', 401);
   }
 
   const token = generateToken(user);
@@ -65,26 +90,39 @@ exports.login = (req, res) => {
 };
 
 exports.sendOtp = (req, res) => {
-  const { mobile } = req.body;
-  if (!mobile || mobile.length < 10) {
-    return error(res, 'Valid mobile number required');
+  const loginId = resolveLoginId(req.body);
+  if (!loginId || loginId.length < 3) {
+    return error(res, 'Valid Login ID or mobile required');
   }
-  // Demo: OTP hamesha 123456 (production me SMS gateway lagayenge)
+  const candidates = findByLoginId(loginId);
+  if (!candidates.length) {
+    return error(res, 'User not found', 404);
+  }
   return success(res, { otpSent: true, demoOtp: DEMO_OTP }, 'OTP sent (demo: 123456)');
 };
 
 exports.verifyOtp = (req, res) => {
-  const { mobile, otp, role } = req.body;
+  const loginId = resolveLoginId(req.body);
+  const { otp, role } = req.body;
 
   if (otp !== DEMO_OTP) {
     return error(res, 'Invalid OTP', 401);
   }
 
-  const users = getCollection('users');
-  const user = users.find((u) => u.mobile === mobile && u.role === (role || 'fieldOfficer'));
-
-  if (!user) {
+  const candidates = findByLoginId(loginId);
+  if (!candidates.length) {
     return error(res, 'User not found', 404);
+  }
+
+  let user = null;
+  if (role) {
+    user = candidates.find((u) => u.role === role);
+  }
+  if (!user) {
+    user = candidates.find((u) => u.role === 'fieldOfficer') || candidates[0];
+  }
+  if (user.isActive === false) {
+    return error(res, 'Account is disabled. Contact admin.', 403);
   }
 
   const token = generateToken(user);
@@ -105,8 +143,6 @@ exports.changePassword = (req, res) => {
     return error(res, 'Valid old and new password required (min 4 chars)');
   }
 
-  const bcrypt = require('bcryptjs');
-  const { getCollection, upsert } = require('../../lib/db');
   const users = getCollection('users');
   const user = users.find((u) => u.id === req.user.id);
   if (!user) return error(res, 'User not found', 404);

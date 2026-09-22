@@ -6,7 +6,6 @@ import '../models/loan_model.dart';
 import '../models/customer_model.dart';
 import '../models/dashboard_stats.dart';
 import '../models/attendance_model.dart';
-import '../models/enums/app_enums.dart';
 import '../models/customer_listing_model.dart';
 import 'api_constants.dart';
 import 'api_service.dart';
@@ -17,6 +16,26 @@ import 'storage_service.dart';
 class RemoteApiService extends GetxService {
   ApiService get _http => Get.find<ApiService>();
   StorageService get _storage => Get.find<StorageService>();
+
+  Never _fail(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) {
+        throw Exception(data['message'].toString());
+      }
+      switch (e.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          throw Exception('Connection timeout. Check internet and try again.');
+        case DioExceptionType.connectionError:
+          throw Exception('Cannot reach server. Check internet and try again.');
+        default:
+          throw Exception('Request failed. Please try again.');
+      }
+    }
+    throw e is Exception ? e : Exception(e.toString());
+  }
 
   dynamic _unwrap(Response res) {
     final body = res.data;
@@ -42,30 +61,40 @@ class RemoteApiService extends GetxService {
 
   // ─── Auth ───
 
-  Future<UserModel?> login(String mobile, String password, UserRole role) async {
-    final res = await _http.post(ApiConstants.login, data: {
-      'mobile': mobile,
-      'password': password,
-      'role': role.name,
-    });
-    final user = UserModel.fromJson(_unwrapMap(res));
-    _storage.saveUser(user);
-    return user;
+  Future<UserModel?> login(String loginId, String password) async {
+    try {
+      final res = await _http.post(ApiConstants.login, data: {
+        'loginId': loginId,
+        'password': password,
+      });
+      final user = UserModel.fromJson(_unwrapMap(res));
+      _storage.saveUser(user);
+      return user;
+    } catch (e) {
+      _fail(e);
+    }
   }
 
-  Future<void> sendOtp(String mobile) async {
-    await _http.post(ApiConstants.otpSend, data: {'mobile': mobile});
+  Future<void> sendOtp(String loginId) async {
+    try {
+      await _http.post(ApiConstants.otpSend, data: {'loginId': loginId});
+    } catch (e) {
+      _fail(e);
+    }
   }
 
-  Future<UserModel?> verifyOtp(String mobile, String otp, UserRole role) async {
-    final res = await _http.post(ApiConstants.otpVerify, data: {
-      'mobile': mobile,
-      'otp': otp,
-      'role': role.name,
-    });
-    final user = UserModel.fromJson(_unwrapMap(res));
-    _storage.saveUser(user);
-    return user;
+  Future<UserModel?> verifyOtp(String loginId, String otp) async {
+    try {
+      final res = await _http.post(ApiConstants.otpVerify, data: {
+        'loginId': loginId,
+        'otp': otp,
+      });
+      final user = UserModel.fromJson(_unwrapMap(res));
+      _storage.saveUser(user);
+      return user;
+    } catch (e) {
+      _fail(e);
+    }
   }
 
   // ─── Dashboard ───

@@ -1,50 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../data/models/enums/app_enums.dart';
 import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/services/data_refresh_service.dart';
-import '../../../config/demo_credentials.dart';
 import '../../../routes/app_routes.dart';
 
 class AuthController extends GetxController {
   NdfaApiService get _api => Get.find<NdfaApiService>();
   StorageService get _storage => Get.find<StorageService>();
 
-  final mobileField = TextEditingController();
+  final loginIdField = TextEditingController();
   final passwordField = TextEditingController();
   final rememberMe = false.obs;
   final isLoading = false.obs;
-  final selectedRole = UserRole.fieldOfficer.obs;
   final obscurePassword = true.obs;
 
   @override
   void onInit() {
     super.onInit();
     rememberMe.value = _storage.rememberMe;
-    // Production: do not auto-fill demo credentials
   }
 
   @override
   void onClose() {
-    mobileField.dispose();
+    loginIdField.dispose();
     passwordField.dispose();
     super.onClose();
-  }
-
-  void fillFieldOfficerDemo() {
-    selectedRole.value = UserRole.fieldOfficer;
-    mobileField.text = DemoCredentials.fieldOfficerMobile;
-    passwordField.text = DemoCredentials.password;
   }
 
   void togglePasswordVisibility() => obscurePassword.value = !obscurePassword.value;
 
   Future<void> login() async {
-    final mobile = mobileField.text.trim();
+    final loginId = loginIdField.text.trim();
     final password = passwordField.text;
-    if (mobile.length < 10) {
-      Get.snackbar('Error', 'Enter valid 10-digit mobile number');
+    if (loginId.length < 3) {
+      Get.snackbar('Error', 'Enter Login ID (Employee ID or mobile)');
       return;
     }
     if (password.length < 4) {
@@ -54,25 +44,15 @@ class AuthController extends GetxController {
 
     isLoading.value = true;
     try {
-      await _api.login(
-        mobile,
-        password,
-        selectedRole.value,
-      );
+      await _api.login(loginId, password);
       _storage.setRememberMe(rememberMe.value);
       if (Get.isRegistered<DataRefreshService>()) {
-        await Get.find<DataRefreshService>().refreshAll(silent: true);
+        // Don't block navigation on sync
+        Get.find<DataRefreshService>().refreshAll(silent: true);
       }
       _navigateAfterLogin();
     } catch (e) {
-      final raw = e.toString();
-      final msg = raw.contains('SocketException') ||
-              raw.contains('Connection') ||
-              raw.contains('Failed host lookup') ||
-              raw.contains('internet')
-          ? 'Cannot reach live server. Check internet and try again.'
-          : raw.replaceFirst('Exception: ', '');
-      Get.snackbar('Login Failed', msg);
+      Get.snackbar('Login Failed', e.toString().replaceFirst('Exception: ', ''));
     } finally {
       isLoading.value = false;
     }
@@ -84,10 +64,6 @@ class AuthController extends GetxController {
     } else {
       Get.offAllNamed(AppRoutes.home);
     }
-  }
-
-  void forgotPassword() {
-    Get.snackbar('Forgot Password', 'OTP will be sent to your registered mobile number.');
   }
 
   void showOtpLogin() {
@@ -113,19 +89,22 @@ class AuthController extends GetxController {
                 return;
               }
               Get.back();
-              if (mobileField.text.trim().length < 10) {
-                fillFieldOfficerDemo();
+              final loginId = loginIdField.text.trim();
+              if (loginId.length < 3) {
+                Get.snackbar('Error', 'Enter Login ID first');
+                return;
               }
               isLoading.value = true;
               try {
-                await _api.verifyOtp(mobileField.text.trim(), otpCtrl.text, selectedRole.value);
+                await _api.sendOtp(loginId);
+                await _api.verifyOtp(loginId, otpCtrl.text);
                 _storage.setRememberMe(rememberMe.value);
                 if (Get.isRegistered<DataRefreshService>()) {
-                  await Get.find<DataRefreshService>().refreshAll(silent: true);
+                  Get.find<DataRefreshService>().refreshAll(silent: true);
                 }
                 _navigateAfterLogin();
               } catch (e) {
-                Get.snackbar('OTP Failed', e.toString());
+                Get.snackbar('OTP Failed', e.toString().replaceFirst('Exception: ', ''));
               } finally {
                 isLoading.value = false;
               }

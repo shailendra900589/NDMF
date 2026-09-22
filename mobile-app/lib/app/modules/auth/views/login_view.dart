@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/app_logo.dart';
-import '../../../data/models/enums/app_enums.dart';
 import '../controllers/auth_controller.dart';
 
 class LoginView extends GetView<AuthController> {
@@ -82,44 +81,24 @@ class LoginView extends GetView<AuthController> {
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Connected to live NDFA server',
+                            'Use Employee ID or mobile + password',
                             style: TextStyle(
                               fontSize: 13,
                               color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 18),
-                          Obx(
-                            () => DropdownButtonFormField<UserRole>(
-                              value: controller.selectedRole.value,
-                              decoration: const InputDecoration(
-                                labelText: 'Login as',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: UserRole.values
-                                  .map(
-                                    (r) => DropdownMenuItem(
-                                      value: r,
-                                      child: Text(r.label),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) controller.selectedRole.value = v;
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 14),
                           TextFormField(
-                            controller: controller.mobileField,
+                            controller: controller.loginIdField,
                             decoration: const InputDecoration(
-                              labelText: 'Mobile number',
-                              prefixIcon: Icon(Icons.phone_outlined),
+                              labelText: 'Login ID',
+                              hintText: 'FO001 or 9000000003',
+                              prefixIcon: Icon(Icons.badge_outlined),
                               border: OutlineInputBorder(),
-                              counterText: '',
                             ),
-                            keyboardType: TextInputType.phone,
-                            maxLength: 10,
+                            textInputAction: TextInputAction.next,
+                            keyboardType: TextInputType.text,
+                            autocorrect: false,
                           ),
                           const SizedBox(height: 14),
                           Obx(
@@ -139,6 +118,8 @@ class LoginView extends GetView<AuthController> {
                                 ),
                               ),
                               obscureText: controller.obscurePassword.value,
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) => controller.login(),
                             ),
                           ),
                           const SizedBox(height: 8),

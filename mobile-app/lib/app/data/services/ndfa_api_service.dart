@@ -19,21 +19,21 @@ class NdfaApiService extends GetxService {
       ? Get.find<RemoteApiService>()
       : Get.find<DummyApiService>();
 
-  Future<UserModel?> login(String mobile, String password, UserRole role) =>
-      _api.login(mobile, password, role);
+  Future<UserModel?> login(String loginId, String password) =>
+      _api.login(loginId, password);
 
-  Future<void> sendOtp(String mobile) async {
+  Future<void> sendOtp(String loginId) async {
     if (ApiConstants.useRemoteApi) {
-      await Get.find<RemoteApiService>().sendOtp(mobile);
+      await Get.find<RemoteApiService>().sendOtp(loginId);
     }
   }
 
-  Future<UserModel?> verifyOtp(String mobile, String otp, UserRole role) async {
+  Future<UserModel?> verifyOtp(String loginId, String otp) async {
     if (ApiConstants.useRemoteApi) {
-      return Get.find<RemoteApiService>().verifyOtp(mobile, otp, role);
+      return Get.find<RemoteApiService>().verifyOtp(loginId, otp);
     }
     if (otp != '123456') throw Exception('Invalid OTP');
-    return login(mobile, 'ndfa1234', role);
+    return login(loginId, 'ndfa1234');
   }
 
   Future<DashboardStats> getDashboardStats() => _api.getDashboardStats();
