@@ -6,50 +6,38 @@ import PaySlipDocument from '../components/PaySlipDocument';
 import {
   amountInWords,
   currentMonthKey,
+  emptyAmounts,
+  endMonthForCount,
   formatAmount,
   formatMonthLabel,
-  nextMonthKey,
+  monthsForCount,
+  monthsInRange,
 } from '../utils/payslip';
-
-const EMPTY = () => ({
-  employeeName: '',
-  employeeNo: '',
-  designation: '',
-  department: '',
-  bankName: '',
-  accountNo: '',
-  companyAddress: '',
-  month: currentMonthKey(),
-  earnings: { basic: '', hra: '', conveyance: '', medical: '', special: '' },
-  deductions: { epf: '', healthInsurance: '', professionalTax: '', tds: '' },
-});
 
 function toNum(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
 
-function computePreview(form) {
+function computeAmounts(earningsIn = {}, deductionsIn = {}) {
   const earnings = {
-    basic: toNum(form.earnings.basic),
-    hra: toNum(form.earnings.hra),
-    conveyance: toNum(form.earnings.conveyance),
-    medical: toNum(form.earnings.medical),
-    special: toNum(form.earnings.special),
+    basic: toNum(earningsIn.basic),
+    hra: toNum(earningsIn.hra),
+    conveyance: toNum(earningsIn.conveyance),
+    medical: toNum(earningsIn.medical),
+    special: toNum(earningsIn.special),
   };
   const deductions = {
-    epf: toNum(form.deductions.epf),
-    healthInsurance: toNum(form.deductions.healthInsurance),
-    professionalTax: toNum(form.deductions.professionalTax),
-    tds: toNum(form.deductions.tds),
+    epf: toNum(deductionsIn.epf),
+    healthInsurance: toNum(deductionsIn.healthInsurance),
+    professionalTax: toNum(deductionsIn.professionalTax),
+    tds: toNum(deductionsIn.tds),
   };
   const grossSalary =
     earnings.basic + earnings.hra + earnings.conveyance + earnings.medical + earnings.special;
   const totalDeductions =
     deductions.epf + deductions.healthInsurance + deductions.professionalTax + deductions.tds;
   return {
-    ...form,
-    companyName: 'Nirmaldhara Micro Foundation',
     earnings,
     deductions,
     grossSalary,
@@ -58,16 +46,20 @@ function computePreview(form) {
   };
 }
 
-function slipToForm(slip) {
+function blankProfile() {
   return {
-    employeeName: slip.employeeName || '',
-    employeeNo: slip.employeeNo || '',
-    designation: slip.designation || '',
-    department: slip.department || '',
-    bankName: slip.bankName || '',
-    accountNo: slip.accountNo || '',
-    companyAddress: slip.companyAddress || '',
-    month: slip.month || currentMonthKey(),
+    employeeName: '',
+    employeeNo: '',
+    designation: '',
+    department: '',
+    bankName: '',
+    accountNo: '',
+    companyAddress: '',
+  };
+}
+
+function amountsFromSlip(slip) {
+  return {
     earnings: {
       basic: slip.earnings?.basic ?? '',
       hra: slip.earnings?.hra ?? '',
@@ -84,26 +76,52 @@ function slipToForm(slip) {
   };
 }
 
-async function downloadPdfFromElement(el, filename) {
+function buildMonthMap(keys, prevMap = {}, seedAmounts = null) {
+  const next = {};
+  keys.forEach((m, idx) => {
+    if (prevMap[m]) {
+      next[m] = prevMap[m];
+    } else if (seedAmounts && idx > 0) {
+      next[m] = {
+        earnings: { ...seedAmounts.earnings },
+        deductions: { ...seedAmounts.deductions },
+      };
+    } else if (seedAmounts && idx === 0) {
+      next[m] = {
+        earnings: { ...seedAmounts.earnings },
+        deductions: { ...seedAmounts.deductions },
+      };
+    } else {
+      next[m] = emptyAmounts();
+    }
+  });
+  return next;
+}
+
+async function downloadMultiPagePdf(pageEls, filename) {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import('html2canvas'),
     import('jspdf'),
   ]);
-  const canvas = await html2canvas(el, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: '#ffffff',
-    logging: false,
-  });
-  const img = canvas.toDataURL('image/png');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
-  const margin = 12;
+  const margin = 10;
   const usableW = pageW - margin * 2;
-  const imgH = (canvas.height * usableW) / canvas.width;
-  const y = Math.max(margin, (pageH - imgH) / 2);
-  pdf.addImage(img, 'PNG', margin, y, usableW, Math.min(imgH, pageH - margin * 2));
+
+  for (let i = 0; i < pageEls.length; i += 1) {
+    const canvas = await html2canvas(pageEls[i], {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+    const img = canvas.toDataURL('image/png');
+    const imgH = (canvas.height * usableW) / canvas.width;
+    if (i > 0) pdf.addPage();
+    const y = Math.max(margin, (pageH - Math.min(imgH, pageH - margin * 2)) / 2);
+    pdf.addImage(img, 'PNG', margin, y, usableW, Math.min(imgH, pageH - margin * 2));
+  }
   pdf.save(filename);
 }
 
@@ -112,12 +130,32 @@ export default function PaySlips() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [mode, setMode] = useState('list'); // list | edit
-  const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState(EMPTY());
+  const [mode, setMode] = useState('list');
+  const [profile, setProfile] = useState(blankProfile());
+  const [rangeMode, setRangeMode] = useState('1'); // 1 | 3 | 6 | custom
+  const [startMonth, setStartMonth] = useState(currentMonthKey());
+  const [endMonth, setEndMonth] = useState(currentMonthKey());
+  const [monthMap, setMonthMap] = useState(() => ({ [currentMonthKey()]: emptyAmounts() }));
+  const [activeMonth, setActiveMonth] = useState(currentMonthKey());
   const [saving, setSaving] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
-  const printRef = useRef(null);
+  const pdfPagesRef = useRef(null);
+
+  const monthKeys = useMemo(() => {
+    if (rangeMode === 'custom') return monthsInRange(startMonth, endMonth);
+    const count = Number(rangeMode) || 1;
+    return monthsForCount(startMonth, count);
+  }, [rangeMode, startMonth, endMonth]);
+
+  // Keep monthMap aligned when range changes
+  useEffect(() => {
+    if (!monthKeys.length) return;
+    setMonthMap((prev) => {
+      const first = prev[monthKeys[0]] || prev[Object.keys(prev)[0]] || emptyAmounts();
+      return buildMonthMap(monthKeys, prev, first);
+    });
+    setActiveMonth((am) => (monthKeys.includes(am) ? am : monthKeys[0]));
+  }, [monthKeys.join(',')]);
 
   const load = async () => {
     setLoading(true);
@@ -136,77 +174,142 @@ export default function PaySlips() {
     load();
   }, []);
 
-  const preview = useMemo(() => computePreview(form), [form]);
+  const activeAmounts = monthMap[activeMonth] || emptyAmounts();
+  const activeComputed = useMemo(
+    () => computeAmounts(activeAmounts.earnings, activeAmounts.deductions),
+    [activeAmounts]
+  );
 
-  const monthsForEmployee = useMemo(() => {
-    if (!form.employeeNo) return [];
-    const no = String(form.employeeNo).toLowerCase();
-    return list
-      .filter((p) => String(p.employeeNo).toLowerCase() === no)
-      .sort((a, b) => a.month.localeCompare(b.month));
-  }, [list, form.employeeNo]);
+  const previewSlips = useMemo(
+    () =>
+      monthKeys.map((m) => {
+        const am = computeAmounts(monthMap[m]?.earnings, monthMap[m]?.deductions);
+        return {
+          ...profile,
+          companyName: 'Nirmaldhara Micro Foundation',
+          month: m,
+          ...am,
+        };
+      }),
+    [monthKeys, monthMap, profile]
+  );
 
   const openCreate = () => {
-    setEditId(null);
-    setForm(EMPTY());
+    const m = currentMonthKey();
+    setProfile(blankProfile());
+    setRangeMode('1');
+    setStartMonth(m);
+    setEndMonth(m);
+    setMonthMap({ [m]: emptyAmounts() });
+    setActiveMonth(m);
     setMode('edit');
     setError('');
   };
 
   const openEdit = (slip) => {
-    setEditId(slip.id);
-    setForm(slipToForm(slip));
+    const empNo = slip.employeeNo;
+    const related = list
+      .filter((p) => String(p.employeeNo).toLowerCase() === String(empNo).toLowerCase())
+      .sort((a, b) => a.month.localeCompare(b.month));
+    const keys = related.length ? related.map((p) => p.month) : [slip.month];
+    const map = {};
+    related.forEach((p) => {
+      map[p.month] = amountsFromSlip(p);
+    });
+    if (!map[slip.month]) map[slip.month] = amountsFromSlip(slip);
+
+    setProfile({
+      employeeName: slip.employeeName || '',
+      employeeNo: slip.employeeNo || '',
+      designation: slip.designation || '',
+      department: slip.department || '',
+      bankName: slip.bankName || '',
+      accountNo: slip.accountNo || '',
+      companyAddress: slip.companyAddress || '',
+    });
+    setStartMonth(keys[0]);
+    setEndMonth(keys[keys.length - 1]);
+    if (keys.length === 1) setRangeMode('1');
+    else if (keys.length === 3) setRangeMode('3');
+    else if (keys.length === 6) setRangeMode('6');
+    else setRangeMode('custom');
+    setMonthMap(map);
+    setActiveMonth(slip.month);
     setMode('edit');
     setError('');
   };
 
-  const setEarn = (key, value) =>
-    setForm((f) => ({ ...f, earnings: { ...f.earnings, [key]: value } }));
-  const setDed = (key, value) =>
-    setForm((f) => ({ ...f, deductions: { ...f.deductions, [key]: value } }));
-
-  const save = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-    try {
-      const payload = {
-        ...form,
-        earnings: preview.earnings,
-        deductions: preview.deductions,
-      };
-      let res;
-      if (editId) {
-        res = await payslipsApi.update(editId, payload);
-      } else {
-        res = await payslipsApi.create(payload);
-      }
-      const saved = res.data;
-      setEditId(saved.id);
-      setForm(slipToForm(saved));
-      await load();
-    } catch (err) {
-      setError(err.message || 'Could not save pay slip');
-    } finally {
-      setSaving(false);
+  const setRangePreset = (preset) => {
+    setRangeMode(preset);
+    if (preset !== 'custom') {
+      setEndMonth(endMonthForCount(startMonth, Number(preset)));
     }
   };
 
-  const addNextMonth = async () => {
-    if (!editId) {
-      setError('Save this pay slip first, then add next month.');
+  const onStartMonthChange = (value) => {
+    setStartMonth(value);
+    if (rangeMode !== 'custom') {
+      setEndMonth(endMonthForCount(value, Number(rangeMode) || 1));
+    } else if (value > endMonth) {
+      setEndMonth(value);
+    }
+  };
+
+  const updateActiveEarn = (key, value) => {
+    setMonthMap((prev) => ({
+      ...prev,
+      [activeMonth]: {
+        ...prev[activeMonth],
+        earnings: { ...prev[activeMonth].earnings, [key]: value },
+      },
+    }));
+  };
+
+  const updateActiveDed = (key, value) => {
+    setMonthMap((prev) => ({
+      ...prev,
+      [activeMonth]: {
+        ...prev[activeMonth],
+        deductions: { ...prev[activeMonth].deductions, [key]: value },
+      },
+    }));
+  };
+
+  const copyActiveToAll = () => {
+    const src = monthMap[activeMonth] || emptyAmounts();
+    setMonthMap((prev) => {
+      const next = { ...prev };
+      monthKeys.forEach((m) => {
+        next[m] = {
+          earnings: { ...src.earnings },
+          deductions: { ...src.deductions },
+        };
+      });
+      return next;
+    });
+  };
+
+  const saveAll = async (e) => {
+    e.preventDefault();
+    if (!profile.employeeName.trim() || !profile.employeeNo.trim()) {
+      setError('Name and Emp. No are required');
+      return;
+    }
+    if (!monthKeys.length) {
+      setError('Select at least one month');
       return;
     }
     setSaving(true);
     setError('');
     try {
-      const res = await payslipsApi.addMonth(editId, { copyAmounts: true });
-      const created = res.data;
-      setEditId(created.id);
-      setForm(slipToForm(created));
+      const months = monthKeys.map((m) => {
+        const c = computeAmounts(monthMap[m]?.earnings, monthMap[m]?.deductions);
+        return { month: m, earnings: c.earnings, deductions: c.deductions };
+      });
+      await payslipsApi.bulkUpsert({ ...profile, months });
       await load();
     } catch (err) {
-      setError(err.message || 'Could not add next month');
+      setError(err.message || 'Could not save pay slips');
     } finally {
       setSaving(false);
     }
@@ -216,10 +319,6 @@ export default function PaySlips() {
     if (!window.confirm('Delete this pay slip?')) return;
     try {
       await payslipsApi.remove(id);
-      if (editId === id) {
-        setMode('list');
-        setEditId(null);
-      }
       await load();
     } catch (err) {
       setError(err.message || 'Delete failed');
@@ -227,14 +326,22 @@ export default function PaySlips() {
   };
 
   const handleDownloadPdf = async () => {
-    const el = printRef.current;
-    if (!el) return;
+    const root = pdfPagesRef.current;
+    if (!root) return;
+    const pages = [...root.querySelectorAll('.pslip-pdf-page')];
+    if (!pages.length) {
+      setError('Nothing to download');
+      return;
+    }
     setPdfBusy(true);
     setError('');
     try {
-      const name = (preview.employeeName || 'employee').replace(/\s+/g, '_');
-      const file = `PaySlip_${name}_${preview.month || 'month'}.pdf`;
-      await downloadPdfFromElement(el, file);
+      const name = (profile.employeeName || 'employee').replace(/\s+/g, '_');
+      const rangeLabel =
+        monthKeys.length === 1
+          ? monthKeys[0]
+          : `${monthKeys[0]}_to_${monthKeys[monthKeys.length - 1]}`;
+      await downloadMultiPagePdf(pages, `PaySlip_${name}_${rangeLabel}.pdf`);
     } catch (err) {
       setError(err.message || 'PDF download failed');
     } finally {
@@ -248,7 +355,7 @@ export default function PaySlips() {
     <div className="payslips-page">
       <PageHeader
         title="Pay Slips"
-        description="Create professional employee pay slips · Admin only · Multi-month pages · PDF download"
+        description="1 / 3 / 6 months or custom range · separate data per month · one combined PDF"
       >
         {mode === 'list' ? (
           <button type="button" className="btn btn-primary" onClick={openCreate}>
@@ -319,7 +426,7 @@ export default function PaySlips() {
                     <td>
                       <div className="row-actions">
                         <button type="button" className="btn btn-sm btn-outline" onClick={() => openEdit(p)}>
-                          Edit
+                          Edit range
                         </button>
                         <button type="button" className="btn btn-sm btn-danger" onClick={() => removeSlip(p.id)}>
                           Delete
@@ -336,52 +443,77 @@ export default function PaySlips() {
 
       {mode === 'edit' && (
         <div className="payslips-edit">
-          <form className="card payslips-form" onSubmit={save}>
+          <form className="card payslips-form" onSubmit={saveAll}>
             <div className="card__header">
-              <h3 className="card__title">{editId ? 'Edit pay slip' : 'New pay slip'}</h3>
+              <h3 className="card__title">Employee pay slips</h3>
               <p className="card__subtitle">
-                Fill employee details &amp; amounts. Gross / Net calculate automatically.
+                Choose how many months, enter different amounts per month, then save &amp; download one PDF.
               </p>
             </div>
 
-            {monthsForEmployee.length > 0 && (
-              <div className="pslip-months">
-                <span className="pslip-months__label">Months for this employee</span>
-                <div className="pslip-months__tabs">
-                  {monthsForEmployee.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      className={`pslip-months__tab${m.id === editId ? ' is-active' : ''}`}
-                      onClick={() => openEdit(m)}
-                    >
-                      {formatMonthLabel(m.month)}
-                    </button>
-                  ))}
-                  {editId && (
-                    <button type="button" className="pslip-months__tab pslip-months__tab--add" onClick={addNextMonth}>
-                      + {formatMonthLabel(nextMonthKey(form.month || currentMonthKey()))}
-                    </button>
-                  )}
-                </div>
+            <div className="pslip-range">
+              <span className="pslip-range__label">Period</span>
+              <div className="pslip-range__presets">
+                {[
+                  ['1', '1 month'],
+                  ['3', '3 months'],
+                  ['6', '6 months'],
+                  ['custom', 'Custom'],
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`pslip-months__tab${rangeMode === id ? ' is-active' : ''}`}
+                    onClick={() => setRangePreset(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-            )}
+              <div className="pslip-range__dates form-grid-2">
+                <div className="form-group">
+                  <label>{rangeMode === 'custom' ? 'From month' : 'Start month'}</label>
+                  <input type="month" required value={startMonth} onChange={(e) => onStartMonthChange(e.target.value)} />
+                </div>
+                {rangeMode === 'custom' ? (
+                  <div className="form-group">
+                    <label>To month</label>
+                    <input
+                      type="month"
+                      required
+                      value={endMonth}
+                      min={startMonth}
+                      onChange={(e) => setEndMonth(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label>Through</label>
+                    <input type="text" readOnly value={formatMonthLabel(monthKeys[monthKeys.length - 1] || startMonth)} />
+                  </div>
+                )}
+              </div>
+              <p className="pslip-range__hint">
+                {monthKeys.length} month{monthKeys.length === 1 ? '' : 's'}:{' '}
+                {monthKeys.map(formatMonthLabel).join(' · ')}
+              </p>
+            </div>
 
             <div className="form-grid-2">
               <div className="form-group">
                 <label>Name</label>
                 <input
                   required
-                  value={form.employeeName}
-                  onChange={(e) => setForm({ ...form, employeeName: e.target.value })}
+                  value={profile.employeeName}
+                  onChange={(e) => setProfile({ ...profile, employeeName: e.target.value })}
                   placeholder="Employee full name"
                 />
               </div>
               <div className="form-group">
                 <label>Department</label>
                 <input
-                  value={form.department}
-                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  value={profile.department}
+                  onChange={(e) => setProfile({ ...profile, department: e.target.value })}
                   placeholder="e.g. Field Operations"
                 />
               </div>
@@ -389,55 +521,69 @@ export default function PaySlips() {
                 <label>Emp. No</label>
                 <input
                   required
-                  value={form.employeeNo}
-                  onChange={(e) => setForm({ ...form, employeeNo: e.target.value })}
+                  value={profile.employeeNo}
+                  onChange={(e) => setProfile({ ...profile, employeeNo: e.target.value })}
                   placeholder="FO001"
                 />
               </div>
               <div className="form-group">
                 <label>Bank Name</label>
                 <input
-                  value={form.bankName}
-                  onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+                  value={profile.bankName}
+                  onChange={(e) => setProfile({ ...profile, bankName: e.target.value })}
                 />
               </div>
               <div className="form-group">
                 <label>Designation</label>
                 <input
-                  value={form.designation}
-                  onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                  value={profile.designation}
+                  onChange={(e) => setProfile({ ...profile, designation: e.target.value })}
                   placeholder="Field Officer"
                 />
               </div>
               <div className="form-group">
                 <label>A/c No.</label>
                 <input
-                  value={form.accountNo}
-                  onChange={(e) => setForm({ ...form, accountNo: e.target.value })}
+                  value={profile.accountNo}
+                  onChange={(e) => setProfile({ ...profile, accountNo: e.target.value })}
                 />
               </div>
-              <div className="form-group">
-                <label>Month</label>
-                <input
-                  type="month"
-                  required
-                  value={form.month}
-                  onChange={(e) => setForm({ ...form, month: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                 <label>Company address (optional)</label>
                 <input
-                  value={form.companyAddress}
-                  onChange={(e) => setForm({ ...form, companyAddress: e.target.value })}
+                  value={profile.companyAddress}
+                  onChange={(e) => setProfile({ ...profile, companyAddress: e.target.value })}
                   placeholder="Office address on slip"
                 />
               </div>
             </div>
 
+            <div className="pslip-months">
+              <div className="pslip-months__head">
+                <span className="pslip-months__label">Month pages — edit amounts for each</span>
+                <button type="button" className="btn btn-outline btn-sm" onClick={copyActiveToAll}>
+                  Copy this month’s amounts to all
+                </button>
+              </div>
+              <div className="pslip-months__tabs">
+                {monthKeys.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`pslip-months__tab${m === activeMonth ? ' is-active' : ''}`}
+                    onClick={() => setActiveMonth(m)}
+                  >
+                    {formatMonthLabel(m)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="payslips-amounts">
               <div>
-                <h4 className="payslips-amounts__title">Earnings</h4>
+                <h4 className="payslips-amounts__title">
+                  Earnings · {formatMonthLabel(activeMonth)}
+                </h4>
                 {[
                   ['basic', 'Basic Salary'],
                   ['hra', 'House Rent Allowances'],
@@ -451,17 +597,19 @@ export default function PaySlips() {
                       type="number"
                       min="0"
                       step="1"
-                      value={form.earnings[k]}
-                      onChange={(e) => setEarn(k, e.target.value)}
+                      value={activeAmounts.earnings[k]}
+                      onChange={(e) => updateActiveEarn(k, e.target.value)}
                     />
                   </div>
                 ))}
                 <p className="payslips-calc">
-                  Gross: <strong>₹ {formatAmount(preview.grossSalary) || '0'}</strong>
+                  Gross: <strong>₹ {formatAmount(activeComputed.grossSalary) || '0'}</strong>
                 </p>
               </div>
               <div>
-                <h4 className="payslips-amounts__title">Deductions</h4>
+                <h4 className="payslips-amounts__title">
+                  Deductions · {formatMonthLabel(activeMonth)}
+                </h4>
                 {[
                   ['epf', 'EPF'],
                   ['healthInsurance', 'Health Insurance'],
@@ -474,32 +622,29 @@ export default function PaySlips() {
                       type="number"
                       min="0"
                       step="1"
-                      value={form.deductions[k]}
-                      onChange={(e) => setDed(k, e.target.value)}
+                      value={activeAmounts.deductions[k]}
+                      onChange={(e) => updateActiveDed(k, e.target.value)}
                     />
                   </div>
                 ))}
                 <p className="payslips-calc">
-                  Deductions: <strong>₹ {formatAmount(preview.totalDeductions) || '0'}</strong>
+                  Deductions: <strong>₹ {formatAmount(activeComputed.totalDeductions) || '0'}</strong>
                 </p>
                 <p className="payslips-calc payslips-calc--net">
-                  Net Pay: <strong>₹ {formatAmount(preview.netPay) || '0'}</strong>
+                  Net Pay: <strong>₹ {formatAmount(activeComputed.netPay) || '0'}</strong>
                 </p>
-                <p className="payslips-words-hint">{amountInWords(preview.netPay)}</p>
+                <p className="payslips-words-hint">{amountInWords(activeComputed.netPay)}</p>
               </div>
             </div>
 
             <div className="payslips-form__actions">
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Saving…' : editId ? 'Update pay slip' : 'Save pay slip'}
+                {saving ? 'Saving…' : `Save all ${monthKeys.length} month(s)`}
               </button>
-              {editId && (
-                <button type="button" className="btn btn-outline" onClick={addNextMonth} disabled={saving}>
-                  + Add next month page
-                </button>
-              )}
               <button type="button" className="btn btn-primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
-                {pdfBusy ? 'Preparing PDF…' : 'Download PDF'}
+                {pdfBusy
+                  ? 'Preparing PDF…'
+                  : `Download PDF (${monthKeys.length} page${monthKeys.length === 1 ? '' : 's'})`}
               </button>
             </div>
           </form>
@@ -507,11 +652,17 @@ export default function PaySlips() {
           <div className="card payslips-preview-card">
             <div className="card__header">
               <h3 className="card__title">Live preview</h3>
-              <p className="card__subtitle">Exact layout used in the downloaded PDF</p>
+              <p className="card__subtitle">
+                Each month is a separate page in one PDF · showing all {monthKeys.length} slip(s)
+              </p>
             </div>
             <div className="payslips-preview-wrap">
-              <div ref={printRef}>
-                <PaySlipDocument slip={preview} />
+              <div ref={pdfPagesRef} className="pslip-pdf-stack">
+                {previewSlips.map((slip) => (
+                  <div key={slip.month} className="pslip-pdf-page">
+                    <PaySlipDocument slip={slip} />
+                  </div>
+                ))}
               </div>
             </div>
           </div>

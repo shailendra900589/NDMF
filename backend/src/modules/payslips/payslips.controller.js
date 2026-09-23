@@ -204,3 +204,54 @@ exports.remove = (req, res) => {
   removeById('payslips', req.params.id);
   return success(res, null, 'Pay slip deleted');
 };
+
+/**
+ * Bulk upsert many months for one employee.
+ * Body: { employee..., months: [{ month, earnings, deductions }] }
+ */
+exports.bulkUpsert = (req, res) => {
+  const months = Array.isArray(req.body.months) ? req.body.months : [];
+  if (!months.length) return error(res, 'At least one month required');
+  if (months.length > 36) return error(res, 'Maximum 36 months per batch');
+
+  const base = {
+    employeeName: req.body.employeeName,
+    employeeNo: req.body.employeeNo,
+    designation: req.body.designation,
+    department: req.body.department,
+    bankName: req.body.bankName,
+    accountNo: req.body.accountNo,
+    companyAddress: req.body.companyAddress,
+  };
+
+  const saved = [];
+  const all = getCollection('payslips');
+  const empNo = String(base.employeeNo || '').trim().toLowerCase();
+
+  for (const entry of months) {
+    const month = normalizeMonth(entry.month);
+    if (!month) return error(res, `Invalid month: ${entry.month}`);
+
+    const existing = all.find(
+      (p) => String(p.employeeNo).toLowerCase() === empNo && p.month === month
+    );
+    const id = existing?.id || `PS_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const built = buildRecord(
+      id,
+      {
+        ...base,
+        month,
+        earnings: entry.earnings || {},
+        deductions: entry.deductions || {},
+      },
+      req.user.id,
+      existing || null
+    );
+    if (built.error) return error(res, built.error);
+    upsert('payslips', built.record);
+    saved.push(built.record);
+  }
+
+  saved.sort((a, b) => a.month.localeCompare(b.month));
+  return success(res, saved, `${saved.length} pay slip(s) saved`);
+};

@@ -1281,12 +1281,60 @@ tbody tr:last-child td { border-bottom: none; }
   border-radius: 10px;
   border: 1px solid var(--color-border);
 }
+.pslip-months__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
 .pslip-months__label {
   display: block;
   font-size: 12px;
   font-weight: 600;
   color: var(--color-text-muted);
+  margin-bottom: 0;
+}
+.pslip-range {
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8fffe 0%, #f8fafc 100%);
+}
+.pslip-range__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0f766e;
   margin-bottom: 8px;
+}
+.pslip-range__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.pslip-range__dates { margin-top: 4px; }
+.pslip-range__hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+}
+.pslip-pdf-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.pslip-pdf-page {
+  background: #fff;
+  padding: 8px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 .pslip-months__tabs {
   display: flex;

@@ -8,6 +8,7 @@ const { requirePermission } = require('../../middleware/permissionMiddleware');
 router.use(authMiddleware, requireRole('admin'), requirePermission('payslips'));
 
 router.get('/', payslips.list);
+router.post('/bulk', payslips.bulkUpsert);
 router.get('/:id', payslips.getById);
 router.post('/', payslips.create);
 router.put('/:id', payslips.update);

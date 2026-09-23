@@ -65,3 +65,44 @@ export function nextMonthKey(month) {
   d.setMonth(d.getMonth() + 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
+
+export function emptyAmounts() {
+  return {
+    earnings: { basic: '', hra: '', conveyance: '', medical: '', special: '' },
+    deductions: { epf: '', healthInsurance: '', professionalTax: '', tds: '' },
+  };
+}
+
+/** Inclusive list of YYYY-MM from start through end. */
+export function monthsInRange(startMonth, endMonth) {
+  const start = String(startMonth || '');
+  const end = String(endMonth || '');
+  if (!/^\d{4}-\d{2}$/.test(start) || !/^\d{4}-\d{2}$/.test(end)) return [];
+  if (start > end) return monthsInRange(end, start);
+  const out = [];
+  let cur = start;
+  let guard = 0;
+  while (cur <= end && guard < 36) {
+    out.push(cur);
+    cur = nextMonthKey(cur);
+    guard += 1;
+  }
+  return out;
+}
+
+/** N consecutive months starting at startMonth (N >= 1). */
+export function monthsForCount(startMonth, count) {
+  const n = Math.max(1, Math.min(36, Number(count) || 1));
+  const out = [startMonth];
+  let cur = startMonth;
+  for (let i = 1; i < n; i += 1) {
+    cur = nextMonthKey(cur);
+    out.push(cur);
+  }
+  return out;
+}
+
+export function endMonthForCount(startMonth, count) {
+  const list = monthsForCount(startMonth, count);
+  return list[list.length - 1] || startMonth;
+}

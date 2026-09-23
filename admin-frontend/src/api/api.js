@@ -96,6 +96,7 @@ export const payslipsApi = {
   getById: (id) => api.get(`/payslips/${id}`),
   create: (data) => api.post('/payslips', data),
   update: (id, data) => api.put(`/payslips/${id}`, data),
+  bulkUpsert: (data) => api.post('/payslips/bulk', data),
   addMonth: (id, data) => api.post(`/payslips/${id}/add-month`, data),
   remove: (id) => api.delete(`/payslips/${id}`),
 };

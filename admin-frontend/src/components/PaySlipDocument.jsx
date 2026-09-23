@@ -5,7 +5,7 @@ const LOGO_SRC = '/nirmaldhara-logo.jpg';
 /**
  * Print-ready pay slip matching the professional grid template.
  */
-export default function PaySlipDocument({ slip, id = 'payslip-print-root' }) {
+export default function PaySlipDocument({ slip, id, className = '' }) {
   if (!slip) return null;
 
   const e = slip.earnings || {};
@@ -32,11 +32,11 @@ export default function PaySlipDocument({ slip, id = 'payslip-print-root' }) {
   }
 
   return (
-    <div className="pslip" id={id}>
+    <div className={`pslip ${className}`.trim()} id={id} data-month={slip.month}>
       <table className="pslip__table">
         <tbody>
           <tr>
-            <td className="pslip__logo-cell" colSpan={1} rowSpan={1}>
+            <td className="pslip__logo-cell">
               <img src={LOGO_SRC} alt="Nirmaldhara" className="pslip__logo" />
             </td>
             <td className="pslip__company-cell" colSpan={3}>
