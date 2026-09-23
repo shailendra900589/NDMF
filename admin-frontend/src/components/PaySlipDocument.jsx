@@ -98,6 +98,23 @@ export default function PaySlipDocument({ slip, id, className = '' }) {
               Amount in Words: {amountInWords(slip.netPay)}
             </td>
           </tr>
+          <tr>
+            <td className="pslip__sign-cell" colSpan={4}>
+              <div className="pslip__sign-row">
+                <div className="pslip__sign-block">
+                  <div className="pslip__sign-space" />
+                  <div className="pslip__sign-line" />
+                  <div className="pslip__sign-label">Employee Signature</div>
+                </div>
+                <div className="pslip__sign-block pslip__sign-block--right">
+                  <div className="pslip__sign-space" />
+                  <div className="pslip__sign-line" />
+                  <div className="pslip__sign-label">Authorized Signatory</div>
+                  <div className="pslip__sign-org">For {company}</div>
+                </div>
+              </div>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
