@@ -1216,6 +1216,230 @@ tbody tr:last-child td { border-bottom: none; }
   .att-roster__list { max-height: 240px; }
 }
 
+/* ——— Pay Slips ——— */
+.payslips-edit {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(340px, 1.05fr);
+  gap: 18px;
+  align-items: start;
+}
+.payslips-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+}
+.payslips-amounts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: 18px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+.payslips-amounts__title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.form-group--inline {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.form-group--inline label {
+  margin: 0;
+  font-size: 13px;
+}
+.payslips-calc {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.payslips-calc--net {
+  color: var(--color-text);
+  font-size: 15px;
+}
+.payslips-words-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+.pslip-months {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+}
+.pslip-months__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+.pslip-months__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pslip-months__tab {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #334155;
+}
+.pslip-months__tab.is-active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
+.pslip-months__tab--add {
+  border-style: dashed;
+  color: #0f766e;
+}
+.payslips-preview-card { overflow: auto; }
+.payslips-preview-wrap {
+  overflow: auto;
+  padding: 8px;
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+.toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.toolbar .input,
+.toolbar input {
+  flex: 1;
+  min-width: 200px;
+}
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Exact grid pay-slip document */
+.pslip {
+  background: #fff;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.pslip__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  border: 1.5px solid #111;
+}
+.pslip__table td {
+  border: 1px solid #111;
+  padding: 8px 10px;
+  vertical-align: middle;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.pslip__logo-cell {
+  width: 22%;
+  text-align: center;
+  padding: 10px !important;
+  background: #fff;
+}
+.pslip__logo {
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+.pslip__company-cell {
+  text-align: center;
+  padding: 14px 12px !important;
+}
+.pslip__company-name {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: #0b1220;
+}
+.pslip__company-addr {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #334155;
+}
+.pslip__month-cell {
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px !important;
+  background: #f8fafc;
+  padding: 10px !important;
+}
+.pslip__label {
+  width: 28%;
+  font-weight: 600;
+  color: #111;
+}
+.pslip__value { width: 22%; }
+.pslip__amt {
+  text-align: right;
+  width: 22%;
+  font-variant-numeric: tabular-nums;
+}
+.pslip__head {
+  text-align: center;
+  font-weight: 800;
+  background: #f1f5f9;
+  padding: 9px !important;
+}
+.pslip__strong { font-weight: 800 !important; }
+.pslip__net {
+  text-align: center !important;
+  font-size: 16px !important;
+}
+.pslip__words {
+  text-align: right;
+  font-size: 12px !important;
+  padding: 10px 12px !important;
+}
+.pslip__col-heads td,
+.pslip__totals-row td,
+.pslip__net-row td {
+  background: #fff;
+}
+
+@media (max-width: 1100px) {
+  .payslips-edit { grid-template-columns: 1fr; }
+  .form-grid-2,
+  .payslips-amounts { grid-template-columns: 1fr; }
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .pslip, .pslip * { visibility: visible; }
+  .pslip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+  }
+}
+
 /* ——— Responsive sidebar ——— */
 @media (max-width: 900px) {
   .layout { flex-direction: column; }

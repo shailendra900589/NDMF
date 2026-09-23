@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { to: '/call-logs', label: 'Call Logs', permission: 'callLogs', icon: 'calls' },
   { to: '/users', label: 'Users & Permissions', permission: 'users', icon: 'users' },
   { to: '/branches', label: 'Locations', permission: 'branches', adminOnly: true, icon: 'branches' },
+  { to: '/payslips', label: 'Pay Slips', permission: 'payslips', adminOnly: true, icon: 'payslips' },
 ];
 
 function NavIcon({ name }) {
@@ -38,6 +39,8 @@ function NavIcon({ name }) {
       return <svg {...props}><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="8.5" cy="7" r="4" /><path d="M20 8v6M23 11h-6" /></svg>;
     case 'branches':
       return <svg {...props}><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><path d="M9 22V12h6v10" /></svg>;
+    case 'payslips':
+      return <svg {...props}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2" /></svg>;
     case 'profile':
       return <svg {...props}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
     case 'logout':

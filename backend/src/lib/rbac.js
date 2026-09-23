@@ -10,6 +10,7 @@ const PERMISSION_KEYS = [
   'callLogs',
   'users',
   'branches',
+  'payslips',
 ];
 
 const ROLE_DEFAULTS = {
@@ -22,6 +23,7 @@ const ROLE_DEFAULTS = {
     callLogs: true,
     users: true,
     branches: true,
+    payslips: true,
   },
   branchManager: {
     dashboard: true,
@@ -32,6 +34,7 @@ const ROLE_DEFAULTS = {
     callLogs: true,
     users: true,
     branches: false,
+    payslips: false,
   },
   fieldOfficer: {
     dashboard: true,
@@ -42,6 +45,7 @@ const ROLE_DEFAULTS = {
     callLogs: true,
     users: false,
     branches: false,
+    payslips: false,
   },
 };
 
@@ -112,7 +116,7 @@ function canManageUser(actor, target) {
 /** BM/Admin: module keys they may assign to employees */
 function assignablePermissionKeys(actor) {
   if (isAdmin(actor)) return PERMISSION_KEYS;
-  return PERMISSION_KEYS.filter((k) => !['users', 'branches'].includes(k));
+  return PERMISSION_KEYS.filter((k) => !['users', 'branches', 'payslips'].includes(k));
 }
 
 function allowedRolesForCreator(creator) {

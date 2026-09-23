@@ -23,6 +23,7 @@ const COLLECTIONS = [
   'loans',
   'collections',
   'digilockerSessions',
+  'payslips',
 ];
 
 const defaultDb = () => ({
@@ -37,6 +38,7 @@ const defaultDb = () => ({
   loans: [],
   collections: [],
   digilockerSessions: [],
+  payslips: [],
 });
 
 /** @type {Record<string, any[]>} */

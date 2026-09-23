@@ -100,6 +100,7 @@ const seedData = {
   loans: [],
   collections: [],
   digilockerSessions: [],
+  payslips: [],
 };
 
 (async () => {

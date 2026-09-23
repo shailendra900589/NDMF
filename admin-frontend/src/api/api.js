@@ -91,4 +91,13 @@ export const listingsApi = {
   approve: (data) => api.post('/customer-listings/approve', data),
 };
 
+export const payslipsApi = {
+  getAll: (params) => api.get('/payslips', { params }),
+  getById: (id) => api.get(`/payslips/${id}`),
+  create: (data) => api.post('/payslips', data),
+  update: (id, data) => api.put(`/payslips/${id}`, data),
+  addMonth: (id, data) => api.post(`/payslips/${id}/add-month`, data),
+  remove: (id) => api.delete(`/payslips/${id}`),
+};
+
 export default api;

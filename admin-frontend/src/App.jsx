@@ -9,6 +9,7 @@ import CallLogs from './pages/CallLogs';
 import Attendance from './pages/Attendance';
 import Users from './pages/Users';
 import Branches from './pages/Branches';
+import PaySlips from './pages/PaySlips';
 import Profile from './pages/Profile';
 import { canAccess } from './utils/permissions';
 
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="call-logs" element={<PermissionRoute permission="callLogs"><CallLogs /></PermissionRoute>} />
         <Route path="users" element={<PermissionRoute permission="users"><Users /></PermissionRoute>} />
         <Route path="branches" element={<PermissionRoute permission="branches"><Branches /></PermissionRoute>} />
+        <Route path="payslips" element={<PermissionRoute permission="payslips"><PaySlips /></PermissionRoute>} />
         <Route path="profile" element={<Profile />} />
       </Route>
     </Routes>
