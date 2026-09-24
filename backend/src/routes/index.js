@@ -7,7 +7,6 @@ const router = express.Router();
 const authRoutes = require('../modules/auth/auth.routes');
 const dashboardRoutes = require('../modules/dashboard/dashboard.routes');
 const customersRoutes = require('../modules/customers/customers.routes');
-const customerListingsRoutes = require('../modules/customerListings/customerListings.routes');
 const attendanceRoutes = require('../modules/attendance/attendance.routes');
 const trackingRoutes = require('../modules/tracking/tracking.routes');
 const uploadRoutes = require('../modules/upload/upload.routes');
@@ -20,7 +19,6 @@ const payslipsRoutes = require('../modules/payslips/payslips.routes');
 router.use('/auth', authRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/customers', customersRoutes);
-router.use('/customer-listings', customerListingsRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/tracking', trackingRoutes);
 router.use('/uploads', uploadRoutes);
@@ -36,7 +34,7 @@ router.get('/health', (_, res) => {
     message: 'NDFA API is running',
     data: {
       version: '2.2.0',
-      modules: 'rbac,branches,users,listing,calls,attendance,tracking,payslips',
+      modules: 'rbac,branches,users,customers,calls,attendance,tracking,payslips',
     },
   });
 });

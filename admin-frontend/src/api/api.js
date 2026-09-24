@@ -84,13 +84,6 @@ export const callLogsApi = {
   getAll: () => api.get('/call-logs'),
 };
 
-export const listingsApi = {
-  getAll: (params) => api.get('/customer-listings', { params }),
-  getById: (id) => api.get(`/customer-listings/${id}`),
-  create: (data) => api.post('/customer-listings', data),
-  approve: (data) => api.post('/customer-listings/approve', data),
-};
-
 export const payslipsApi = {
   getAll: (params) => api.get('/payslips', { params }),
   getById: (id) => api.get(`/payslips/${id}`),

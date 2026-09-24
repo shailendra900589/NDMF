@@ -19,7 +19,5 @@ class AccessControl {
 
   static bool get canUseDialer => canAccess('callLogs');
 
-  static bool get canCreateListing => canAccess('customerListings');
-
   static bool get showDashboard => canAccess('dashboard');
 }

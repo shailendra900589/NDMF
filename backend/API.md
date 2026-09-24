@@ -65,7 +65,7 @@ Token is returned from `POST /auth/login` and expires in **7 days**.
       "dashboard": true,
       "users": true,
       "payslips": true,
-      "customerListings": true
+      "customers": true
     },
     "token": "eyJhbGciOiJIUzI1NiIs..."
   }
@@ -151,7 +151,7 @@ No body. Clears server-side session metadata if used; client should delete store
 ```json
 {
   "canCreateRoles": ["fieldOfficer", "branchManager", "admin"],
-  "keys": ["dashboard", "users", "payslips", "customerListings", "..."]
+  "keys": ["dashboard", "users", "payslips", "customers", "..."]
 }
 ```
 
@@ -192,28 +192,6 @@ Query: `search`, pagination as implemented in controller.
 ### `GET /customers/:id`
 
 Single customer record.
-
----
-
-## Customer listings (field visits)
-
-### `GET /customer-listings`
-
-List listings (filters by role/branch).
-
-### `POST /customer-listings`
-
-Submit new listing (multipart/JSON per app — photos via `/uploads` first).
-
-### `GET /customer-listings/:id`
-
-### `GET /customer-listings/approval`
-
-Pending approvals (managers).
-
-### `POST /customer-listings/:id/assign`
-
-Assign listing to field officer.
 
 ---
 
@@ -412,7 +390,7 @@ Multi-month upsert for one employee (web PDF flow).
 | Role            | Typical access                                      |
 |-----------------|-----------------------------------------------------|
 | `admin`         | All modules including pay slips, all branches       |
-| `branchManager` | Branch users, listings, calls; not always payslips  |
+| `branchManager` | Branch users, customers, calls; not always payslips  |
 | `fieldOfficer`  | Dialer, customers, attendance, tracking           |
 
 Permission keys are on the user object (`permissions` map). Middleware checks `requirePermission('key')` on routes.

@@ -6,14 +6,12 @@ const { isAdmin, filterByBranch, filterByBranchViaUser } = require('../../lib/rb
 exports.getStats = (req, res) => {
   const users = getCollection('users');
   let customers = getCollection('customers');
-  let listings = getCollection('customerListings');
   let attendance = getCollection('attendance');
   let tracking = getCollection('tracking');
   let callLogs = getCollection('callLogs');
   const branches = getCollection('branches');
 
   customers = filterByBranch(customers, req.user, 'branch');
-  listings = filterByBranch(listings, req.user, 'branch');
   attendance = filterByBranchViaUser(attendance, req.user, users);
   tracking = filterByBranchViaUser(tracking, req.user, users);
   callLogs = filterByBranchViaUser(callLogs, req.user, users);
@@ -48,11 +46,7 @@ exports.getStats = (req, res) => {
     branch: req.user.branch,
     branchCount: isAdmin(req.user) ? branches.length : 1,
     teamMembers: branchUsers.length,
-    pendingCustomerListing: listings.filter(
-      (l) => ['branchPending', 'adminPending', 'draft', 'submitted'].includes(l.status)
-    ).length,
     totalCustomers: customers.length,
-    totalListings: listings.length,
     attendanceStatus: todayAttendance
       ? todayAttendance.checkOutTime
         ? 'Checked Out'

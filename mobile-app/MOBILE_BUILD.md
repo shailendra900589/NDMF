@@ -12,13 +12,17 @@ Live sync: every **45s** + on app resume (listings, customers, attendance, pendi
 
 ## Install APK
 
-Release APK (after build):
+**Recommended (lightweight, most phones):**
 
-`mobile-app/Nirmaldhara-FieldApp-v1.1.0.apk`
+`mobile-app/Nirmaldhara-FieldApp-v1.1.5-arm64.apk` (~21 MB)
 
-or:
+Older 32-bit devices:
 
-`mobile-app/build/app/outputs/flutter-apk/app-release.apk`
+`mobile-app/Nirmaldhara-FieldApp-v1.1.5-armv7.apk` (~19 MB)
+
+Gradle output:
+
+`mobile-app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
 
 Phone pe install: transfer file → Allow unknown apps → Install.
 
@@ -37,8 +41,11 @@ $env:ANDROID_HOME = "C:\Users\uuu\Android\Sdk"
 $env:Path = "C:\Users\uuu\flutter\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
 cd D:\Laravel\NDFA\mobile-app
 flutter pub get
-flutter build apk --release
+flutter build apk --release --split-per-abi
+copy build\app\outputs\flutter-apk\app-arm64-v8a-release.apk Nirmaldhara-FieldApp-v1.1.4-arm64.apk
 ```
+
+`--split-per-abi` builds one APK per CPU (smaller than a single fat APK).
 
 ## Logo
 

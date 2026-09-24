@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
 import '../../../data/models/customer_model.dart';
 import '../../../data/models/enums/app_enums.dart';
-import '../../../routes/app_routes.dart';
 import '../../../data/services/maps_navigation_service.dart';
 import '../../tracking/views/map_view.dart';
 import '../../tracking/bindings/tracking_binding.dart';
@@ -102,22 +101,6 @@ class CustomerDetailView extends GetView<CustomersController> {
                 ],
               ),
             ]),
-            if (customer.listingId != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    try {
-                      final listing = await controller.getListingById(customer.listingId!);
-                      Get.toNamed(AppRoutes.customerListingDetail, arguments: listing);
-                    } catch (e) {
-                      Get.snackbar('Error', 'Could not load listing details');
-                    }
-                  },
-                  icon: const Icon(Icons.description),
-                  label: const Text('View Full Listing Details'),
-                ),
-              ),
             _infoSection('Loan History', [
               if (customer.loanHistory.isEmpty)
                 const Text('No loan history', style: TextStyle(color: AppColors.textSecondary))

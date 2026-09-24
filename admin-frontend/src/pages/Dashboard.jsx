@@ -7,7 +7,6 @@ import { displayLocation } from '../utils/displayLabels';
 
 const STAT_META = {
   'Team members': { tone: 'teal', abbr: 'TM' },
-  'Pending listings': { tone: 'amber', abbr: 'PL' },
   'Total customers': { tone: 'blue', abbr: 'CU' },
   'Calls today': { tone: 'violet', abbr: 'CL' },
   'Recorded calls': { tone: 'rose', abbr: 'RC' },
@@ -32,7 +31,6 @@ export default function Dashboard() {
 
   const metrics = [
     { key: 'team', label: 'Team members', value: stats?.teamMembers ?? 0 },
-    { key: 'listings', label: 'Pending listings', value: stats?.pendingCustomerListing ?? 0 },
     { key: 'customers', label: 'Total customers', value: stats?.totalCustomers ?? 0 },
     { key: 'calls', label: 'Calls today', value: stats?.totalCallsToday ?? 0 },
     { key: 'rec', label: 'Recorded calls', value: stats?.totalCallsWithRecording ?? 0 },
@@ -45,7 +43,7 @@ export default function Dashboard() {
     <div className="dashboard-page">
       <PageHeader
         title="Dashboard"
-        description="Live overview of listings, customers, field activity, and call recordings."
+        description="Live overview of customers, field activity, and call recordings."
       />
 
       <div className={`scope-banner${isAllBranches ? ' scope-banner--admin' : ''}`}>

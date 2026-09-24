@@ -70,9 +70,6 @@ class _QuickActionsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = <_ActionItem>[];
-    if (AccessControl.canAccess('customerListings')) {
-      actions.add(_ActionItem('Customer Listing', Icons.person_search, AppRoutes.customerListing, AppColors.warning));
-    }
     if (AccessControl.canAccess('payslips')) {
       actions.add(_ActionItem('Pay Slips', Icons.receipt_long, AppRoutes.payslips, Colors.deepPurple));
     }

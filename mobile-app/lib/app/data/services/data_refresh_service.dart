@@ -56,7 +56,6 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
         await Get.find<CallService>().refreshFromServer();
       }
       await Future.wait([
-        _pullListingsCache(),
         _pullCustomersCache(),
         _pullAttendanceCache(),
       ]);
@@ -69,16 +68,6 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
     } finally {
       isRefreshing.value = false;
     }
-  }
-
-  Future<void> _pullListingsCache() async {
-    try {
-      final list = await _api.getCustomerListings();
-      _storage.writeList(
-        ApiConstants.customerListingsKey,
-        list.map((e) => e.toJson()).toList(),
-      );
-    } catch (_) {}
   }
 
   Future<void> _pullCustomersCache() async {

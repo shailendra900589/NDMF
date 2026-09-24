@@ -72,14 +72,6 @@ class DashboardView extends GetView<DashboardController> {
                 delegate: SliverChildListDelegate([
                   DashboardCard(
                     animationIndex: 0,
-                    title: 'Customer Listing',
-                    value: '${stats?.pendingCustomerListing ?? 0}',
-                    icon: Icons.person_search_outlined,
-                    color: AppColors.warning,
-                    onTap: () => Get.toNamed(AppRoutes.customerListing),
-                  ),
-                  DashboardCard(
-                    animationIndex: 1,
                     title: 'Recorded Calls',
                     value: '${stats?.totalCallsWithRecording ?? 0}',
                     icon: Icons.mic_outlined,
@@ -87,7 +79,7 @@ class DashboardView extends GetView<DashboardController> {
                     onTap: () => Get.toNamed(AppRoutes.callHistory),
                   ),
                   DashboardCard(
-                    animationIndex: 2,
+                    animationIndex: 1,
                     title: 'Total Customers',
                     value: '${stats?.totalCustomers ?? 0}',
                     icon: Icons.groups_outlined,
@@ -95,7 +87,7 @@ class DashboardView extends GetView<DashboardController> {
                     onTap: () => Get.toNamed(AppRoutes.customers),
                   ),
                   DashboardCard(
-                    animationIndex: 3,
+                    animationIndex: 2,
                     title: 'Calls Today',
                     value: '${stats?.totalCallsToday ?? 0}',
                     icon: Icons.call_outlined,
@@ -103,7 +95,7 @@ class DashboardView extends GetView<DashboardController> {
                     onTap: () => Get.toNamed(AppRoutes.callHistory),
                   ),
                   DashboardCard(
-                    animationIndex: 4,
+                    animationIndex: 3,
                     title: 'Attendance',
                     value: stats?.attendanceStatus ?? '-',
                     icon: Icons.access_time,
@@ -111,7 +103,7 @@ class DashboardView extends GetView<DashboardController> {
                     onTap: () => Get.toNamed(AppRoutes.attendance),
                   ),
                   DashboardCard(
-                    animationIndex: 5,
+                    animationIndex: 4,
                     title: 'Distance Today',
                     value: '${(stats?.distanceCoveredToday ?? 0).toStringAsFixed(1)} KM',
                     icon: Icons.route,

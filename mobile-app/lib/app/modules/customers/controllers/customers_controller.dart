@@ -4,14 +4,11 @@ import '../../../data/models/customer_model.dart';
 import '../../../data/models/call_log_model.dart';
 import '../../../data/repositories/customer_repository.dart';
 import '../../../data/services/call_service.dart';
-import '../../../data/repositories/customer_listing_repository.dart';
-import '../../../data/models/customer_listing_model.dart';
 import '../../../routes/app_routes.dart';
 
 enum CustomerFilter { all, recent, withLocation }
 
 class CustomersController extends GetxController {
-  final CustomerListingRepository _listingRepo = CustomerListingRepository();
   final CustomerRepository _repo = CustomerRepository();
   final CallService _callService = Get.find<CallService>();
 
@@ -85,8 +82,6 @@ class CustomersController extends GetxController {
     searchQuery.value = query;
     loadCustomers();
   }
-
-  Future<CustomerListingModel> getListingById(String id) => _listingRepo.getById(id);
 
   void viewCustomer(CustomerModel customer) {
     Get.toNamed(AppRoutes.customerDetail, arguments: customer);

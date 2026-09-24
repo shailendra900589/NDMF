@@ -8,7 +8,6 @@ import { displayLocation, displayRole, displayPersonName } from '../utils/displa
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', end: true, permission: 'dashboard', icon: 'dashboard' },
-  { to: '/customer-listings', label: 'Customer Listing', permission: 'customerListings', icon: 'listing' },
   { to: '/customers', label: 'Customers', permission: 'customers', icon: 'customers' },
   { to: '/attendance', label: 'Attendance', permission: 'attendance', icon: 'attendance' },
   { to: '/tracking', label: 'Tracking', permission: 'tracking', icon: 'tracking' },
@@ -25,8 +24,6 @@ function NavIcon({ name }) {
       return (
         <svg {...props}><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></svg>
       );
-    case 'listing':
-      return <svg {...props}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>;
     case 'customers':
       return <svg {...props}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>;
     case 'attendance':

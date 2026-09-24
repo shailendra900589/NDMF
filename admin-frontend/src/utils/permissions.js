@@ -1,7 +1,6 @@
 const ROLE_DEFAULTS = {
   admin: {
     dashboard: true,
-    customerListings: true,
     customers: true,
     attendance: true,
     tracking: true,
@@ -12,7 +11,6 @@ const ROLE_DEFAULTS = {
   },
   branchManager: {
     dashboard: true,
-    customerListings: true,
     customers: true,
     attendance: true,
     tracking: true,
@@ -23,7 +21,6 @@ const ROLE_DEFAULTS = {
   },
   fieldOfficer: {
     dashboard: true,
-    customerListings: true,
     customers: true,
     attendance: true,
     tracking: true,
@@ -36,7 +33,6 @@ const ROLE_DEFAULTS = {
 
 export const PERMISSION_LABELS = {
   dashboard: 'Dashboard',
-  customerListings: 'Customer Listing',
   customers: 'Customers',
   attendance: 'Attendance',
   tracking: 'GPS Tracking',

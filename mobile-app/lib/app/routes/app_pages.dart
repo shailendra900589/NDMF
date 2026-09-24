@@ -19,9 +19,6 @@ import '../modules/profile/views/profile_view.dart';
 import '../modules/security/bindings/security_binding.dart';
 import '../modules/security/views/app_lock_view.dart';
 import '../modules/tracking/views/map_view.dart';
-import '../modules/customer_listing/bindings/customer_listing_binding.dart';
-import '../modules/customer_listing/views/customer_listing_list_view.dart';
-import '../modules/customer_listing/views/customer_listing_detail_view.dart';
 import '../modules/dialer/bindings/dialer_binding.dart';
 import '../modules/dialer/views/dialer_view.dart';
 import '../modules/team/bindings/team_binding.dart';
@@ -51,8 +48,6 @@ class AppPages {
     GetPage(name: AppRoutes.changePassword, page: () => const ChangePasswordView(), binding: ProfileBinding()),
     GetPage(name: AppRoutes.deviceInfo, page: () => const DeviceInfoView(), binding: ProfileBinding()),
     GetPage(name: AppRoutes.mapView, page: () => const MapView(), binding: TrackingBinding()),
-    GetPage(name: AppRoutes.customerListing, page: () => const CustomerListingListView(), binding: CustomerListingBinding()),
-    GetPage(name: AppRoutes.customerListingDetail, page: () => const CustomerListingDetailView(), binding: CustomerListingBinding()),
     GetPage(name: AppRoutes.dialer, page: () => const DialerView(), binding: DialerBinding()),
     GetPage(name: AppRoutes.team, page: () => const TeamListView(), binding: TeamBinding()),
     GetPage(name: AppRoutes.teamCreate, page: () => const TeamCreateView(), binding: TeamBinding()),

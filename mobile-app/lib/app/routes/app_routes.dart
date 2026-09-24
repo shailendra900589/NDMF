@@ -15,9 +15,6 @@ class AppRoutes {
   static const String changePassword = '/profile/change-password';
   static const String deviceInfo = '/profile/device-info';
   static const String mapView = '/map';
-  static const String customerListing = '/customer-listing';
-  static const String customerListingNew = '/customer-listing/new';
-  static const String customerListingDetail = '/customer-listing/detail';
   static const String dialer = '/dialer';
   static const String team = '/team';
   static const String teamCreate = '/team/create';
