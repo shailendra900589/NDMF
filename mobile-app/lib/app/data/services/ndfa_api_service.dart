@@ -10,6 +10,7 @@ import '../models/enums/app_enums.dart';
 import 'api_constants.dart';
 import 'dummy_api_service.dart';
 import 'remote_api_service.dart';
+import 'storage_service.dart';
 
 /// Single entry point — remote ya dummy API switch yahan hota hai.
 /// ApiConstants.useRemoteApi = true → Express backend
@@ -21,6 +22,11 @@ class NdfaApiService extends GetxService {
 
   Future<UserModel?> login(String loginId, String password) =>
       _api.login(loginId, password);
+
+  Future<UserModel?> syncSession() async {
+    if (!ApiConstants.useRemoteApi) return Get.find<StorageService>().getUser();
+    return Get.find<RemoteApiService>().syncSession();
+  }
 
   Future<void> sendOtp(String loginId) async {
     if (ApiConstants.useRemoteApi) {

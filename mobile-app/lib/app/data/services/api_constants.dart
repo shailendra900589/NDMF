@@ -66,6 +66,7 @@ class ApiConstants {
   static const String tokenKey = 'auth_token';
   static const String userKey = 'user_data';
   static const String roleKey = 'user_role';
+  static const String permissionsKey = 'user_permissions';
   static const String rememberMeKey = 'remember_me';
   static const String pinKey = 'app_pin';
   static const String pendingCallLogsKey = 'pending_call_logs';

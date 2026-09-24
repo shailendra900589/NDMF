@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/app_logo.dart';
 import '../../../data/services/storage_service.dart';
+import '../../../data/services/ndfa_api_service.dart';
+import '../../../data/services/api_constants.dart';
 import '../../../routes/app_routes.dart';
 
 class SplashView extends StatefulWidget {
@@ -44,12 +46,22 @@ class _SplashViewState extends State<SplashView>
     if (!mounted) return;
     final storage = Get.find<StorageService>();
     if (storage.isLoggedIn) {
+      if (ApiConstants.useRemoteApi && Get.isRegistered<NdfaApiService>()) {
+        try {
+          await Get.find<NdfaApiService>().syncSession();
+        } catch (_) {
+          storage.clearAuthSession();
+          Get.offAllNamed(AppRoutes.login);
+          return;
+        }
+      }
       if (storage.hasPin) {
         Get.offAllNamed(AppRoutes.appLock);
       } else {
         Get.offAllNamed(AppRoutes.home);
       }
     } else {
+      storage.clearAuthSession();
       Get.offAllNamed(AppRoutes.login);
     }
   }

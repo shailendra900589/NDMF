@@ -4,6 +4,8 @@ import '../../../data/models/enums/app_enums.dart';
 import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/services/tracking_service.dart';
+import '../../../utils/api_errors.dart';
+import '../../../utils/access_control.dart';
 
 class DashboardController extends GetxController {
   NdfaApiService get _api => Get.find<NdfaApiService>();
@@ -21,12 +23,18 @@ class DashboardController extends GetxController {
   }
 
   Future<void> loadStats() async {
+    if (!AccessControl.showDashboard) {
+      isLoading.value = false;
+      return;
+    }
     isLoading.value = true;
     try {
       final data = await _api.getDashboardStats();
       stats.value = data.copyWith(distanceCoveredToday: _tracking.totalKmToday.value);
     } catch (e) {
-      Get.snackbar('Error', 'Failed to load dashboard: $e');
+      if (!isSessionExpiredError(e)) {
+        Get.snackbar('Error', apiErrorMessage(e));
+      }
     } finally {
       isLoading.value = false;
     }

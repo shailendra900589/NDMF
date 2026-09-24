@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:get/get.dart' hide Response, FormData;
 import '../../routes/app_routes.dart';
+import '../../utils/api_errors.dart';
 import 'api_constants.dart';
 import 'storage_service.dart';
 
@@ -53,10 +54,12 @@ class ApiService extends GetxService {
         if (data is Map && data['message'] != null) {
           message = data['message'];
         } else if (statusCode == 401) {
-          message = 'Session expired. Please login again.';
-          _storage.logoutAllSessions();
-          if (Get.currentRoute != AppRoutes.login) {
-            Get.offAllNamed(AppRoutes.login);
+          message = apiErrorMessage(error);
+          if (_storage.getToken()?.isNotEmpty ?? false) {
+            _storage.clearAuthSession();
+            if (Get.currentRoute != AppRoutes.login && Get.currentRoute != AppRoutes.splash) {
+              Get.offAllNamed(AppRoutes.login);
+            }
           }
         } else if (statusCode == 403) {
           message = 'Access denied.';
@@ -76,19 +79,41 @@ class ApiService extends GetxService {
   }
 
   Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
-    return _dio.get(path, queryParameters: queryParameters);
+    try {
+      return await _dio.get(path, queryParameters: queryParameters);
+    } on DioException catch (e) {
+      _handleError(e);
+      throw Exception(apiErrorMessage(e));
+    }
   }
 
   Future<Response> post(String path, {dynamic data, Map<String, dynamic>? queryParameters}) async {
-    return _dio.post(path, data: data, queryParameters: queryParameters);
+    try {
+      return await _dio.post(path, data: data, queryParameters: queryParameters);
+    } on DioException catch (e) {
+      if (!path.contains('/auth/login') && !path.contains('/auth/otp')) {
+        _handleError(e);
+      }
+      throw Exception(apiErrorMessage(e));
+    }
   }
 
   Future<Response> put(String path, {dynamic data}) async {
-    return _dio.put(path, data: data);
+    try {
+      return await _dio.put(path, data: data);
+    } on DioException catch (e) {
+      _handleError(e);
+      throw Exception(apiErrorMessage(e));
+    }
   }
 
   Future<Response> delete(String path, {dynamic data}) async {
-    return _dio.delete(path, data: data);
+    try {
+      return await _dio.delete(path, data: data);
+    } on DioException catch (e) {
+      _handleError(e);
+      throw Exception(apiErrorMessage(e));
+    }
   }
 
   Future<Response> upload(String path, FormData formData) async {

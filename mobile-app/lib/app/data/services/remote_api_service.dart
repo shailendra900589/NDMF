@@ -73,6 +73,27 @@ class RemoteApiService extends GetxService {
       });
       final user = UserModel.fromJson(_unwrapMap(res));
       _storage.saveUser(user);
+      try {
+        await syncSession();
+      } catch (_) {
+        // Login token is still valid; profile sync can retry later.
+      }
+      return _storage.getUser();
+    } catch (e) {
+      _fail(e);
+    }
+  }
+
+  /// Refresh profile + permissions; keeps JWT from storage.
+  Future<UserModel?> syncSession() async {
+    final token = _storage.getToken();
+    if (token == null || token.isEmpty) return null;
+    try {
+      final res = await _http.get(ApiConstants.me);
+      final map = _unwrapMap(res);
+      map['token'] = token;
+      final user = UserModel.fromJson(map);
+      _storage.saveUser(user);
       return user;
     } catch (e) {
       _fail(e);
@@ -104,8 +125,12 @@ class RemoteApiService extends GetxService {
   // ─── Dashboard ───
 
   Future<DashboardStats> getDashboardStats() async {
-    final res = await _http.get(ApiConstants.dashboard);
-    return DashboardStats.fromJson(_unwrapMap(res));
+    try {
+      final res = await _http.get(ApiConstants.dashboard);
+      return DashboardStats.fromJson(_unwrapMap(res));
+    } catch (e) {
+      _fail(e);
+    }
   }
 
   // Lead/Loan modules removed from product — stubs keep app compiling.

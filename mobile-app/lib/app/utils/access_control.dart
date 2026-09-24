@@ -5,10 +5,21 @@ import 'package:get/get.dart';
 class AccessControl {
   AccessControl._();
 
-  static UserRole? get currentRole => Get.find<StorageService>().getRole();
+  static StorageService get _storage => Get.find<StorageService>();
 
-  static bool get canManageTeam {
-    final r = currentRole;
-    return r == UserRole.admin || r == UserRole.branchManager;
-  }
+  static UserRole? get currentRole => _storage.getRole();
+
+  static bool get isAdmin => currentRole == UserRole.admin;
+
+  static Map<String, bool> get permissions => _storage.getPermissions();
+
+  static bool canAccess(String key) => permissions[key] == true;
+
+  static bool get canManageTeam => canAccess('users');
+
+  static bool get canUseDialer => canAccess('callLogs');
+
+  static bool get canCreateListing => canAccess('customerListings');
+
+  static bool get showDashboard => canAccess('dashboard');
 }

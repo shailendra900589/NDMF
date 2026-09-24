@@ -45,9 +45,9 @@ class AuthController extends GetxController {
     isLoading.value = true;
     try {
       await _api.login(loginId, password);
+      await _api.syncSession();
       _storage.setRememberMe(rememberMe.value);
       if (Get.isRegistered<DataRefreshService>()) {
-        // Don't block navigation on sync
         Get.find<DataRefreshService>().refreshAll(silent: true);
       }
       _navigateAfterLogin();

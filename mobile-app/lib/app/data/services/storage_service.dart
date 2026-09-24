@@ -4,6 +4,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../models/enums/app_enums.dart';
+import '../../utils/app_permissions.dart';
 import 'api_constants.dart';
 
 class StorageService extends GetxService {
@@ -18,14 +19,33 @@ class StorageService extends GetxService {
 
   // Token
   void saveToken(String token) => _box.write(ApiConstants.tokenKey, token);
-  String? getToken() => _box.read(ApiConstants.tokenKey);
+  String? getToken() {
+    final t = _box.read(ApiConstants.tokenKey);
+    if (t != null && t.toString().isNotEmpty) return t.toString();
+    return getUser()?.token;
+  }
+
   void removeToken() => _box.remove(ApiConstants.tokenKey);
 
   // User
   void saveUser(UserModel user) {
-    _box.write(ApiConstants.userKey, user.toJson());
-    _box.write(ApiConstants.roleKey, user.role.name);
-    saveToken(user.token);
+    final token = user.token.isNotEmpty ? user.token : (getToken() ?? '');
+    final merged = user.token.isEmpty && token.isNotEmpty ? user.copyWith(token: token) : user;
+    _box.write(ApiConstants.userKey, merged.toJson());
+    _box.write(ApiConstants.roleKey, merged.role.name);
+    _box.write(ApiConstants.permissionsKey, merged.permissions);
+    if (token.isNotEmpty) saveToken(token);
+  }
+
+  Map<String, bool> getPermissions() {
+    final user = getUser();
+    if (user != null) return user.permissions;
+    final role = getRole() ?? UserRole.fieldOfficer;
+    final stored = _box.read(ApiConstants.permissionsKey);
+    if (stored is Map) {
+      return AppPermissions.merge(role, Map<String, dynamic>.from(stored));
+    }
+    return AppPermissions.defaultsForRole(role);
   }
 
   UserModel? getUser() {
@@ -46,10 +66,17 @@ class StorageService extends GetxService {
   void removeUser() {
     _box.remove(ApiConstants.userKey);
     _box.remove(ApiConstants.roleKey);
+    _box.remove(ApiConstants.permissionsKey);
     removeToken();
   }
 
-  bool get isLoggedIn => getToken() != null && getUser() != null;
+  /// Sign out API session only (keeps PIN / local prefs).
+  void clearAuthSession() => removeUser();
+
+  bool get isLoggedIn {
+    final token = getToken();
+    return token != null && token.isNotEmpty && getUser() != null;
+  }
 
   // Remember me
   void setRememberMe(bool value) => _prefs.setBool(ApiConstants.rememberMeKey, value);
@@ -86,7 +113,7 @@ class StorageService extends GetxService {
 
   // Logout all sessions
   Future<void> logoutAllSessions() async {
-    removeUser();
+    clearAuthSession();
     _box.erase();
     await _prefs.clear();
   }

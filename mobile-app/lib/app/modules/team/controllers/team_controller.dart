@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../data/models/enums/app_enums.dart';
 import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/storage_service.dart';
+import '../../../utils/access_control.dart';
 
 class TeamController extends GetxController {
   final NdfaApiService _api = Get.find<NdfaApiService>();
@@ -21,7 +21,7 @@ class TeamController extends GetxController {
   final selectedBranch = ''.obs;
   final isSaving = false.obs;
 
-  bool get isAdmin => _storage.getRole() == UserRole.admin;
+  bool get isAdmin => AccessControl.isAdmin;
 
   @override
   void onInit() {

@@ -26,11 +26,12 @@ class HomeView extends GetView<DashboardController> {
               ),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.dialpad),
-                tooltip: 'Dialer',
-                onPressed: () => Get.toNamed(AppRoutes.dialer),
-              ),
+              if (AccessControl.canUseDialer)
+                IconButton(
+                  icon: const Icon(Icons.dialpad),
+                  tooltip: 'Dialer',
+                  onPressed: () => Get.toNamed(AppRoutes.dialer),
+                ),
               IconButton(
                 icon: const Icon(Icons.person_outline),
                 onPressed: () => Get.toNamed(AppRoutes.profile),
@@ -59,11 +60,13 @@ class HomeView extends GetView<DashboardController> {
               BottomNavigationBarItem(icon: Icon(Icons.apps), label: 'Quick Actions'),
             ],
           ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => Get.toNamed(AppRoutes.customerListingNew),
-            icon: const Icon(Icons.person_add),
-            label: const Text('New Listing'),
-          ),
+          floatingActionButton: AccessControl.canCreateListing
+              ? FloatingActionButton.extended(
+                  onPressed: () => Get.toNamed(AppRoutes.customerListingNew),
+                  icon: const Icon(Icons.person_add),
+                  label: const Text('New Listing'),
+                )
+              : null,
         ));
   }
 }
@@ -73,17 +76,43 @@ class _QuickActionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actions = <_ActionItem>[
-      _ActionItem('Customer Listing', Icons.person_search, AppRoutes.customerListing, AppColors.warning),
-      _ActionItem('New Listing', Icons.note_add, AppRoutes.customerListingNew, AppColors.accent),
-      _ActionItem('Dialer', Icons.dialpad, AppRoutes.dialer, AppColors.error),
-      _ActionItem('Customers', Icons.people, AppRoutes.customers, AppColors.primaryDark),
-      _ActionItem('Attendance', Icons.access_time, AppRoutes.attendance, AppColors.success),
-      _ActionItem('Call History', Icons.call, AppRoutes.callHistory, AppColors.accentDark),
-      if (AccessControl.canManageTeam)
-        _ActionItem('Team & Roles', Icons.badge_outlined, AppRoutes.team, Colors.indigo),
-      _ActionItem('Profile', Icons.person, AppRoutes.profile, AppColors.textSecondary),
-    ];
+    final actions = <_ActionItem>[];
+    if (AccessControl.canAccess('customerListings')) {
+      actions.add(_ActionItem('Customer Listing', Icons.person_search, AppRoutes.customerListing, AppColors.warning));
+      actions.add(_ActionItem('New Listing', Icons.note_add, AppRoutes.customerListingNew, AppColors.accent));
+    }
+    if (AccessControl.canUseDialer) {
+      actions.add(_ActionItem('Dialer', Icons.dialpad, AppRoutes.dialer, AppColors.error));
+    }
+    if (AccessControl.canAccess('customers')) {
+      actions.add(_ActionItem('Customers', Icons.people, AppRoutes.customers, AppColors.primaryDark));
+    }
+    if (AccessControl.canAccess('attendance')) {
+      actions.add(_ActionItem('Attendance', Icons.access_time, AppRoutes.attendance, AppColors.success));
+    }
+    if (AccessControl.canAccess('tracking')) {
+      actions.add(_ActionItem('GPS Tracking', Icons.route, AppRoutes.tracking, Colors.teal));
+    }
+    if (AccessControl.canUseDialer) {
+      actions.add(_ActionItem('Call History', Icons.call, AppRoutes.callHistory, AppColors.accentDark));
+    }
+    if (AccessControl.canManageTeam) {
+      actions.add(_ActionItem('Team & Users', Icons.badge_outlined, AppRoutes.team, Colors.indigo));
+    }
+    actions.add(_ActionItem('Profile', Icons.person, AppRoutes.profile, AppColors.textSecondary));
+
+    if (actions.length <= 1) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'No modules assigned to your account.\nContact admin for access.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
+      );
+    }
 
     return GridView.builder(
       padding: const EdgeInsets.all(16),
