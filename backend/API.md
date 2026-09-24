@@ -195,6 +195,32 @@ Single customer record.
 
 ---
 
+## Customer listings (field visits — separate from Customers)
+
+### `GET /customer-listings`
+
+List listings (filters by role/branch). Query: `search`, `status`.
+
+### `POST /customer-listings`
+
+Submit new listing (photos via `/uploads/single` first).
+
+### `GET /customer-listings/:id`
+
+### `GET /customer-listings/approval`
+
+Pending approvals (managers).
+
+### `POST /customer-listings/approve`
+
+**Request:** `{ "id": "...", "action": "approve" | "reject" }`
+
+### `POST /customer-listings/:id/assign`
+
+Assign listing to a field officer.
+
+---
+
 ## Call logs
 
 ### `GET /call-logs`
@@ -212,11 +238,12 @@ Recent calls for the user or branch (role-scoped).
   "direction": "outbound",
   "durationSeconds": 120,
   "recordingUrl": "/uploads/...",
+  "recordingDurationSeconds": 120,
   "startedAt": "2026-09-24T10:00:00.000Z"
 }
 ```
 
-Non-registered numbers are allowed; `customerName` may be a display label.
+Non-registered numbers are allowed. Voice uploads support files up to **100 MB** (~15 min AAC). Non-registered numbers may use `customerName` as a display label.
 
 ---
 

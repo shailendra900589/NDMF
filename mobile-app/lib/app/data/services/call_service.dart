@@ -32,6 +32,7 @@ class CallService extends GetxService with WidgetsBindingObserver {
 
   bool _sessionActive = false;
   DateTime? _callStartedAt;
+  Timer? _resumeFinishTimer;
   String _pendingName = '';
   String _pendingMobile = '';
   String? _pendingLeadId;
@@ -45,14 +46,24 @@ class CallService extends GetxService with WidgetsBindingObserver {
 
   @override
   void onClose() {
+    _resumeFinishTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.onClose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _sessionActive) {
-      unawaited(_finishCallSession());
+    if (!_sessionActive) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _resumeFinishTimer?.cancel();
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      _resumeFinishTimer?.cancel();
+      // Avoid ending session when dialer opens; wait until user returns after the call.
+      _resumeFinishTimer = Timer(const Duration(milliseconds: 2000), () {
+        if (_sessionActive) unawaited(_finishCallSession());
+      });
     }
   }
 
@@ -145,6 +156,8 @@ class CallService extends GetxService with WidgetsBindingObserver {
     final telephony = await TelephonyCallReader.matchRecentOutgoing(
       mobile: _pendingMobile,
       placedAt: placedAt,
+      maxAttempts: 15,
+      attemptDelay: const Duration(milliseconds: 900),
     );
 
     String? rawRecordingPath;
@@ -154,7 +167,16 @@ class CallService extends GetxService with WidgetsBindingObserver {
     }
 
     final wallDuration = DateTime.now().difference(placedAt);
-    final recordingSeconds = durationToSeconds(wallDuration);
+    var recordingSeconds = durationToSeconds(wallDuration);
+    if (rawRecordingPath != null && rawRecordingPath.isNotEmpty) {
+      try {
+        final bytes = await File(rawRecordingPath).length();
+        // Rough AAC @64kbps — prefer wall clock if file looks truncated.
+        final estimated = (bytes / 8000).round();
+        if (estimated > recordingSeconds) recordingSeconds = estimated;
+      } catch (_) {}
+    }
+    recordingSeconds = recordingSeconds.clamp(0, 15 * 60);
 
     Duration talkDuration;
     int talkSeconds;

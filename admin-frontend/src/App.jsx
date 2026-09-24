@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import CustomerListings from './pages/CustomerListings';
 import Customers from './pages/Customers';
 import Tracking from './pages/Tracking';
 import CallLogs from './pages/CallLogs';
@@ -32,7 +33,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<PermissionRoute permission="dashboard"><Dashboard /></PermissionRoute>} />
-        <Route path="customer-listings" element={<Navigate to="/customers" replace />} />
+        <Route path="customer-listings" element={<PermissionRoute permission="customerListings"><CustomerListings /></PermissionRoute>} />
         <Route path="customers" element={<PermissionRoute permission="customers"><Customers /></PermissionRoute>} />
         <Route path="attendance" element={<PermissionRoute permission="attendance"><Attendance /></PermissionRoute>} />
         <Route path="tracking" element={<PermissionRoute permission="tracking"><Tracking /></PermissionRoute>} />

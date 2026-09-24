@@ -91,9 +91,8 @@ class _QuickActionsPage extends StatelessWidget {
     if (AccessControl.canManageTeam) {
       actions.add(_ActionItem('Team & Users', Icons.badge_outlined, AppRoutes.team, Colors.indigo));
     }
-    actions.add(_ActionItem('Profile', Icons.person, AppRoutes.profile, AppColors.textSecondary));
 
-    if (actions.length <= 1) {
+    if (actions.isEmpty) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(24),
@@ -107,12 +106,12 @@ class _QuickActionsPage extends StatelessWidget {
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.5,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+        childAspectRatio: 1.35,
       ),
       itemCount: actions.length,
       itemBuilder: (context, index) {
@@ -123,13 +122,14 @@ class _QuickActionsPage extends StatelessWidget {
             onTap: () => Get.toNamed(action.route),
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
                 color: Colors.white,
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
                 boxShadow: [
                   BoxShadow(
-                    color: action.color.withValues(alpha: 0.15),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
@@ -139,13 +139,27 @@ class _QuickActionsPage extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: action.color.withValues(alpha: 0.12),
+                      color: action.color.withValues(alpha: 0.14),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(action.icon, size: 28, color: action.color),
+                    child: Icon(action.icon, size: 26, color: action.color),
                   ),
                   const SizedBox(height: 10),
-                  Text(action.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      action.title,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        height: 1.2,
+                        color: Color(0xFF1A2E28),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

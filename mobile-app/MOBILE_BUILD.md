@@ -14,11 +14,11 @@ Live sync: every **45s** + on app resume (listings, customers, attendance, pendi
 
 **Recommended (lightweight, most phones):**
 
-`mobile-app/Nirmaldhara-FieldApp-v1.1.5-arm64.apk` (~21 MB)
+`mobile-app/Nirmaldhara-FieldApp-v1.1.6-arm64.apk` (~21 MB)
 
 Older 32-bit devices:
 
-`mobile-app/Nirmaldhara-FieldApp-v1.1.5-armv7.apk` (~19 MB)
+`mobile-app/Nirmaldhara-FieldApp-v1.1.6-armv7.apk` (~19 MB)
 
 Gradle output:
 

@@ -3,6 +3,7 @@
  */
 const PERMISSION_KEYS = [
   'dashboard',
+  'customerListings',
   'customers',
   'attendance',
   'tracking',
@@ -15,6 +16,7 @@ const PERMISSION_KEYS = [
 const ROLE_DEFAULTS = {
   admin: {
     dashboard: true,
+    customerListings: true,
     customers: true,
     attendance: true,
     tracking: true,
@@ -25,6 +27,7 @@ const ROLE_DEFAULTS = {
   },
   branchManager: {
     dashboard: true,
+    customerListings: true,
     customers: true,
     attendance: true,
     tracking: true,
@@ -35,6 +38,7 @@ const ROLE_DEFAULTS = {
   },
   fieldOfficer: {
     dashboard: true,
+    customerListings: true,
     customers: true,
     attendance: true,
     tracking: true,

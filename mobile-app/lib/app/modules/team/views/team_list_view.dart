@@ -26,8 +26,13 @@ class TeamListView extends GetView<TeamController> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed(AppRoutes.teamCreate),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('Create / Assign role'),
+        label: const Text(
+          'Create / Assign role',
+          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+        ),
       ),
       body: Obx(() {
         if (controller.isLoading.value) return const AppLoading(message: 'Loading team…');
@@ -50,22 +55,45 @@ class TeamListView extends GetView<TeamController> {
             itemBuilder: (_, i) {
               final u = controller.users[i];
               final role = u['role']?.toString() ?? '';
+              final roleLabel = controller.roleLabel(role);
               return Card(
-                margin: const EdgeInsets.only(bottom: 8),
+                margin: const EdgeInsets.only(bottom: 10),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.1)),
+                ),
                 child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   leading: CircleAvatar(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                     child: Text(
                       (u['name']?.toString() ?? '?')[0].toUpperCase(),
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  title: Text(u['name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text('${u['mobile']} • ${u['branch'] ?? ''}'),
-                  trailing: Chip(
-                    label: Text(controller.roleLabel(role), style: const TextStyle(fontSize: 10)),
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    side: BorderSide.none,
+                  title: Text(
+                    u['name']?.toString() ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1A2E28)),
+                  ),
+                  subtitle: Text(
+                    '${u['mobile']} • ${u['branch'] ?? ''}',
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryDark,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      roleLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               );

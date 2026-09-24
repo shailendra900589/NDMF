@@ -120,7 +120,11 @@ class ApiService extends GetxService {
     return _dio.post(
       path,
       data: formData,
-      options: Options(contentType: 'multipart/form-data'),
+      options: Options(
+        contentType: 'multipart/form-data',
+        sendTimeout: ApiConstants.uploadTimeout,
+        receiveTimeout: ApiConstants.uploadTimeout,
+      ),
     );
   }
 }

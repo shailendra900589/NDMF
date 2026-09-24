@@ -51,7 +51,7 @@ class TelephonyCallReader {
     if (target.length < 10) return TelephonyCallMatch.empty;
 
     final from = placedAt.subtract(const Duration(minutes: 2));
-    final to = DateTime.now().add(const Duration(minutes: 1));
+    final to = DateTime.now().add(const Duration(minutes: 20));
 
     for (var i = 0; i < maxAttempts; i++) {
       if (i > 0) await Future<void>.delayed(attemptDelay);
