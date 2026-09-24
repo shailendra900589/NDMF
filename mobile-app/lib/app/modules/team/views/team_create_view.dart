@@ -40,7 +40,7 @@ class TeamCreateView extends GetView<TeamController> {
             ),
             const SizedBox(height: 12),
             Obx(() => DropdownButtonFormField<String>(
-                  value: controller.canCreateRoles.contains(controller.selectedRole.value)
+                  initialValue: controller.canCreateRoles.contains(controller.selectedRole.value)
                       ? controller.selectedRole.value
                       : null,
                   decoration: const InputDecoration(labelText: 'Role'),
@@ -64,7 +64,7 @@ class TeamCreateView extends GetView<TeamController> {
               }
               final current = controller.selectedBranch.value;
               return DropdownButtonFormField<String>(
-                value: controller.branches.any((b) => b['name']?.toString() == current)
+                initialValue: controller.branches.any((b) => b['name']?.toString() == current)
                     ? current
                     : controller.branches.first['name']?.toString(),
                 decoration: const InputDecoration(labelText: 'Branch (select)'),

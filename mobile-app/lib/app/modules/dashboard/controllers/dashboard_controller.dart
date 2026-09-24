@@ -40,6 +40,7 @@ class DashboardController extends GetxController {
     }
   }
 
+  @override
   Future<void> refresh() async => loadStats();
 
   String get userName => _storage.getUser()?.name ?? 'User';

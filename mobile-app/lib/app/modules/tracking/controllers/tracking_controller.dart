@@ -22,6 +22,7 @@ class TrackingController extends GetxController {
     travelHistory.value = _tracking.getTravelHistory();
   }
 
+  @override
   Future<void> refresh() async {
     await _tracking.refreshTodayFromServer();
     loadHistory();

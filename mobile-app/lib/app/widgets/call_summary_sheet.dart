@@ -19,8 +19,8 @@ class CallSummarySheet {
     final formKey = GlobalKey<FormState>();
 
     return Get.bottomSheet<String>(
-      WillPopScope(
-        onWillPop: () async => false,
+      PopScope(
+        canPop: false,
         child: SafeArea(
           child: Padding(
             padding: EdgeInsets.only(

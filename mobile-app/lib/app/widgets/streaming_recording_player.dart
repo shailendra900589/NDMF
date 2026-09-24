@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../data/utils/recording_source_util.dart';
 import '../theme/app_colors.dart';

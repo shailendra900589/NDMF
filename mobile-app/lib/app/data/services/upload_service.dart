@@ -58,7 +58,7 @@ class UploadService extends GetxService {
         }
       }
     }
-    if (lastError != null) throw lastError!;
+    if (lastError != null) throw lastError;
     return null;
   }
 

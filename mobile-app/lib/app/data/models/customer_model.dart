@@ -1,4 +1,3 @@
-import 'enums/app_enums.dart';
 import 'loan_model.dart';
 
 class CustomerModel {

@@ -38,9 +38,9 @@ class CustomersListView extends GetView<CustomersController> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
-                _CustomerFilterChip('All', CustomerFilter.all),
-                _CustomerFilterChip('Recent', CustomerFilter.recent),
-                _CustomerFilterChip('With Location', CustomerFilter.withLocation),
+                const _CustomerFilterChip('All', CustomerFilter.all),
+                const _CustomerFilterChip('Recent', CustomerFilter.recent),
+                const _CustomerFilterChip('With Location', CustomerFilter.withLocation),
               ],
             ),
           ),
