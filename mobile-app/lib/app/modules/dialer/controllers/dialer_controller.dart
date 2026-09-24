@@ -60,7 +60,7 @@ class DialerController extends GetxController {
 
   bool get canPlaceCustomerCall {
     final digits = dialedNumber.value.replaceAll(RegExp(r'\D'), '');
-    return digits.length >= 10 && matchedCustomer.value != null;
+    return digits.length >= 10;
   }
 
   void _filterCustomers() {
@@ -122,31 +122,28 @@ class DialerController extends GetxController {
 
   Future<void> callNumber({String? number, String name = '', String? leadId}) async {
     final mobile = number ?? dialedNumber.value;
-    var customer = resolveCustomer(mobile);
-    if (customer == null && name.isNotEmpty) {
-      customer = matchedCustomer.value;
-    }
-    if (customer == null) {
-      Get.snackbar(
-        'Customers only',
-        'This app dialer is for registered customers with recording. '
-        'For family or personal calls, use your phone\'s default dialer.',
-        duration: const Duration(seconds: 4),
-      );
+    final digits = mobile.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 10) {
+      Get.snackbar('Invalid', 'Enter a valid 10-digit number');
       return;
     }
+    final last10 = digits.length >= 10 ? digits.substring(digits.length - 10) : digits;
+
+    final customer = resolveCustomer(mobile) ?? matchedCustomer.value;
+    final displayName = customer?.name ??
+        (name.isNotEmpty ? name : (matchedCustomer.value?.name ?? 'Contact $last10'));
 
     if (!await _call.ensureRecordingReady()) {
       Get.snackbar(
         'Recording required',
-        'Allow phone, call log & microphone to call customers from NDFA app.',
+        'Allow phone, call log & microphone to call from NDFA app.',
       );
       return;
     }
 
     await _call.placeCustomerCall(
-      mobile: customer.mobile,
-      customerName: customer.name,
+      mobile: last10,
+      customerName: displayName,
       leadId: leadId,
     );
   }

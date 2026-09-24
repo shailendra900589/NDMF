@@ -21,4 +21,6 @@ class AppRoutes {
   static const String dialer = '/dialer';
   static const String team = '/team';
   static const String teamCreate = '/team/create';
+  static const String payslips = '/payslips';
+  static const String payslipForm = '/payslips/form';
 }

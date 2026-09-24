@@ -62,6 +62,7 @@ class ApiConstants {
 
   static const String uploadSingle = '/uploads/single';
   static const String callLogs = '/call-logs';
+  static const String payslips = '/payslips';
 
   static const String tokenKey = 'auth_token';
   static const String userKey = 'user_data';

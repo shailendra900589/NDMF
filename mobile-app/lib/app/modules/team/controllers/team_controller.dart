@@ -31,6 +31,40 @@ class TeamController extends GetxController {
     if (me != null && me.branch.isNotEmpty) selectedBranch.value = me.branch;
   }
 
+  /// Load branches + creatable roles when opening Create employee screen.
+  Future<void> prepareCreateScreen() async {
+    try {
+      final schema = await _api.getUsersPermissionSchema();
+      final roles = schema['canCreateRoles'];
+      if (roles is List && roles.isNotEmpty) {
+        canCreateRoles.value = roles.map((e) => e.toString()).toList();
+        if (!canCreateRoles.contains(selectedRole.value)) {
+          selectedRole.value = canCreateRoles.first;
+        }
+      } else if (isAdmin) {
+        canCreateRoles.value = ['fieldOfficer', 'branchManager', 'admin'];
+      }
+
+      if (isAdmin) {
+        branches.value = await _api.getBranches();
+        if (selectedBranch.value.isEmpty && branches.isNotEmpty) {
+          selectedBranch.value = branches.first['name']?.toString() ?? '';
+        }
+      } else {
+        final me = _storage.getUser();
+        final b = me?.branch ?? '';
+        if (b.isNotEmpty) {
+          branches.value = [
+            {'id': 'mine', 'name': b},
+          ];
+          selectedBranch.value = b;
+        }
+      }
+    } catch (e) {
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   @override
   void onClose() {
     nameCtrl.dispose();

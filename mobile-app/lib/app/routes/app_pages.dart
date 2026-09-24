@@ -21,13 +21,15 @@ import '../modules/security/views/app_lock_view.dart';
 import '../modules/tracking/views/map_view.dart';
 import '../modules/customer_listing/bindings/customer_listing_binding.dart';
 import '../modules/customer_listing/views/customer_listing_list_view.dart';
-import '../modules/customer_listing/views/new_customer_listing_view.dart';
 import '../modules/customer_listing/views/customer_listing_detail_view.dart';
 import '../modules/dialer/bindings/dialer_binding.dart';
 import '../modules/dialer/views/dialer_view.dart';
 import '../modules/team/bindings/team_binding.dart';
 import '../modules/team/views/team_list_view.dart';
 import '../modules/team/views/team_create_view.dart';
+import '../modules/payslips/bindings/payslips_binding.dart';
+import '../modules/payslips/views/payslips_list_view.dart';
+import '../modules/payslips/views/payslip_form_view.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -50,10 +52,15 @@ class AppPages {
     GetPage(name: AppRoutes.deviceInfo, page: () => const DeviceInfoView(), binding: ProfileBinding()),
     GetPage(name: AppRoutes.mapView, page: () => const MapView(), binding: TrackingBinding()),
     GetPage(name: AppRoutes.customerListing, page: () => const CustomerListingListView(), binding: CustomerListingBinding()),
-    GetPage(name: AppRoutes.customerListingNew, page: () => const NewCustomerListingView(), binding: CustomerListingBinding()),
     GetPage(name: AppRoutes.customerListingDetail, page: () => const CustomerListingDetailView(), binding: CustomerListingBinding()),
     GetPage(name: AppRoutes.dialer, page: () => const DialerView(), binding: DialerBinding()),
     GetPage(name: AppRoutes.team, page: () => const TeamListView(), binding: TeamBinding()),
     GetPage(name: AppRoutes.teamCreate, page: () => const TeamCreateView(), binding: TeamBinding()),
+    GetPage(name: AppRoutes.payslips, page: () => const PayslipsListView(), binding: PayslipsBinding()),
+    GetPage(
+      name: AppRoutes.payslipForm,
+      page: () => const PayslipFormView(),
+      binding: PayslipsBinding(),
+    ),
   ];
 }

@@ -46,17 +46,7 @@ class CustomerListingListView extends GetView<CustomerListingListController> {
               icon: const Icon(Icons.groups_outlined),
               onPressed: () => Get.toNamed(AppRoutes.team),
             ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'New listing',
-            onPressed: () => Get.toNamed(AppRoutes.customerListingNew),
-          ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(AppRoutes.customerListingNew),
-        icon: const Icon(Icons.person_add),
-        label: const Text('New Listing'),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -138,7 +128,7 @@ class CustomerListingListView extends GetView<CustomerListingListController> {
                 return const AppEmptyState(
                   icon: Icons.person_search_outlined,
                   title: 'No customer listings yet',
-                  subtitle: 'Tap New Listing to add a shop visit with GPS photos.',
+                  subtitle: 'View and manage field customer listings from the server.',
                 );
               }
               return RefreshIndicator(

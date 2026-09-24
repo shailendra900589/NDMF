@@ -8,6 +8,8 @@ class TeamCreateView extends GetView<TeamController> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.prepareCreateScreen());
+
     return Scaffold(
       appBar: AppBar(title: const Text('Create employee')),
       body: SingleChildScrollView(
@@ -16,7 +18,7 @@ class TeamCreateView extends GetView<TeamController> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Create user, pick role, and assign branch. Field Officers use the mobile app.',
+              'Create user, select role, and assign branch. Admin can create Field Officer, Branch Manager, or Admin.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 16),
@@ -28,16 +30,19 @@ class TeamCreateView extends GetView<TeamController> {
             TextField(
               controller: controller.mobileCtrl,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Mobile (10 digits)'),
+              maxLength: 10,
+              decoration: const InputDecoration(labelText: 'Mobile (10 digits)', counterText: ''),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: controller.employeeIdCtrl,
-              decoration: const InputDecoration(labelText: 'Employee ID'),
+              decoration: const InputDecoration(labelText: 'Employee ID (Login ID)'),
             ),
             const SizedBox(height: 12),
             Obx(() => DropdownButtonFormField<String>(
-                  value: controller.selectedRole.value,
+                  value: controller.canCreateRoles.contains(controller.selectedRole.value)
+                      ? controller.selectedRole.value
+                      : null,
                   decoration: const InputDecoration(labelText: 'Role'),
                   items: controller.canCreateRoles
                       .map((r) => DropdownMenuItem(value: r, child: Text(controller.roleLabel(r))))
@@ -48,27 +53,30 @@ class TeamCreateView extends GetView<TeamController> {
                 )),
             const SizedBox(height: 12),
             Obx(() {
-              if (controller.isAdmin && controller.branches.isNotEmpty) {
-                return DropdownButtonFormField<String>(
-                  value: controller.selectedBranch.value.isEmpty ? null : controller.selectedBranch.value,
-                  decoration: const InputDecoration(labelText: 'Branch'),
-                  items: controller.branches
-                      .map((b) => DropdownMenuItem(
-                            value: b['name']?.toString() ?? '',
-                            child: Text(b['name']?.toString() ?? ''),
-                          ))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) controller.selectedBranch.value = v;
-                  },
+              if (controller.branches.isEmpty) {
+                return TextField(
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Branch',
+                    hintText: controller.selectedBranch.value.isEmpty ? 'Loading…' : controller.selectedBranch.value,
+                  ),
                 );
               }
-              return TextField(
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Branch',
-                  hintText: controller.selectedBranch.value,
-                ),
+              final current = controller.selectedBranch.value;
+              return DropdownButtonFormField<String>(
+                value: controller.branches.any((b) => b['name']?.toString() == current)
+                    ? current
+                    : controller.branches.first['name']?.toString(),
+                decoration: const InputDecoration(labelText: 'Branch (select)'),
+                items: controller.branches
+                    .map((b) => DropdownMenuItem(
+                          value: b['name']?.toString() ?? '',
+                          child: Text(b['name']?.toString() ?? ''),
+                        ))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) controller.selectedBranch.value = v;
+                },
               );
             }),
             const SizedBox(height: 12),

@@ -58,8 +58,8 @@ class DialerView extends GetView<DialerController> {
           children: [
             const AppGradientBanner(
               icon: Icons.mic,
-              title: 'Recorded customer calls only',
-              subtitle: 'Search customer • recording starts before call • personal calls use phone dialer',
+              title: 'Recorded outbound calls',
+              subtitle: 'Any valid number • registered or new • recording starts before call',
               accent: AppColors.error,
             ),
             Padding(
@@ -148,8 +148,8 @@ class DialerView extends GetView<DialerController> {
                             Text(customer.mobile, style: const TextStyle(color: AppColors.textSecondary)),
                           if (number.isNotEmpty && customer == null)
                             const Text(
-                              'Not a registered customer',
-                              style: TextStyle(color: AppColors.error, fontSize: 12),
+                              'New / unregistered number — call allowed with recording',
+                              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                             ),
                         ],
                       );

@@ -60,13 +60,6 @@ class HomeView extends GetView<DashboardController> {
               BottomNavigationBarItem(icon: Icon(Icons.apps), label: 'Quick Actions'),
             ],
           ),
-          floatingActionButton: AccessControl.canCreateListing
-              ? FloatingActionButton.extended(
-                  onPressed: () => Get.toNamed(AppRoutes.customerListingNew),
-                  icon: const Icon(Icons.person_add),
-                  label: const Text('New Listing'),
-                )
-              : null,
         ));
   }
 }
@@ -79,7 +72,9 @@ class _QuickActionsPage extends StatelessWidget {
     final actions = <_ActionItem>[];
     if (AccessControl.canAccess('customerListings')) {
       actions.add(_ActionItem('Customer Listing', Icons.person_search, AppRoutes.customerListing, AppColors.warning));
-      actions.add(_ActionItem('New Listing', Icons.note_add, AppRoutes.customerListingNew, AppColors.accent));
+    }
+    if (AccessControl.canAccess('payslips')) {
+      actions.add(_ActionItem('Pay Slips', Icons.receipt_long, AppRoutes.payslips, Colors.deepPurple));
     }
     if (AccessControl.canUseDialer) {
       actions.add(_ActionItem('Dialer', Icons.dialpad, AppRoutes.dialer, AppColors.error));

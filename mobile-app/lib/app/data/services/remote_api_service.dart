@@ -268,6 +268,45 @@ class RemoteApiService extends GetxService {
     return _unwrapMap(res);
   }
 
+  // ─── Pay slips (admin) ───
+
+  Future<List<Map<String, dynamic>>> getPayslips({String? search}) async {
+    try {
+      final res = await _http.get(ApiConstants.payslips, queryParameters: {
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
+      return _unwrapList(res);
+    } catch (e) {
+      _fail(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> createPayslip(Map<String, dynamic> payload) async {
+    try {
+      final res = await _http.post(ApiConstants.payslips, data: payload);
+      return _unwrapMap(res);
+    } catch (e) {
+      _fail(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> updatePayslip(String id, Map<String, dynamic> payload) async {
+    try {
+      final res = await _http.put('${ApiConstants.payslips}/$id', data: payload);
+      return _unwrapMap(res);
+    } catch (e) {
+      _fail(e);
+    }
+  }
+
+  Future<void> deletePayslip(String id) async {
+    try {
+      await _http.delete('${ApiConstants.payslips}/$id');
+    } catch (e) {
+      _fail(e);
+    }
+  }
+
   // ─── Tracking ───
 
   Future<Map<String, dynamic>> syncRoutePoints(List<Map<String, dynamic>> routePoints) async {
