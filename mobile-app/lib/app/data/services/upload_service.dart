@@ -46,6 +46,22 @@ class UploadService extends GetxService {
   }
 
   /// Returns relative `/uploads/...` path for DB storage; stream via [fullUrl].
+  Future<String?> uploadVoiceFileWithRetry(String localPath, {int attempts = 3}) async {
+    Object? lastError;
+    for (var i = 0; i < attempts; i++) {
+      try {
+        return await uploadVoiceFile(localPath);
+      } catch (e) {
+        lastError = e;
+        if (i < attempts - 1) {
+          await Future<void>.delayed(Duration(seconds: 2 * (i + 1)));
+        }
+      }
+    }
+    if (lastError != null) throw lastError!;
+    return null;
+  }
+
   Future<String> uploadVoiceFile(String localPath) async {
     if (localPath.startsWith('/uploads')) return localPath;
     if (localPath.startsWith('http')) {

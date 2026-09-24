@@ -14,6 +14,7 @@ import 'storage_service.dart';
 import 'ndfa_api_service.dart';
 import 'sync_service.dart';
 import 'telephony_call_reader.dart';
+import 'telephony_bridge.dart';
 import 'api_constants.dart';
 
 /// Calls from dialer: system call log verifies talk time; mic recording uploads to backend dashboard.
@@ -31,8 +32,14 @@ class CallService extends GetxService with WidgetsBindingObserver {
   final lastCompletedCall = Rxn<CallLogModel>();
 
   bool _sessionActive = false;
+  bool _finishing = false;
   DateTime? _callStartedAt;
-  Timer? _resumeFinishTimer;
+  Timer? _callMonitorTimer;
+  bool _sawOffhook = false;
+  int _idlePollStreak = 0;
+  int _lastCallLogDuration = -1;
+  int _stableLogDurationTicks = 0;
+
   String _pendingName = '';
   String _pendingMobile = '';
   String? _pendingLeadId;
@@ -46,7 +53,7 @@ class CallService extends GetxService with WidgetsBindingObserver {
 
   @override
   void onClose() {
-    _resumeFinishTimer?.cancel();
+    _stopCallMonitor();
     WidgetsBinding.instance.removeObserver(this);
     super.onClose();
   }
@@ -54,16 +61,73 @@ class CallService extends GetxService with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_sessionActive) return;
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _resumeFinishTimer?.cancel();
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_recorder.maintainRecordingDuringCall());
+    }
+  }
+
+  void _startCallMonitor() {
+    _stopCallMonitor();
+    _sawOffhook = false;
+    _idlePollStreak = 0;
+    _lastCallLogDuration = -1;
+    _stableLogDurationTicks = 0;
+    _callMonitorTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      unawaited(_tickCallMonitor());
+    });
+  }
+
+  void _stopCallMonitor() {
+    _callMonitorTimer?.cancel();
+    _callMonitorTimer = null;
+  }
+
+  Future<void> _tickCallMonitor() async {
+    if (!_sessionActive || _finishing) return;
+    final placedAt = _callStartedAt;
+    if (placedAt == null) return;
+
+    final elapsed = DateTime.now().difference(placedAt);
+    if (elapsed > VoiceRecordingService.maxRecordingDuration) {
+      await _finishCallSession();
       return;
     }
-    if (state == AppLifecycleState.resumed) {
-      _resumeFinishTimer?.cancel();
-      // Avoid ending session when dialer opens; wait until user returns after the call.
-      _resumeFinishTimer = Timer(const Duration(milliseconds: 2000), () {
-        if (_sessionActive) unawaited(_finishCallSession());
-      });
+
+    await _recorder.maintainRecordingDuringCall();
+
+    final state = await TelephonyBridge.getCallState();
+    if (state == 'offhook') _sawOffhook = true;
+    if (state == 'idle') {
+      _idlePollStreak++;
+    } else {
+      _idlePollStreak = 0;
+    }
+
+    final peek = await TelephonyCallReader.peekOutgoing(
+      mobile: _pendingMobile,
+      placedAt: placedAt,
+    );
+    if (peek.verified && peek.durationSeconds > 0) {
+      if (peek.durationSeconds == _lastCallLogDuration) {
+        _stableLogDurationTicks++;
+      } else {
+        _lastCallLogDuration = peek.durationSeconds;
+        _stableLogDurationTicks = 0;
+      }
+    }
+
+    if (elapsed < const Duration(seconds: 6)) return;
+
+    if (_sawOffhook && _idlePollStreak >= 3) {
+      await _finishCallSession();
+      return;
+    }
+    if (_stableLogDurationTicks >= 2 && _lastCallLogDuration > 0) {
+      await _finishCallSession();
+      return;
+    }
+    if (!_sawOffhook && _idlePollStreak >= 5 && elapsed > const Duration(seconds: 20)) {
+      await _finishCallSession();
     }
   }
 
@@ -82,10 +146,8 @@ class CallService extends GetxService with WidgetsBindingObserver {
     return phone.isGranted && mic.isGranted;
   }
 
-  /// True when phone + mic permissions are granted (required before customer call).
   Future<bool> ensureRecordingReady() async => _ensurePermissions();
 
-  /// Customer calls only — recording must start before the system phone UI opens.
   Future<void> placeCustomerCall({
     required String mobile,
     required String customerName,
@@ -122,11 +184,13 @@ class CallService extends GetxService with WidgetsBindingObserver {
     _pendingLeadId = leadId;
     _callStartedAt = DateTime.now();
     _sessionActive = true;
+    _finishing = false;
     isCallActive.value = true;
+    _startCallMonitor();
 
     Get.snackbar(
       'NDFA customer call',
-      'Recording ON • log & summary will sync after call',
+      'Recording ON • stays active up to 15 min',
       duration: const Duration(seconds: 3),
     );
 
@@ -147,8 +211,10 @@ class CallService extends GetxService with WidgetsBindingObserver {
       placeCustomerCall(mobile: mobile, customerName: customerName, leadId: leadId);
 
   Future<void> _finishCallSession() async {
-    if (!_sessionActive) return;
+    if (!_sessionActive || _finishing) return;
+    _finishing = true;
     _sessionActive = false;
+    _stopCallMonitor();
     isCallActive.value = false;
 
     final placedAt = _callStartedAt ?? DateTime.now();
@@ -156,12 +222,12 @@ class CallService extends GetxService with WidgetsBindingObserver {
     final telephony = await TelephonyCallReader.matchRecentOutgoing(
       mobile: _pendingMobile,
       placedAt: placedAt,
-      maxAttempts: 15,
-      attemptDelay: const Duration(milliseconds: 900),
+      maxAttempts: 20,
+      attemptDelay: const Duration(milliseconds: 800),
     );
 
     String? rawRecordingPath;
-    if (isRecording.value) {
+    if (isRecording.value || _recorder.hasActiveSession) {
       rawRecordingPath = await _recorder.stopRecording();
       isRecording.value = false;
     }
@@ -169,12 +235,7 @@ class CallService extends GetxService with WidgetsBindingObserver {
     final wallDuration = DateTime.now().difference(placedAt);
     var recordingSeconds = durationToSeconds(wallDuration);
     if (rawRecordingPath != null && rawRecordingPath.isNotEmpty) {
-      try {
-        final bytes = await File(rawRecordingPath).length();
-        // Rough AAC @64kbps — prefer wall clock if file looks truncated.
-        final estimated = (bytes / 8000).round();
-        if (estimated > recordingSeconds) recordingSeconds = estimated;
-      } catch (_) {}
+      recordingSeconds = await _recorder.estimateSecondsFromFile(rawRecordingPath, recordingSeconds);
     }
     recordingSeconds = recordingSeconds.clamp(0, 15 * 60);
 
@@ -186,8 +247,8 @@ class CallService extends GetxService with WidgetsBindingObserver {
       talkDuration = Duration(seconds: talkSeconds);
       callStatus = telephony.callStatus;
     } else {
-      talkSeconds = durationToSeconds(wallDuration);
-      talkDuration = wallDuration;
+      talkSeconds = recordingSeconds > 3 ? recordingSeconds : durationToSeconds(wallDuration);
+      talkDuration = Duration(seconds: talkSeconds);
       callStatus = talkSeconds > 3 ? 'connected' : 'unknown';
     }
 
@@ -196,14 +257,12 @@ class CallService extends GetxService with WidgetsBindingObserver {
 
     if (rawRecordingPath != null && rawRecordingPath.isNotEmpty) {
       if (ApiConstants.useRemoteApi) {
-        try {
-          serverRecordingUrl = await _upload.uploadVoiceFile(rawRecordingPath);
-          if (serverRecordingUrl != null && !serverRecordingUrl!.contains('/uploads/')) {
-            localRecordingPath = rawRecordingPath;
-            serverRecordingUrl = null;
-          }
-        } catch (_) {
+        serverRecordingUrl = await _upload.uploadVoiceFileWithRetry(rawRecordingPath);
+        if (serverRecordingUrl != null && serverRecordingUrl.contains('/uploads/')) {
+          localRecordingPath = null;
+        } else {
           localRecordingPath = rawRecordingPath;
+          serverRecordingUrl = null;
         }
       } else if (await File(rawRecordingPath).exists()) {
         localRecordingPath = rawRecordingPath;
@@ -275,6 +334,7 @@ class CallService extends GetxService with WidgetsBindingObserver {
     _pendingMobile = '';
     _pendingLeadId = null;
     _callStartedAt = null;
+    _finishing = false;
 
     final verified = telephony.verified ? ' • Phone log verified' : ' • Log pending permission';
     final recLabel = log.hasOnlineRecording
@@ -289,8 +349,8 @@ class CallService extends GetxService with WidgetsBindingObserver {
     var payload = log;
     if (!log.hasOnlineRecording && log.localRecordingPath != null) {
       try {
-        final url = await _upload.uploadVoiceFile(log.localRecordingPath!);
-        if (url.contains('/uploads/')) {
+        final url = await _upload.uploadVoiceFileWithRetry(log.localRecordingPath!);
+        if (url != null && url.contains('/uploads/')) {
           payload = log.copyWith(recordingUrl: url, localRecordingPath: null);
         } else {
           return false;

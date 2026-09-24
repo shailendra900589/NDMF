@@ -38,6 +38,19 @@ class TelephonyCallReader {
   }
 
   /// Polls call log briefly after user returns from dialer (log may lag).
+  /// Single quick read while call may still be in progress.
+  static Future<TelephonyCallMatch> peekOutgoing({
+    required String mobile,
+    required DateTime placedAt,
+  }) async {
+    return matchRecentOutgoing(
+      mobile: mobile,
+      placedAt: placedAt,
+      maxAttempts: 1,
+      attemptDelay: Duration.zero,
+    );
+  }
+
   static Future<TelephonyCallMatch> matchRecentOutgoing({
     required String mobile,
     required DateTime placedAt,
