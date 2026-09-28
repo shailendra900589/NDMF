@@ -79,7 +79,7 @@ class _QuickActionsPage extends StatelessWidget {
       actions.add(_ActionDef('Call History', 'Recordings', Icons.history_rounded, AppRoutes.callHistory, const Color(0xFFF57C00)));
     }
     if (AccessControl.canManageTeam) {
-      actions.add(_ActionDef('Team', 'Users & roles', Icons.badge_outlined, AppRoutes.team, const Color(0xFF3949AB)));
+      actions.add(_ActionDef('Team', 'Create & assign roles', Icons.badge_outlined, AppRoutes.team, const Color(0xFF3949AB)));
     }
 
     if (actions.isEmpty) {

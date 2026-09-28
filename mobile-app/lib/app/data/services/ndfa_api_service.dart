@@ -152,6 +152,11 @@ class NdfaApiService extends GetxService {
     await Get.find<RemoteApiService>().createUser(payload);
   }
 
+  Future<void> updateUser(String id, Map<String, dynamic> payload) async {
+    if (!ApiConstants.useRemoteApi) throw Exception('Update user requires online API');
+    await Get.find<RemoteApiService>().updateUser(id, payload);
+  }
+
   Future<List<Map<String, dynamic>>> getPayslips({String? search}) async {
     if (!ApiConstants.useRemoteApi) return [];
     return Get.find<RemoteApiService>().getPayslips(search: search);

@@ -24,6 +24,7 @@ import '../modules/dialer/views/dialer_view.dart';
 import '../modules/team/bindings/team_binding.dart';
 import '../modules/team/views/team_list_view.dart';
 import '../modules/team/views/team_create_view.dart';
+import '../modules/team/views/team_assign_view.dart';
 import '../modules/payslips/bindings/payslips_binding.dart';
 import '../modules/payslips/views/payslips_list_view.dart';
 import '../modules/payslips/views/payslip_form_view.dart';
@@ -56,6 +57,7 @@ class AppPages {
     GetPage(name: AppRoutes.dialer, page: () => const DialerView(), binding: DialerBinding()),
     GetPage(name: AppRoutes.team, page: () => const TeamListView(), binding: TeamBinding()),
     GetPage(name: AppRoutes.teamCreate, page: () => const TeamCreateView(), binding: TeamBinding()),
+    GetPage(name: AppRoutes.teamAssign, page: () => const TeamAssignView(), binding: TeamBinding()),
     GetPage(name: AppRoutes.payslips, page: () => const PayslipsListView(), binding: PayslipsBinding()),
     GetPage(
       name: AppRoutes.payslipForm,

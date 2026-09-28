@@ -21,7 +21,12 @@ class TeamController extends GetxController {
   final selectedBranch = ''.obs;
   final isSaving = false.obs;
 
+  final editingUserId = RxnString();
+  final editingEmployeeId = ''.obs;
+  final editingMobile = ''.obs;
+
   bool get isAdmin => AccessControl.isAdmin;
+  bool get isAssignMode => editingUserId.value != null;
 
   @override
   void onInit() {
@@ -101,6 +106,67 @@ class TeamController extends GetxController {
 
   List<Map<String, dynamic>> get fieldOfficers =>
       users.where((u) => u['role'] == 'fieldOfficer' && u['isActive'] != false).toList();
+
+  void clearAssignState() {
+    editingUserId.value = null;
+    editingEmployeeId.value = '';
+    editingMobile.value = '';
+  }
+
+  Future<void> prepareAssignScreen(Map<String, dynamic> user) async {
+    final id = user['id']?.toString();
+    if (id == null || id.isEmpty) {
+      Get.snackbar('Error', 'Invalid user');
+      return;
+    }
+    editingUserId.value = id;
+    editingEmployeeId.value = user['employeeId']?.toString() ?? '';
+    editingMobile.value = user['mobile']?.toString() ?? '';
+    nameCtrl.text = user['name']?.toString() ?? '';
+    final role = user['role']?.toString() ?? 'fieldOfficer';
+    selectedRole.value = role;
+    final branch = user['branch']?.toString() ?? '';
+    if (branch.isNotEmpty) selectedBranch.value = branch;
+    await prepareCreateScreen();
+    if (!canCreateRoles.contains(role)) {
+      canCreateRoles.value = [...canCreateRoles, role];
+    }
+  }
+
+  Future<void> assignRole() async {
+    final id = editingUserId.value;
+    if (id == null || id.isEmpty) {
+      Get.snackbar('Error', 'No user selected');
+      return;
+    }
+    if (nameCtrl.text.trim().isEmpty) {
+      Get.snackbar('Validation', 'Name required');
+      return;
+    }
+    final branch = selectedBranch.value.trim();
+    if (branch.isEmpty) {
+      Get.snackbar('Validation', 'Branch required');
+      return;
+    }
+
+    isSaving.value = true;
+    try {
+      final payload = <String, dynamic>{
+        'name': nameCtrl.text.trim(),
+        'role': selectedRole.value,
+      };
+      if (isAdmin) payload['branch'] = branch;
+      await _api.updateUser(id, payload);
+      Get.back();
+      clearAssignState();
+      Get.snackbar('Success', 'Role assigned');
+      await loadTeam();
+    } catch (e) {
+      Get.snackbar('Error', e.toString());
+    } finally {
+      isSaving.value = false;
+    }
+  }
 
   Future<void> createEmployee() async {
     if (nameCtrl.text.trim().isEmpty || mobileCtrl.text.trim().length < 10) {

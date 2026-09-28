@@ -319,6 +319,11 @@ class RemoteApiService extends GetxService {
     return _unwrapMap(res);
   }
 
+  Future<Map<String, dynamic>> updateUser(String id, Map<String, dynamic> payload) async {
+    final res = await _http.put('${ApiConstants.users}/$id', data: payload);
+    return _unwrapMap(res);
+  }
+
   // ─── Pay slips (admin) ───
 
   Future<List<Map<String, dynamic>>> getPayslips({String? search}) async {

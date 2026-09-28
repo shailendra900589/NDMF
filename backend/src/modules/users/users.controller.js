@@ -114,10 +114,31 @@ exports.update = (req, res) => {
   if (!target) return error(res, 'User not found', 404);
   if (!canManageUser(req.user, target)) return error(res, 'Forbidden', 403);
 
-  const { name, branch, permissions, isActive, password } = req.body;
+  const { name, branch, role, permissions, isActive, password } = req.body;
   const assignable = assignablePermissionKeys(req.user);
 
   if (name) target.name = name.trim();
+
+  if (role && role !== target.role) {
+    if (target.id === req.user.id) {
+      return error(res, 'You cannot change your own role', 400);
+    }
+    const allowed = allowedRolesForCreator(req.user);
+    if (!allowed.includes(role)) {
+      return error(res, `You cannot assign role: ${role}`, 403);
+    }
+    if (role === 'admin' && !isAdmin(req.user)) {
+      return error(res, 'Only admin can assign admin role', 403);
+    }
+    const users = getCollection('users');
+    if (users.some((u) => u.id !== target.id && u.mobile === target.mobile && u.role === role)) {
+      return error(res, 'Another account with this mobile already has that role', 409);
+    }
+    target.role = role;
+    if (!permissions) {
+      target.permissions = { ...(ROLE_DEFAULTS[role] || {}) };
+    }
+  }
 
   if (branch && isAdmin(req.user)) {
     target.branch = branch.trim();

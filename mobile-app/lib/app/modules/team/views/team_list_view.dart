@@ -13,14 +13,20 @@ class TeamListView extends GetView<TeamController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const CustomAppBar(title: 'Team', subtitle: 'Users & roles'),
+      appBar: const CustomAppBar(
+        title: 'Team',
+        subtitle: 'Tap member to assign role',
+      ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(AppRoutes.teamCreate),
+        onPressed: () {
+          controller.clearAssignState();
+          Get.toNamed(AppRoutes.teamCreate);
+        },
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.person_add_alt_1),
         label: const Text(
-          'Create / Assign role',
+          'Create user & role',
           style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
         ),
       ),
@@ -54,6 +60,12 @@ class TeamListView extends GetView<TeamController> {
                   side: BorderSide(color: AppColors.primary.withValues(alpha: 0.1)),
                 ),
                 child: ListTile(
+                  onTap: () async {
+                    await controller.prepareAssignScreen(u);
+                    if (controller.isAssignMode) {
+                      await Get.toNamed(AppRoutes.teamAssign);
+                    }
+                  },
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   leading: CircleAvatar(
                     backgroundColor: AppColors.primary.withValues(alpha: 0.15),

@@ -52,6 +52,8 @@ export default function Users() {
       ? ['fieldOfficer', 'branchManager', 'admin']
       : ['fieldOfficer'];
 
+  const roleOptionsForForm = [...new Set([form.role, ...creatableRoles].filter(Boolean))];
+
   const openCreate = () => {
     const role = creatableRoles[0] || 'fieldOfficer';
     setEditId(null);
@@ -86,6 +88,7 @@ export default function Users() {
       if (editId) {
         await usersApi.update(editId, {
           name: form.name,
+          role: form.role,
           ...(isAdmin ? { branch: form.branch } : {}),
           permissions: form.permissions,
           isActive: form.isActive,
@@ -123,7 +126,7 @@ export default function Users() {
         }
       >
         <button type="button" className="btn btn-primary" onClick={openCreate}>
-          + {isAdmin ? 'Create user' : 'Add employee'}
+          + Create user &amp; assign role
         </button>
       </PageHeader>
 
@@ -157,7 +160,7 @@ export default function Users() {
                 <td>{u.isActive === false ? 'Disabled' : 'Active'}</td>
                 <td>
                   <button type="button" className="btn btn-outline btn-sm" onClick={() => openEdit(u)}>
-                    Edit / Permissions
+                    Assign role / access
                   </button>
                 </td>
               </tr>
@@ -170,7 +173,7 @@ export default function Users() {
       {form && (
         <div className="modal-backdrop">
           <div className="card" style={{ width: 'min(520px, 94vw)' }}>
-            <h3>{editId ? 'Edit employee' : isAdmin ? 'Create user' : 'Add Employee'}</h3>
+            <h3>{editId ? 'Assign role & permissions' : 'Create user & assign role'}</h3>
             <div className="form-group">
               <label>Name</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -198,7 +201,7 @@ export default function Users() {
                       });
                     }}
                   >
-                    {creatableRoles.map((r) => (
+                    {roleOptionsForForm.map((r) => (
                       <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>
                     ))}
                   </select>
@@ -210,9 +213,29 @@ export default function Users() {
               </>
             )}
             {editId && (
-              <p style={{ fontSize: 13, color: '#6b7280' }}>
-                Mobile: {form.mobile} • {ROLE_LABELS[form.role]} • ID {form.employeeId}
-              </p>
+              <>
+                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
+                  Mobile: {form.mobile} • ID {form.employeeId}
+                </p>
+                <div className="form-group">
+                  <label>Assign role</label>
+                  <select
+                    value={form.role}
+                    onChange={(e) => {
+                      const role = e.target.value;
+                      setForm({
+                        ...form,
+                        role,
+                        permissions: { ...(schema.roleDefaults?.[role] || form.permissions) },
+                      });
+                    }}
+                  >
+                    {roleOptionsForForm.map((r) => (
+                      <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
             )}
             <div className="form-group">
               <label>Location</label>
