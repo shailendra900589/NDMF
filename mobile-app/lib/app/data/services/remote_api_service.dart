@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:get/get.dart' hide Response, FormData, MultipartFile;
+import '../../utils/api_errors.dart';
 import '../models/user_model.dart';
 import '../models/lead_model.dart';
 import '../models/loan_model.dart';
@@ -30,7 +31,7 @@ class RemoteApiService extends GetxService {
         case DioExceptionType.receiveTimeout:
           throw Exception('Connection timeout. Check internet and try again.');
         case DioExceptionType.connectionError:
-          throw Exception('Cannot reach server. Check internet and try again.');
+          throw Exception(apiErrorMessage(e));
         default:
           throw Exception('Request failed. Please try again.');
       }
@@ -211,6 +212,14 @@ class RemoteApiService extends GetxService {
 
   Future<void> saveFaceEnrollmentUrls(List<String> urls) async {
     await _http.put(ApiConstants.faceEnrollment, data: {'urls': urls});
+  }
+
+  Future<bool> setFaceAttendanceRequired(bool enabled) async {
+    final res = await _http.put(ApiConstants.settingsAttendanceFace, data: {
+      'faceAttendanceRequired': enabled,
+    });
+    final data = _unwrapMap(res);
+    return data['faceAttendanceRequired'] != false;
   }
 
   Future<Map<String, dynamic>> sendLiveTrackingPing({

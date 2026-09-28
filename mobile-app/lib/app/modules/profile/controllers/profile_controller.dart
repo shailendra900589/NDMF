@@ -7,6 +7,7 @@ import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/upload_service.dart';
 import '../../../data/models/enums/app_enums.dart';
 import '../../../routes/app_routes.dart';
+import '../../../utils/access_control.dart';
 
 class ProfileController extends GetxController {
   final StorageService _storage = Get.find<StorageService>();
@@ -18,11 +19,35 @@ class ProfileController extends GetxController {
   final appVersion = '1.0.0'.obs;
   final screenshotProtection = false.obs;
   final photoPath = RxnString();
+  final faceAttendanceRequired = true.obs;
+  final facePolicySaving = false.obs;
 
   @override
   void onInit() {
     super.onInit();
     photoPath.value = _storage.getUser()?.photoUrl;
+    faceAttendanceRequired.value = _storage.getUser()?.faceAttendanceRequired ?? true;
+  }
+
+  Future<void> toggleFaceAttendancePolicy(bool enabled) async {
+    if (!AccessControl.isAdmin) return;
+    facePolicySaving.value = true;
+    try {
+      await _api.setFaceAttendanceRequired(enabled);
+      await _api.syncSession();
+      faceAttendanceRequired.value = _storage.getUser()?.faceAttendanceRequired ?? enabled;
+      if (!enabled) _storage.setFaceEnrollmentSkipped(false);
+      Get.snackbar(
+        'Policy updated',
+        enabled
+            ? 'Field staff must use face for attendance'
+            : 'Attendance is GPS-only (no face verify)',
+      );
+    } catch (e) {
+      Get.snackbar('Error', e.toString());
+    } finally {
+      facePolicySaving.value = false;
+    }
   }
 
   String get name => _storage.getUser()?.name ?? '';

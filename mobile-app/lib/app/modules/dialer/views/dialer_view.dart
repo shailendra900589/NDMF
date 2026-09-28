@@ -4,6 +4,7 @@ import '../../../theme/app_colors.dart';
 import '../../../data/services/call_service.dart';
 import '../../../widgets/animated_entrance.dart';
 import '../../../widgets/app_page_header.dart';
+import '../../../widgets/custom_app_bar.dart';
 import '../controllers/dialer_controller.dart';
 
 class DialerView extends GetView<DialerController> {
@@ -15,17 +16,9 @@ class DialerView extends GetView<DialerController> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Customer Dialer'),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.primaryDark, AppColors.primary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
+      appBar: CustomAppBar(
+        title: 'Dialer',
+        subtitle: 'Outbound calls',
         actions: [
           Obx(() => Padding(
                 padding: const EdgeInsets.only(right: 12),

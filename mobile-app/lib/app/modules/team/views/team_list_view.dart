@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
-import '../../../widgets/app_loading.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/skeleton_loaders.dart';
 import '../../../routes/app_routes.dart';
 import '../controllers/team_controller.dart';
 
@@ -12,18 +13,7 @@ class TeamListView extends GetView<TeamController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Team & Roles'),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.primaryDark, AppColors.primary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-      ),
+      appBar: const CustomAppBar(title: 'Team', subtitle: 'Users & roles'),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed(AppRoutes.teamCreate),
         backgroundColor: AppColors.primary,
@@ -35,7 +25,7 @@ class TeamListView extends GetView<TeamController> {
         ),
       ),
       body: Obx(() {
-        if (controller.isLoading.value) return const AppLoading(message: 'Loading team…');
+        if (controller.isLoading.value) return const ListSkeleton();
         if (controller.users.isEmpty) {
           return const Center(
             child: Padding(

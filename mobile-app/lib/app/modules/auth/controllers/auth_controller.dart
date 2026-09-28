@@ -50,6 +50,10 @@ class AuthController extends GetxController {
       if (Get.isRegistered<DataRefreshService>()) {
         Get.find<DataRefreshService>().refreshAll(silent: true);
       }
+      final u = _storage.getUser();
+      if (u != null && !u.faceAttendanceRequired) {
+        _storage.setFaceEnrollmentSkipped(false);
+      }
       _navigateAfterLogin();
     } catch (e) {
       Get.snackbar('Login Failed', e.toString().replaceFirst('Exception: ', ''));
@@ -60,7 +64,9 @@ class AuthController extends GetxController {
 
   void _navigateAfterLogin() {
     final user = _storage.getUser();
-    if (user != null && user.needsFaceEnrollment && !user.faceEnrollmentComplete) {
+    if (user != null &&
+        user.shouldPromptFaceEnrollment &&
+        !_storage.faceEnrollmentSkipped) {
       Get.offAllNamed(AppRoutes.faceEnrollment);
       return;
     }

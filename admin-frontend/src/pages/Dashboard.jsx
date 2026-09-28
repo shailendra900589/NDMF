@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { dashboardApi } from '../api/api';
+import { dashboardApi, trackingApi } from '../api/api';
 import RecordingPlayer from '../components/RecordingPlayer';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
+import LiveTeamMap from '../components/LiveTeamMap';
 import { displayLocation } from '../utils/displayLabels';
 
 const STAT_META = {
@@ -17,13 +18,22 @@ const STAT_META = {
 export default function Dashboard() {
   const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
   const [stats, setStats] = useState(null);
+  const [liveTeam, setLiveTeam] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    dashboardApi.getStats()
-      .then((res) => setStats(res.data))
+    Promise.all([dashboardApi.getStats(), trackingApi.getLive()])
+      .then(([dash, live]) => {
+        setStats(dash.data);
+        setLiveTeam(live.data || []);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
+
+    const t = setInterval(() => {
+      trackingApi.getLive().then((res) => setLiveTeam(res.data || [])).catch(() => {});
+    }, 30000);
+    return () => clearInterval(t);
   }, []);
 
   if (loading) return <PageLoader label="Loading dashboard..." />;
@@ -48,7 +58,7 @@ export default function Dashboard() {
         description="Live overview of listings, customers, field activity, and call recordings."
       />
 
-      <div className={`scope-banner${isAllBranches ? ' scope-banner--admin' : ''}`}>
+      <div className={`scope-banner scope-banner--compact${isAllBranches ? ' scope-banner--admin' : ''}`}>
         <div className="scope-banner__icon">{isAllBranches ? 'ALL' : 'LOC'}</div>
         <div>
           <div className="scope-banner__title">
@@ -65,14 +75,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="stats-grid stats-grid--dashboard">
+      <div className="stats-grid stats-grid--dashboard stats-grid--compact">
         {metrics.map((m) => {
           const meta = STAT_META[m.label] || { tone: 'teal', abbr: '—' };
           return (
-            <article key={m.key} className={`stat-card stat-card--${meta.tone}`}>
-              <div className="stat-card__top">
-                <span className="stat-card__icon" aria-hidden>{meta.abbr}</span>
-              </div>
+            <article key={m.key} className={`stat-card stat-card--compact stat-card--${meta.tone}`}>
+              <span className="stat-card__icon" aria-hidden>{meta.abbr}</span>
               <div className="stat-card__value">{m.value}</div>
               <div className="stat-card__label">{m.label}</div>
             </article>
@@ -80,7 +88,15 @@ export default function Dashboard() {
         })}
       </div>
 
-      <section className="card card--section">
+      <section className="card card--section card--compact">
+        <div className="card__header">
+          <h2 className="card__title">Live field map</h2>
+          <span className="card__subtitle">Refreshes every 30s · from mobile GPS duty</span>
+        </div>
+        <LiveTeamMap team={liveTeam} />
+      </section>
+
+      <section className="card card--section card--compact">
         <div className="card__header">
           <h2 className="card__title">Recent call recordings</h2>
           <span className="card__subtitle">Stream online — synced from mobile dialer</span>

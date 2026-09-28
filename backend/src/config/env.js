@@ -16,6 +16,8 @@ const corsOrigins = process.env.CORS_ORIGINS
       'https://13.60.224.155',
       'http://localhost:5173',
       'http://127.0.0.1:5173',
+      'http://localhost:7357',
+      'http://127.0.0.1:7357',
     ];
 
 module.exports = {

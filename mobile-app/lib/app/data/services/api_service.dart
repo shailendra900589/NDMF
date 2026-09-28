@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:get/get.dart' hide Response, FormData;
-import '../../routes/app_routes.dart';
 import '../../utils/api_errors.dart';
+import '../../widgets/session_expired_dialog.dart';
 import 'api_constants.dart';
 import 'storage_service.dart';
 
@@ -57,9 +57,7 @@ class ApiService extends GetxService {
           message = apiErrorMessage(error);
           if (_storage.getToken()?.isNotEmpty ?? false) {
             _storage.clearAuthSession();
-            if (Get.currentRoute != AppRoutes.login && Get.currentRoute != AppRoutes.splash) {
-              Get.offAllNamed(AppRoutes.login);
-            }
+            showSessionExpiredDialog();
           }
         } else if (statusCode == 403) {
           message = 'Access denied.';

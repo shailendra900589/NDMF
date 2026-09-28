@@ -16,10 +16,13 @@ const mediaRoutes = require('../modules/media/media.routes');
 const usersRoutes = require('../modules/users/users.routes');
 const branchesRoutes = require('../modules/branches/branches.routes');
 const payslipsRoutes = require('../modules/payslips/payslips.routes');
+const settingsRoutes = require('../modules/settings/settings.routes');
 
 router.use('/auth', authRoutes);
+router.use('/settings', settingsRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/customers', customersRoutes);
+router.use('/customer-listings', customerListingsRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/tracking', trackingRoutes);
 router.use('/uploads', uploadRoutes);
@@ -35,7 +38,7 @@ router.get('/health', (_, res) => {
     message: 'NDFA API is running',
     data: {
       version: '2.2.0',
-      modules: 'rbac,branches,users,customers,calls,attendance,tracking,payslips',
+      modules: 'rbac,branches,users,customers,listing,calls,attendance,tracking,payslips,settings',
     },
   });
 });

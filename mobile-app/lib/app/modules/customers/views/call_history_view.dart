@@ -3,7 +3,9 @@ import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
 import '../../../data/models/enums/app_enums.dart';
 import '../../../data/services/call_service.dart';
-import '../../../widgets/app_loading.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/empty_state.dart';
+import '../../../widgets/skeleton_loaders.dart';
 import '../../../widgets/animated_entrance.dart';
 import '../../../widgets/app_page_header.dart';
 import '../../../widgets/streaming_recording_player.dart';
@@ -18,17 +20,9 @@ class CallHistoryView extends GetView<CustomersController> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Call History'),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.primaryDark, AppColors.primary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
+      appBar: CustomAppBar(
+        title: 'Call history',
+        subtitle: 'Recordings & sync',
         actions: [
           Obx(() => Padding(
                 padding: const EdgeInsets.only(right: 12),
@@ -51,13 +45,13 @@ class CallHistoryView extends GetView<CustomersController> {
           Expanded(
             child: Obx(() {
               if (controller.isLoadingLogs.value) {
-                return const AppLoading(message: 'Loading call history…');
+                return const ListSkeleton();
               }
               if (controller.callLogs.isEmpty) {
-                return const AppEmptyState(
+                return const EmptyState(
                   icon: Icons.call_outlined,
                   title: 'No call logs yet',
-                  subtitle: 'Outgoing calls from Dialer appear here with duration and recording.',
+                  message: 'Outgoing calls from Dialer appear here with duration and recording.',
                 );
               }
               return RefreshIndicator(

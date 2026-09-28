@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../theme/app_colors.dart';
-import '../../../widgets/app_loading.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/skeleton_loaders.dart';
+import '../../../theme/app_tokens.dart';
 import '../../../routes/app_routes.dart';
 import '../../../data/services/tracking_service.dart';
 import '../controllers/attendance_controller.dart';
@@ -14,20 +16,9 @@ class AttendanceView extends GetView<AttendanceController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Attendance'),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.primaryDark, AppColors.primary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-      ),
+      appBar: const CustomAppBar(title: 'Attendance', subtitle: 'Face verify + GPS'),
       body: Obx(() {
-        if (controller.isLoading.value) return const AppLoading();
+        if (controller.isLoading.value) return const ListSkeleton(itemCount: 3);
         return RefreshIndicator(
           onRefresh: controller.loadHistory,
           child: SingleChildScrollView(
@@ -46,30 +37,36 @@ class AttendanceView extends GetView<AttendanceController> {
                         Text(DateFormat('hh:mm a').format(DateTime.now()),
                             style: const TextStyle(color: AppColors.textSecondary)),
                         const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: controller.canCheckIn && !controller.isProcessing.value
-                                    ? controller.checkIn
-                                    : null,
-                                icon: const Icon(Icons.login),
-                                label: const Text('Check In'),
-                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
-                              ),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: FilledButton.icon(
+                            onPressed: controller.canCheckIn && !controller.isProcessing.value
+                                ? controller.checkIn
+                                : null,
+                            icon: const Icon(Icons.fingerprint_rounded, size: 28),
+                            label: const Text('Check in', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.success,
+                              shape: RoundedRectangleBorder(borderRadius: AppRadii.button),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: controller.canCheckOut && !controller.isProcessing.value
-                                    ? controller.checkOut
-                                    : null,
-                                icon: const Icon(Icons.logout),
-                                label: const Text('Check Out'),
-                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
-                              ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: FilledButton.icon(
+                            onPressed: controller.canCheckOut && !controller.isProcessing.value
+                                ? controller.checkOut
+                                : null,
+                            icon: const Icon(Icons.logout_rounded, size: 26),
+                            label: const Text('Check out', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.accent,
+                              shape: RoundedRectangleBorder(borderRadius: AppRadii.button),
                             ),
-                          ],
+                          ),
                         ),
                         if (controller.todayRecord != null) ...[
                           const SizedBox(height: 16),

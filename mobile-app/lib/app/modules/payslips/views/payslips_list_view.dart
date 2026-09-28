@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../routes/app_routes.dart';
-import '../../../theme/app_colors.dart';
-import '../../../widgets/app_loading.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/empty_state.dart';
+import '../../../widgets/skeleton_loaders.dart';
 import '../controllers/payslips_controller.dart';
 
 class PayslipsListView extends GetView<PayslipsController> {
@@ -11,16 +12,7 @@ class PayslipsListView extends GetView<PayslipsController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pay Slips'),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.primaryDark, AppColors.primary],
-            ),
-          ),
-        ),
-      ),
+      appBar: const CustomAppBar(title: 'Pay slips', subtitle: 'Admin payroll'),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           controller.startCreate();
@@ -30,16 +22,12 @@ class PayslipsListView extends GetView<PayslipsController> {
         label: const Text('New pay slip'),
       ),
       body: Obx(() {
-        if (controller.isLoading.value) return const AppLoading(message: 'Loading pay slips…');
+        if (controller.isLoading.value) return const ListSkeleton();
         if (controller.slips.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'No pay slips yet.\nTap New pay slip to create (admin).',
-                textAlign: TextAlign.center,
-              ),
-            ),
+          return const EmptyState(
+            icon: Icons.receipt_long_outlined,
+            title: 'No pay slips',
+            message: 'Tap New pay slip to create (admin).',
           );
         }
         return RefreshIndicator(

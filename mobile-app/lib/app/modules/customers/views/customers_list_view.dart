@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
-import '../../../widgets/app_loading.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/empty_state.dart';
+import '../../../widgets/skeleton_loaders.dart';
+import '../../../theme/app_tokens.dart';
 import '../../../routes/app_routes.dart';
 import '../controllers/customers_controller.dart';
 
@@ -11,11 +14,13 @@ class CustomersListView extends GetView<CustomersController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Customers'),
+      backgroundColor: const Color(0xFFE8F4F8),
+      appBar: CustomAppBar(
+        title: 'Customers',
+        subtitle: 'Master data',
         actions: [
           IconButton(
-            icon: const Icon(Icons.call),
+            icon: const Icon(Icons.history_rounded),
             onPressed: () => Get.toNamed(AppRoutes.callHistory),
           ),
         ],
@@ -46,19 +51,20 @@ class CustomersListView extends GetView<CustomersController> {
           ),
           Expanded(
             child: Obx(() {
-              if (controller.isLoading.value) return const AppLoading();
+              if (controller.isLoading.value) return const ListSkeleton();
               if (controller.customers.isEmpty) {
-                return const Center(child: Text('No customers found'));
+                return const EmptyState(title: 'No customers', message: 'Try another search.', icon: Icons.people_outline);
               }
               return ListView.builder(
                 itemCount: controller.customers.length,
                 itemBuilder: (context, index) {
                   final customer = controller.customers[index];
                   return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                        child: Text(customer.name[0], style: const TextStyle(color: AppColors.primary)),
+                        backgroundColor: const Color(0xFF0277BD).withValues(alpha: 0.15),
+                        child: Text(customer.name[0], style: const TextStyle(color: Color(0xFF0277BD))),
                       ),
                       title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                       subtitle: Text(customer.mobile),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../data/services/ndfa_api_service.dart';
@@ -10,8 +11,10 @@ class FaceEnrollmentController extends GetxController {
   final UploadService _upload = Get.find<UploadService>();
   final StorageService _storage = Get.find<StorageService>();
 
-  final capturedUrls = <String>[].obs;
-  final isSaving = false.obs;
+  final List<String> capturedUrls = [];
+  bool isSaving = false;
+
+  int get capturedCount => capturedUrls.length;
 
   @override
   void onInit() {
@@ -20,6 +23,7 @@ class FaceEnrollmentController extends GetxController {
   }
 
   Future<void> _loadStatus() async {
+    if (kIsWeb) return;
     try {
       final s = await _api.getFaceEnrollmentStatus();
       if (s['complete'] == true) _goHome();
@@ -42,6 +46,7 @@ class FaceEnrollmentController extends GetxController {
       final url = await _upload.uploadPlainFile(file.path, type: 'photo');
       if (url != null && url.isNotEmpty) {
         capturedUrls.add(url);
+        update();
       }
     } catch (e) {
       Get.snackbar('Upload failed', e.toString());
@@ -53,18 +58,18 @@ class FaceEnrollmentController extends GetxController {
       Get.snackbar('Need 3 photos', 'Capture at least 3 clear face photos (angles slightly different)');
       return;
     }
-    isSaving.value = true;
+    isSaving = true;
+    update();
     try {
-      await _api.saveFaceEnrollmentUrls(capturedUrls.toList());
-      final user = _storage.getUser();
-      if (user != null) {
-        await _api.syncSession();
-      }
+      await _api.saveFaceEnrollmentUrls(List<String>.from(capturedUrls));
+      _storage.setFaceEnrollmentSkipped(false);
+      await _api.syncSession();
       _goHome();
     } catch (e) {
       Get.snackbar('Error', e.toString());
     } finally {
-      isSaving.value = false;
+      isSaving = false;
+      update();
     }
   }
 
@@ -74,5 +79,14 @@ class FaceEnrollmentController extends GetxController {
     } else {
       Get.offAllNamed(AppRoutes.home);
     }
+  }
+
+  void skipEnrollment() {
+    _storage.setFaceEnrollmentSkipped(true);
+    Get.snackbar(
+      'Skipped',
+      'You can enroll later from Profile. Attendance may require face if admin has enabled it.',
+    );
+    _goHome();
   }
 }

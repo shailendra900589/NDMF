@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../theme/app_colors.dart';
 import '../../../routes/app_routes.dart';
 import '../../../utils/access_control.dart';
+import '../../../widgets/action_tile.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/empty_state.dart';
 import '../../../widgets/offline_banner.dart';
-import '../../../widgets/animated_entrance.dart';
 import '../controllers/dashboard_controller.dart';
 import 'dashboard_view.dart';
 
@@ -13,53 +14,39 @@ class HomeView extends GetView<DashboardController> {
 
   @override
   Widget build(BuildContext context) {
+    final showDashboard = AccessControl.showDashboard;
     return Obx(() => Scaffold(
-          appBar: AppBar(
-            title: const Text('Nirmaldhara Micro Foundation'),
-            flexibleSpace: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primaryDark, AppColors.primary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-            ),
-            actions: [
-              if (AccessControl.canUseDialer)
-                IconButton(
-                  icon: const Icon(Icons.dialpad),
-                  tooltip: 'Dialer',
-                  onPressed: () => Get.toNamed(AppRoutes.dialer),
-                ),
-              IconButton(
-                icon: const Icon(Icons.person_outline),
-                onPressed: () => Get.toNamed(AppRoutes.profile),
-              ),
-            ],
+          appBar: HomeAppBar(
+            showDialer: AccessControl.canUseDialer,
+            onDialer: () => Get.toNamed(AppRoutes.dialer),
+            onProfile: () => Get.toNamed(AppRoutes.profile),
           ),
           body: Column(
             children: [
               const OfflineBanner(),
               Expanded(
-                child: IndexedStack(
-                  index: controller.selectedNavIndex.value,
-                  children: const [
-                    DashboardView(),
-                    _QuickActionsPage(),
-                  ],
-                ),
+                child: showDashboard
+                    ? IndexedStack(
+                        index: controller.selectedNavIndex.value,
+                        children: const [
+                          DashboardView(),
+                          _QuickActionsPage(),
+                        ],
+                      )
+                    : const _QuickActionsPage(),
               ),
             ],
           ),
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: controller.selectedNavIndex.value,
-            onTap: (i) => controller.selectedNavIndex.value = i,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-              BottomNavigationBarItem(icon: Icon(Icons.apps), label: 'Quick Actions'),
-            ],
-          ),
+          bottomNavigationBar: showDashboard
+              ? BottomNavigationBar(
+                  currentIndex: controller.selectedNavIndex.value,
+                  onTap: (i) => controller.selectedNavIndex.value = i,
+                  items: const [
+                    BottomNavigationBarItem(icon: Icon(Icons.insights_outlined), label: 'Dashboard'),
+                    BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'Quick Actions'),
+                  ],
+                )
+              : null,
         ));
   }
 }
@@ -69,43 +56,34 @@ class _QuickActionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actions = <_ActionItem>[];
+    final actions = <_ActionDef>[];
     if (AccessControl.canAccess('payslips')) {
-      actions.add(_ActionItem('Pay Slips', Icons.receipt_long, AppRoutes.payslips, Colors.deepPurple));
+      actions.add(_ActionDef('Pay Slips', 'Admin payroll', Icons.receipt_long_rounded, AppRoutes.payslips, const Color(0xFF5E35B1)));
     }
     if (AccessControl.canUseDialer) {
-      actions.add(_ActionItem('Dialer', Icons.dialpad, AppRoutes.dialer, AppColors.error));
+      actions.add(_ActionDef('Dialer', 'Outbound calls', Icons.dialpad_rounded, AppRoutes.dialer, const Color(0xFFD32F2F)));
     }
     if (AccessControl.canAccess('customerListings')) {
-      actions.add(_ActionItem('Customer Application', Icons.assignment_add, AppRoutes.customerApplication, AppColors.warning));
+      actions.add(_ActionDef('Applications', 'New & approvals', Icons.assignment_add, AppRoutes.customerApplication, const Color(0xFFF9A825)));
     }
     if (AccessControl.canAccess('customers')) {
-      actions.add(_ActionItem('Customers', Icons.people, AppRoutes.customers, AppColors.primaryDark));
+      actions.add(_ActionDef('Customers', 'Master list', Icons.people_rounded, AppRoutes.customers, const Color(0xFF00695C)));
     }
     if (AccessControl.canAccess('attendance')) {
-      actions.add(_ActionItem('Attendance', Icons.access_time, AppRoutes.attendance, AppColors.success));
+      actions.add(_ActionDef('Attendance', 'Face + GPS', Icons.fingerprint_rounded, AppRoutes.attendance, const Color(0xFF388E3C)));
     }
     if (AccessControl.canAccess('tracking')) {
-      actions.add(_ActionItem('GPS Tracking', Icons.route, AppRoutes.tracking, Colors.teal));
+      actions.add(_ActionDef('GPS Duty', 'Live tracking', Icons.route_rounded, AppRoutes.tracking, const Color(0xFF00897B)));
     }
     if (AccessControl.canUseDialer) {
-      actions.add(_ActionItem('Call History', Icons.call, AppRoutes.callHistory, AppColors.accentDark));
+      actions.add(_ActionDef('Call History', 'Recordings', Icons.history_rounded, AppRoutes.callHistory, const Color(0xFFF57C00)));
     }
     if (AccessControl.canManageTeam) {
-      actions.add(_ActionItem('Team & Users', Icons.badge_outlined, AppRoutes.team, Colors.indigo));
+      actions.add(_ActionDef('Team', 'Users & roles', Icons.badge_outlined, AppRoutes.team, const Color(0xFF3949AB)));
     }
 
     if (actions.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'No modules assigned to your account.\nContact admin for access.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        ),
-      );
+      return const NoPermissionsState();
     }
 
     return GridView.builder(
@@ -114,69 +92,29 @@ class _QuickActionsPage extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 14,
         mainAxisSpacing: 14,
-        childAspectRatio: 1.35,
+        childAspectRatio: 1.05,
       ),
       itemCount: actions.length,
       itemBuilder: (context, index) {
-        final action = actions[index];
-        return FadeSlideIn(
+        final a = actions[index];
+        return ActionTile(
           index: index,
-          child: PressScale(
-            onTap: () => Get.toNamed(action.route),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white,
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: action.color.withValues(alpha: 0.14),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(action.icon, size: 26, color: action.color),
-                  ),
-                  const SizedBox(height: 10),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      action.title,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        height: 1.2,
-                        color: Color(0xFF1A2E28),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          title: a.title,
+          subtitle: a.subtitle,
+          icon: a.icon,
+          color: a.color,
+          onTap: () => Get.toNamed(a.route),
         );
       },
     );
   }
 }
 
-class _ActionItem {
+class _ActionDef {
   final String title;
+  final String subtitle;
   final IconData icon;
   final String route;
   final Color color;
-  _ActionItem(this.title, this.icon, this.route, this.color);
+  _ActionDef(this.title, this.subtitle, this.icon, this.route, this.color);
 }

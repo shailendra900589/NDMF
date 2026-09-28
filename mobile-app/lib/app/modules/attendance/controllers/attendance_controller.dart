@@ -1,19 +1,29 @@
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../data/models/attendance_model.dart';
+import '../../../data/models/enums/app_enums.dart';
 import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/services/tracking_service.dart';
+import '../../../data/services/storage_service.dart';
 
 class AttendanceController extends GetxController {
   NdfaApiService get _api => Get.find<NdfaApiService>();
   LocationService get _location => Get.find<LocationService>();
   TrackingService get _tracking => Get.find<TrackingService>();
+  StorageService get _storage => Get.find<StorageService>();
 
   final history = <AttendanceModel>[].obs;
   final isLoading = false.obs;
   final isProcessing = false.obs;
   AttendanceModel? todayRecord;
+
+  bool get facePolicyRequired => _storage.getUser()?.faceAttendanceRequired ?? true;
+
+  bool get _roleNeedsFaceWhenEnabled {
+    final role = _storage.getUser()?.role;
+    return role == UserRole.fieldOfficer || role == UserRole.branchManager;
+  }
 
   @override
   void onInit() {
@@ -40,8 +50,11 @@ class AttendanceController extends GetxController {
   Future<void> checkIn() async {
     isProcessing.value = true;
     try {
-      final verified = await _verifyLiveFace();
-      if (!verified) return;
+      var verified = false;
+      if (facePolicyRequired && _roleNeedsFaceWhenEnabled) {
+        verified = await _verifyLiveFace();
+        if (!verified) return;
+      }
 
       final loc = await _location.getCurrentLocation();
       if (loc == null) {
@@ -55,7 +68,12 @@ class AttendanceController extends GetxController {
         faceVerified: verified,
       );
       await loadHistory();
-      Get.snackbar('Success', 'Checked in • live face + GPS verified');
+      Get.snackbar(
+        'Success',
+        facePolicyRequired && _roleNeedsFaceWhenEnabled
+            ? 'Checked in • face + GPS verified'
+            : 'Checked in • GPS verified',
+      );
     } catch (e) {
       Get.snackbar('Error', e.toString());
     } finally {
@@ -92,7 +110,7 @@ class AttendanceController extends GetxController {
   Future<bool> _verifyLiveFace() async {
     final status = await _api.getFaceEnrollmentStatus();
     if (status['complete'] != true) {
-      Get.snackbar('Face enrollment', 'Complete 3 reference selfies first (Profile flow)');
+      Get.snackbar('Face enrollment', 'Complete 3 reference selfies first (Profile → Face enrollment)');
       return false;
     }
     final picker = ImagePicker();

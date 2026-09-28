@@ -6,7 +6,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { corsOrigins, trustProxy } = require('./config/env');
+const { trustProxy } = require('./config/env');
+const { isCorsOriginAllowed } = require('./config/cors');
 const apiRoutes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -22,12 +23,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || corsOrigins.includes(origin)) {
-        return callback(null, true);
+      if (isCorsOriginAllowed(origin)) {
+        return callback(null, origin || true);
       }
       return callback(null, false);
     },
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   })
 );
 

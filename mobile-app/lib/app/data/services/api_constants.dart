@@ -1,6 +1,6 @@
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 
 class ApiConstants {
   ApiConstants._();
@@ -13,6 +13,8 @@ class ApiConstants {
 
   /// true = live https://ndclients.co.in — false = local backend.
   static const bool useProduction = true;
+  /// Flutter web debug: use local API (run backend on port 5000) for settings/CORS tests.
+  static const bool useLocalApiOnWebDebug = false;
   /// true = Android emulator (10.0.2.2). false = real phone on same WiFi as PC.
   static const bool useEmulatorHost = true;
   /// PC LAN IP — run `ipconfig` and set this when useEmulatorHost is false.
@@ -20,6 +22,9 @@ class ApiConstants {
 
   static String get baseUrl {
     if (useProduction) {
+      if (kIsWeb && kDebugMode && useLocalApiOnWebDebug) {
+        return 'http://127.0.0.1:5000/api/v1';
+      }
       return useProductionIp ? productionIpBaseUrl : productionBaseUrl;
     }
     if (!kIsWeb &&
@@ -66,6 +71,9 @@ class ApiConstants {
   static const String trackingHistory = '/tracking/history';
 
   static const String faceEnrollment = '/users/me/face-enrollment';
+  static const String settingsAttendanceFace = '/settings/attendance-face';
+
+  static const String faceEnrollmentSkippedKey = 'face_enrollment_skipped';
 
   static const String uploadSingle = '/uploads/single';
   static const String callLogs = '/call-logs';

@@ -77,6 +77,12 @@ class StorageService extends GetxService {
     return token != null && token.isNotEmpty && getUser() != null;
   }
 
+  bool get faceEnrollmentSkipped =>
+      _box.read(ApiConstants.faceEnrollmentSkippedKey) == true;
+
+  void setFaceEnrollmentSkipped(bool value) =>
+      _box.write(ApiConstants.faceEnrollmentSkippedKey, value);
+
   // Remember me
   void setRememberMe(bool value) => _prefs.setBool(ApiConstants.rememberMeKey, value);
   bool get rememberMe => _prefs.getBool(ApiConstants.rememberMeKey) ?? false;

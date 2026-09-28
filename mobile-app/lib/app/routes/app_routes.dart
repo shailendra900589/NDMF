@@ -22,4 +22,5 @@ class AppRoutes {
   static const String payslipForm = '/payslips/form';
   static const String faceEnrollment = '/face-enrollment';
   static const String customerApplication = '/customer-application';
+  static const String customerApplicationNew = '/customer-application/new';
 }

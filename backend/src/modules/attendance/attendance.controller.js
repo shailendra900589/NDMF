@@ -2,6 +2,7 @@ const { v4: uuid } = require('uuid');
 const { getCollection, upsert } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { filterByBranchViaUser, isAdmin, sameBranch } = require('../../lib/rbac');
+const { getAppSettings } = require('../../lib/appSettings');
 
 const BRANCH_LAT = 28.6139;
 const BRANCH_LNG = 77.209;
@@ -44,6 +45,7 @@ function teamForActor(actor, allUsers, branchFilter) {
 }
 
 function requiresFaceVerification(user) {
+  if (!getAppSettings().faceAttendanceRequired) return false;
   return user.role === 'fieldOfficer' || user.role === 'branchManager';
 }
 
@@ -119,6 +121,9 @@ exports.checkOut = (req, res) => {
  * Live selfie for verification only — image is NOT stored (processed in memory).
  */
 exports.verifyLiveFace = (req, res) => {
+  if (!requiresFaceVerification(req.user)) {
+    return success(res, { verified: true, matchScore: 1, skipped: true, message: 'Face not required' });
+  }
   if (!req.file) return error(res, 'Live photo required');
   const urls = req.user.faceEnrollmentUrls || [];
   if (urls.length < 3) {

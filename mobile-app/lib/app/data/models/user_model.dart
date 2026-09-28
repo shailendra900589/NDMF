@@ -12,6 +12,8 @@ class UserModel {
   final String token;
   final Map<String, bool> permissions;
   final bool faceEnrollmentComplete;
+  /// Org policy from admin — when false, no face enrollment gate or check-in verify.
+  final bool faceAttendanceRequired;
 
   UserModel({
     required this.id,
@@ -24,10 +26,17 @@ class UserModel {
     required this.token,
     Map<String, bool>? permissions,
     this.faceEnrollmentComplete = false,
+    this.faceAttendanceRequired = true,
   }) : permissions = permissions ?? AppPermissions.defaultsForRole(role);
 
-  bool get needsFaceEnrollment =>
+  bool get isFieldOrBranch =>
       role == UserRole.fieldOfficer || role == UserRole.branchManager;
+
+  bool get needsFaceEnrollment => isFieldOrBranch;
+
+  /// Show mandatory enrollment flow after login.
+  bool get shouldPromptFaceEnrollment =>
+      faceAttendanceRequired && needsFaceEnrollment && !faceEnrollmentComplete;
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final role = UserRole.values.firstWhere(
@@ -48,6 +57,7 @@ class UserModel {
         json['permissions'] is Map ? Map<String, dynamic>.from(json['permissions'] as Map) : null,
       ),
       faceEnrollmentComplete: json['faceEnrollmentComplete'] == true,
+      faceAttendanceRequired: json['faceAttendanceRequired'] != false,
     );
   }
 
@@ -61,6 +71,8 @@ class UserModel {
         'photoUrl': photoUrl,
         'token': token,
         'permissions': permissions,
+        'faceEnrollmentComplete': faceEnrollmentComplete,
+        'faceAttendanceRequired': faceAttendanceRequired,
       };
 
   UserModel copyWith({
@@ -70,6 +82,8 @@ class UserModel {
     String? photoUrl,
     String? token,
     Map<String, bool>? permissions,
+    bool? faceEnrollmentComplete,
+    bool? faceAttendanceRequired,
   }) {
     return UserModel(
       id: id,
@@ -81,6 +95,8 @@ class UserModel {
       photoUrl: photoUrl ?? this.photoUrl,
       token: token ?? this.token,
       permissions: permissions ?? this.permissions,
+      faceEnrollmentComplete: faceEnrollmentComplete ?? this.faceEnrollmentComplete,
+      faceAttendanceRequired: faceAttendanceRequired ?? this.faceAttendanceRequired,
     );
   }
 }

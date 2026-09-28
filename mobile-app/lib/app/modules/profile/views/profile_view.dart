@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
 import '../../../routes/app_routes.dart';
+import '../../../utils/access_control.dart';
 import '../controllers/profile_controller.dart';
 
 class ProfileView extends GetView<ProfileController> {
@@ -11,7 +12,18 @@ class ProfileView extends GetView<ProfileController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        title: const Text('Profile'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primaryDark, AppColors.primary],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -63,6 +75,28 @@ class ProfileView extends GetView<ProfileController> {
             _tile(Icons.business, 'Branch', controller.branch),
             _tile(Icons.phone, 'Mobile', controller.mobile),
             _menuTile(Icons.lock, 'Change Password', controller.navigateToChangePassword),
+            if (AccessControl.isAdmin)
+              Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Obx(() => SwitchListTile(
+                      secondary: const Icon(Icons.face_retouching_natural, color: AppColors.primary),
+                      title: const Text('Face attendance policy'),
+                      subtitle: const Text('OFF = GPS-only check-in for FO/BM'),
+                      value: controller.faceAttendanceRequired.value,
+                      onChanged: controller.facePolicySaving.value
+                          ? null
+                          : controller.toggleFaceAttendancePolicy,
+                    )),
+              ),
+            Obx(() {
+              if (!(AccessControl.isFieldOfficer || AccessControl.isBranchManager)) {
+                return const SizedBox.shrink();
+              }
+              if (!controller.faceAttendanceRequired.value) {
+                return const SizedBox.shrink();
+              }
+              return _menuTile(Icons.face, 'Face enrollment', () => Get.toNamed(AppRoutes.faceEnrollment));
+            }),
             _menuTile(Icons.phone_android, 'Device Info', controller.navigateToDeviceInfo),
             _menuTile(Icons.security, 'App Lock (PIN)', () => Get.toNamed(AppRoutes.appLock, arguments: 'setup')),
             Card(

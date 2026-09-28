@@ -10,6 +10,7 @@ const { getCollection, upsert } = require('../../lib/db');
 const { jwtSecret } = require('../../config/env');
 const { success, error } = require('../../lib/response');
 const { effectivePermissions } = require('../../lib/rbac');
+const { settingsForClient } = require('../../lib/appSettings');
 
 const DEMO_OTP = '123456';
 
@@ -23,7 +24,7 @@ function sanitizeUser(user) {
   const count = Array.isArray(faceEnrollmentUrls) ? faceEnrollmentUrls.length : 0;
   safe.faceEnrollmentComplete = count >= 3;
   safe.faceEnrollmentCount = count;
-  return safe;
+  return { ...safe, ...settingsForClient() };
 }
 
 /** Normalize Login ID from body (loginId | mobile | employeeId). */

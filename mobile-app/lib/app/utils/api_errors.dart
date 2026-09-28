@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// User-facing API error text (no raw DioException dumps).
 String apiErrorMessage(Object error) {
@@ -20,6 +21,10 @@ String apiErrorMessage(Object error) {
       case DioExceptionType.receiveTimeout:
         return 'Connection timeout. Check internet and try again.';
       case DioExceptionType.connectionError:
+        if (kIsWeb) {
+          return 'Web browser blocked the API (CORS). Deploy latest API on server, '
+              'or run mobile-app/scripts/run_web.ps1 for local testing.';
+        }
         return 'Cannot reach server. Check internet and try again.';
       default:
         return 'Request failed. Please try again.';

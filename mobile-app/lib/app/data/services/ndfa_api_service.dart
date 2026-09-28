@@ -95,6 +95,11 @@ class NdfaApiService extends GetxService {
     await Get.find<RemoteApiService>().saveFaceEnrollmentUrls(urls);
   }
 
+  Future<bool> setFaceAttendanceRequired(bool enabled) async {
+    if (!ApiConstants.useRemoteApi) return enabled;
+    return Get.find<RemoteApiService>().setFaceAttendanceRequired(enabled);
+  }
+
   Future<Map<String, dynamic>> sendLiveTrackingPing({required double lat, required double lng}) async {
     if (!ApiConstants.useRemoteApi) return {'totalKm': 0};
     return Get.find<RemoteApiService>().sendLiveTrackingPing(lat: lat, lng: lng);

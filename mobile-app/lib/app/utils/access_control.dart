@@ -11,6 +11,10 @@ class AccessControl {
 
   static bool get isAdmin => currentRole == UserRole.admin;
 
+  static bool get isBranchManager => currentRole == UserRole.branchManager;
+
+  static bool get isFieldOfficer => currentRole == UserRole.fieldOfficer;
+
   static Map<String, bool> get permissions => _storage.getPermissions();
 
   static bool canAccess(String key) => permissions[key] == true;
