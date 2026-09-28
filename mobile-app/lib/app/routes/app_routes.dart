@@ -20,4 +20,6 @@ class AppRoutes {
   static const String teamCreate = '/team/create';
   static const String payslips = '/payslips';
   static const String payslipForm = '/payslips/form';
+  static const String faceEnrollment = '/face-enrollment';
+  static const String customerApplication = '/customer-application';
 }

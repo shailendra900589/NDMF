@@ -5,20 +5,53 @@ import PageLoader from '../components/PageLoader';
 
 export default function Tracking() {
   const [history, setHistory] = useState([]);
+  const [live, setLive] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    trackingApi.getHistory()
-      .then((res) => setHistory(res.data || []))
+    Promise.all([trackingApi.getHistory(), trackingApi.getLive()])
+      .then(([h, l]) => {
+        setHistory(h.data || []);
+        setLive(l.data || []);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
+    const t = setInterval(() => {
+      trackingApi.getLive().then((res) => setLive(res.data || [])).catch(() => {});
+    }, 30000);
+    return () => clearInterval(t);
   }, []);
 
   if (loading) return <PageLoader label="Loading tracking..." />;
 
   return (
     <div>
-      <PageHeader title="Field tracking" description="Daily route distance and GPS points from the mobile app." />
+      <PageHeader title="Field tracking" description="Live field positions (refreshes every 30s) and daily distance — raw GPS trail not stored." />
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ margin: '0 0 12px' }}>Live on map (today)</h3>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee</th><th>Branch</th><th>Lat</th><th>Lng</th><th>KM today</th><th>Last seen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {live.map((e) => (
+                <tr key={e.userId}>
+                  <td>{e.name} ({e.employeeId})</td>
+                  <td>{e.branch}</td>
+                  <td>{e.lat?.toFixed?.(5) ?? e.lat}</td>
+                  <td>{e.lng?.toFixed?.(5) ?? e.lng}</td>
+                  <td><strong>{e.totalKmToday?.toFixed?.(2) ?? e.totalKmToday} KM</strong></td>
+                  <td>{e.lastSeenAt ? new Date(e.lastSeenAt).toLocaleTimeString('en-IN') : '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!live.length && <div className="empty-state"><p>No live GPS — employees must check in on mobile</p></div>}
+      </div>
       <div className="card">
         <div className="table-wrap">
         <table>

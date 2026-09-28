@@ -18,8 +18,11 @@ function generateToken(user) {
 }
 
 function sanitizeUser(user) {
-  const { password, ...safe } = user;
+  const { password, faceEnrollmentUrls, ...safe } = user;
   safe.permissions = effectivePermissions(user);
+  const count = Array.isArray(faceEnrollmentUrls) ? faceEnrollmentUrls.length : 0;
+  safe.faceEnrollmentComplete = count >= 3;
+  safe.faceEnrollmentCount = count;
   return safe;
 }
 

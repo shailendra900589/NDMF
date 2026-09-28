@@ -74,12 +74,34 @@ class NdfaApiService extends GetxService {
     required bool isCheckIn,
     required double lat,
     required double lng,
-  }) => _api.markAttendance(isCheckIn: isCheckIn, lat: lat, lng: lng);
+    bool faceVerified = false,
+  }) =>
+      _api.markAttendance(isCheckIn: isCheckIn, lat: lat, lng: lng, faceVerified: faceVerified);
 
   Future<List<AttendanceModel>> getAttendanceHistory() => _api.getAttendanceHistory();
 
-  Future<CustomerListingModel> submitCustomerListing(CustomerListingModel listing) =>
-      _api.submitCustomerListing(listing);
+  Future<bool> verifyAttendanceFace(String imagePath) async {
+    if (!ApiConstants.useRemoteApi) return true;
+    return Get.find<RemoteApiService>().verifyAttendanceFace(imagePath);
+  }
+
+  Future<Map<String, dynamic>> getFaceEnrollmentStatus() async {
+    if (!ApiConstants.useRemoteApi) return {'complete': true, 'count': 3};
+    return Get.find<RemoteApiService>().getFaceEnrollmentStatus();
+  }
+
+  Future<void> saveFaceEnrollmentUrls(List<String> urls) async {
+    if (!ApiConstants.useRemoteApi) return;
+    await Get.find<RemoteApiService>().saveFaceEnrollmentUrls(urls);
+  }
+
+  Future<Map<String, dynamic>> sendLiveTrackingPing({required double lat, required double lng}) async {
+    if (!ApiConstants.useRemoteApi) return {'totalKm': 0};
+    return Get.find<RemoteApiService>().sendLiveTrackingPing(lat: lat, lng: lng);
+  }
+
+  Future<CustomerListingModel> submitCustomerListing(CustomerListingModel listing, {String? branch}) =>
+      _api.submitCustomerListing(listing, branch: branch);
   Future<List<CustomerListingModel>> getCustomerListings({
     CustomerListingStatus? status,
     String? search,

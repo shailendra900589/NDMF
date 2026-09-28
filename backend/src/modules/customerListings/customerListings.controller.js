@@ -2,13 +2,16 @@ const { v4: uuid } = require('uuid');
 const { getCollection, findById, upsert } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { filterByBranch, sameBranch, isAdmin } = require('../../lib/rbac');
+const { initialListingStatus, canActorApprove } = require('../../lib/listingWorkflow');
 
-function resolveListingStatus(current, action) {
-  if (action === 'reject' || action === 'finalReject') return 'rejected';
-  if (action === 'rework') return 'draft';
-  if (action === 'finalApprove') return 'listed';
-  if (action === 'approve') return 'adminPending';
-  return current;
+function advanceOnApprove(actor, listing) {
+  if (listing.status === 'branchPending') {
+    return actor.role === 'admin' || actor.role === 'branchManager' ? 'adminPending' : listing.status;
+  }
+  if (listing.status === 'adminPending' && actor.role === 'admin') {
+    return 'listed';
+  }
+  return listing.status;
 }
 
 function createCustomerFromListing(listing) {
@@ -111,16 +114,27 @@ exports.submit = (req, res) => {
     shopLatitude: body.shopLatitude || 0,
     shopLongitude: body.shopLongitude || 0,
     neighbors: body.neighbors || [],
-    status: 'branchPending',
-    branch: req.user.branch,
+    status: initialListingStatus(req.user.role),
+    branch: body.branch || req.user.branch,
     createdAt: body.createdAt || new Date().toISOString(),
     listedAt: null,
     isSynced: true,
     createdBy: req.user.employeeId,
+    submittedByRole: req.user.role,
     userId: req.user.id,
   };
+  if (listing.status === 'listed') {
+    listing.listedAt = new Date().toISOString();
+    createCustomerFromListing(listing);
+  }
   upsert('customerListings', listing);
-  return success(res, listing, 'Customer listing submitted for branch approval', 201);
+  const msg =
+    listing.status === 'listed'
+      ? 'Customer listing published (admin — no approval required)'
+      : listing.status === 'adminPending'
+        ? 'Submitted for admin approval'
+        : 'Submitted for branch approval';
+  return success(res, listing, msg, 201);
 };
 
 exports.assignOfficer = (req, res) => {
@@ -162,11 +176,23 @@ exports.processApproval = (req, res) => {
     return error(res, 'Forbidden', 403);
   }
 
-  listing.status = resolveListingStatus(listing.status, action);
-  if (listing.status === 'listed') {
-    listing.listedAt = new Date().toISOString();
-    createCustomerFromListing(listing);
+  if (action === 'reject' || action === 'finalReject') {
+    listing.status = 'rejected';
+  } else if (action === 'rework') {
+    listing.status = 'draft';
+  } else if (action === 'approve' || action === 'finalApprove') {
+    if (!canActorApprove(req.user, listing)) {
+      return error(res, 'You cannot approve this listing at its current stage', 403);
+    }
+    listing.status = advanceOnApprove(req.user, listing);
+    if (listing.status === 'listed') {
+      listing.listedAt = new Date().toISOString();
+      createCustomerFromListing(listing);
+    }
+  } else {
+    return error(res, 'Invalid action');
   }
+
   upsert('customerListings', listing);
   return success(res, listing, `Listing ${action} successful`);
 };

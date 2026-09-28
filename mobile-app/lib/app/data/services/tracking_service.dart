@@ -95,6 +95,16 @@ class TrackingService extends GetxService {
     );
   }
 
+  Future<void> _livePing(double lat, double lng) async {
+    if (!ApiConstants.useRemoteApi) return;
+    try {
+      final data = await _api.sendLiveTrackingPing(lat: lat, lng: lng);
+      if (data['totalKm'] != null) {
+        totalKmToday.value = (data['totalKm'] as num).toDouble();
+      }
+    } catch (_) {}
+  }
+
   Future<void> _syncToBackend() async {
     if (!ApiConstants.useRemoteApi || routePoints.isEmpty) return;
     try {
@@ -133,11 +143,11 @@ class TrackingService extends GetxService {
     final loc = await _locationService.getCurrentLocation();
     if (loc != null) _addRoutePoint(loc.latitude, loc.longitude, force: true);
 
-    _trackingTimer = Timer.periodic(const Duration(seconds: 45), (_) async {
+    _trackingTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       final location = await _locationService.getCurrentLocation();
       if (location != null) {
         _addRoutePoint(location.latitude, location.longitude);
-        await _syncToBackend();
+        await _livePing(location.latitude, location.longitude);
       }
     });
 

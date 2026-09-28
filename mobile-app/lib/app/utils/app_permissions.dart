@@ -6,6 +6,7 @@ class AppPermissions {
 
   static const keys = [
     'dashboard',
+    'customerListings',
     'customers',
     'attendance',
     'tracking',
@@ -20,6 +21,7 @@ class AppPermissions {
       case UserRole.admin:
         return {
           'dashboard': true,
+          'customerListings': true,
           'customers': true,
           'attendance': true,
           'tracking': true,
@@ -31,6 +33,7 @@ class AppPermissions {
       case UserRole.branchManager:
         return {
           'dashboard': true,
+          'customerListings': true,
           'customers': true,
           'attendance': true,
           'tracking': true,
@@ -42,6 +45,7 @@ class AppPermissions {
       case UserRole.fieldOfficer:
         return {
           'dashboard': true,
+          'customerListings': true,
           'customers': true,
           'attendance': true,
           'tracking': true,

@@ -78,6 +78,7 @@ export const attendanceApi = {
 export const trackingApi = {
   getHistory: () => api.get('/tracking/history'),
   getToday: () => api.get('/tracking/today'),
+  getLive: () => api.get('/tracking/live'),
 };
 
 export const callLogsApi = {

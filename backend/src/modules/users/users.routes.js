@@ -5,6 +5,8 @@ const { authMiddleware, requireRole } = require('../../middleware/authMiddleware
 const { requirePermission } = require('../../middleware/permissionMiddleware');
 
 router.get('/permission-schema', authMiddleware, users.getPermissionSchema);
+router.get('/me/face-enrollment', authMiddleware, users.getFaceEnrollment);
+router.put('/me/face-enrollment', authMiddleware, users.saveFaceEnrollment);
 router.get('/', authMiddleware, requirePermission('users'), users.getAll);
 router.post('/', authMiddleware, requireRole('admin', 'branchManager'), requirePermission('users'), users.create);
 router.put('/:id', authMiddleware, requireRole('admin', 'branchManager'), requirePermission('users'), users.update);

@@ -76,6 +76,9 @@ class _QuickActionsPage extends StatelessWidget {
     if (AccessControl.canUseDialer) {
       actions.add(_ActionItem('Dialer', Icons.dialpad, AppRoutes.dialer, AppColors.error));
     }
+    if (AccessControl.canAccess('customerListings')) {
+      actions.add(_ActionItem('Customer Application', Icons.assignment_add, AppRoutes.customerApplication, AppColors.warning));
+    }
     if (AccessControl.canAccess('customers')) {
       actions.add(_ActionItem('Customers', Icons.people, AppRoutes.customers, AppColors.primaryDark));
     }

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../data/models/attendance_model.dart';
 import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/location_service.dart';
@@ -39,14 +40,22 @@ class AttendanceController extends GetxController {
   Future<void> checkIn() async {
     isProcessing.value = true;
     try {
+      final verified = await _verifyLiveFace();
+      if (!verified) return;
+
       final loc = await _location.getCurrentLocation();
       if (loc == null) {
         Get.snackbar('GPS Required', 'Location is mandatory for attendance');
         return;
       }
-      await _api.markAttendance(isCheckIn: true, lat: loc.latitude, lng: loc.longitude);
+      await _api.markAttendance(
+        isCheckIn: true,
+        lat: loc.latitude,
+        lng: loc.longitude,
+        faceVerified: verified,
+      );
       await loadHistory();
-      Get.snackbar('Success', 'Checked in • GPS route tracking started');
+      Get.snackbar('Success', 'Checked in • live face + GPS verified');
     } catch (e) {
       Get.snackbar('Error', e.toString());
     } finally {
@@ -79,4 +88,27 @@ class AttendanceController extends GetxController {
 
   bool get canCheckIn => todayRecord == null || !todayRecord!.isCheckedIn;
   bool get canCheckOut => todayRecord != null && todayRecord!.isCheckedIn && !todayRecord!.isCheckedOut;
+
+  Future<bool> _verifyLiveFace() async {
+    final status = await _api.getFaceEnrollmentStatus();
+    if (status['complete'] != true) {
+      Get.snackbar('Face enrollment', 'Complete 3 reference selfies first (Profile flow)');
+      return false;
+    }
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+      imageQuality: 80,
+    );
+    if (file == null) {
+      Get.snackbar('Cancelled', 'Live selfie required for attendance');
+      return false;
+    }
+    final ok = await _api.verifyAttendanceFace(file.path);
+    if (!ok) {
+      Get.snackbar('Verification failed', 'Face did not match — try again in good light');
+    }
+    return ok;
+  }
 }

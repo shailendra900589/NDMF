@@ -11,6 +11,7 @@ class UserModel {
   final String? photoUrl;
   final String token;
   final Map<String, bool> permissions;
+  final bool faceEnrollmentComplete;
 
   UserModel({
     required this.id,
@@ -22,7 +23,11 @@ class UserModel {
     this.photoUrl,
     required this.token,
     Map<String, bool>? permissions,
+    this.faceEnrollmentComplete = false,
   }) : permissions = permissions ?? AppPermissions.defaultsForRole(role);
+
+  bool get needsFaceEnrollment =>
+      role == UserRole.fieldOfficer || role == UserRole.branchManager;
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final role = UserRole.values.firstWhere(
@@ -42,6 +47,7 @@ class UserModel {
         role,
         json['permissions'] is Map ? Map<String, dynamic>.from(json['permissions'] as Map) : null,
       ),
+      faceEnrollmentComplete: json['faceEnrollmentComplete'] == true,
     );
   }
 

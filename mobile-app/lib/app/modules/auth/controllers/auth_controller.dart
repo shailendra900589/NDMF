@@ -59,6 +59,11 @@ class AuthController extends GetxController {
   }
 
   void _navigateAfterLogin() {
+    final user = _storage.getUser();
+    if (user != null && user.needsFaceEnrollment && !user.faceEnrollmentComplete) {
+      Get.offAllNamed(AppRoutes.faceEnrollment);
+      return;
+    }
     if (_storage.hasPin) {
       Get.offAllNamed(AppRoutes.appLock);
     } else {

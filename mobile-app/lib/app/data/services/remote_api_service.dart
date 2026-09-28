@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:get/get.dart' hide Response;
+import 'package:get/get.dart' hide Response, FormData, MultipartFile;
 import '../models/user_model.dart';
 import '../models/lead_model.dart';
 import '../models/loan_model.dart';
@@ -183,10 +183,47 @@ class RemoteApiService extends GetxService {
     required bool isCheckIn,
     required double lat,
     required double lng,
+    bool faceVerified = false,
   }) async {
     final path = isCheckIn ? ApiConstants.attendanceCheckIn : ApiConstants.attendanceCheckOut;
-    final res = await _http.post(path, data: {'lat': lat, 'lng': lng});
+    final res = await _http.post(path, data: {
+      'lat': lat,
+      'lng': lng,
+      if (isCheckIn) 'faceVerified': faceVerified,
+    });
     return AttendanceModel.fromJson(_unwrapMap(res));
+  }
+
+  Future<bool> verifyAttendanceFace(String imagePath) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(imagePath, filename: 'live_face.jpg'),
+    });
+    final res = await _http.upload(ApiConstants.attendanceVerifyFace, formData);
+    final body = res.data as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>? ?? {};
+    return data['verified'] == true;
+  }
+
+  Future<Map<String, dynamic>> getFaceEnrollmentStatus() async {
+    final res = await _http.get(ApiConstants.faceEnrollment);
+    return _unwrapMap(res);
+  }
+
+  Future<void> saveFaceEnrollmentUrls(List<String> urls) async {
+    await _http.put(ApiConstants.faceEnrollment, data: {'urls': urls});
+  }
+
+  Future<Map<String, dynamic>> sendLiveTrackingPing({
+    required double lat,
+    required double lng,
+  }) async {
+    final res = await _http.post(ApiConstants.trackingLivePing, data: {'lat': lat, 'lng': lng});
+    return _unwrapMap(res);
+  }
+
+  Future<List<Map<String, dynamic>>> getLiveTeamTracking() async {
+    final res = await _http.get(ApiConstants.trackingLive);
+    return _unwrapList(res);
   }
 
   Future<List<AttendanceModel>> getAttendanceHistory() async {
@@ -196,8 +233,13 @@ class RemoteApiService extends GetxService {
 
   // ─── Customer Listing ───
 
-  Future<CustomerListingModel> submitCustomerListing(CustomerListingModel listing) async {
-    final res = await _http.post(ApiConstants.customerListings, data: listing.toJson());
+  Future<CustomerListingModel> submitCustomerListing(
+    CustomerListingModel listing, {
+    String? branch,
+  }) async {
+    final data = listing.toJson();
+    if (branch != null && branch.isNotEmpty) data['branch'] = branch;
+    final res = await _http.post(ApiConstants.customerListings, data: data);
     return CustomerListingModel.fromJson(_unwrapMap(res));
   }
 

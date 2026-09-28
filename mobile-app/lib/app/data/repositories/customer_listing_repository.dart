@@ -6,8 +6,8 @@ import '../services/ndfa_api_service.dart';
 class CustomerListingRepository {
   NdfaApiService get _api => Get.find<NdfaApiService>();
 
-  Future<CustomerListingModel> submit(CustomerListingModel listing) =>
-      _api.submitCustomerListing(listing);
+  Future<CustomerListingModel> submit(CustomerListingModel listing, {String? branch}) =>
+      _api.submitCustomerListing(listing, branch: branch);
 
   Future<List<CustomerListingModel>> getListings({
     CustomerListingStatus? status,

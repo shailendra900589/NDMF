@@ -56,11 +56,16 @@ class ApiConstants {
 
   static const String attendanceCheckIn = '/attendance/check-in';
   static const String attendanceCheckOut = '/attendance/check-out';
+  static const String attendanceVerifyFace = '/attendance/verify-face';
   static const String attendanceHistory = '/attendance/history';
 
+  static const String trackingLivePing = '/tracking/live-ping';
+  static const String trackingLive = '/tracking/live';
   static const String trackingRoutePoints = '/tracking/route-points';
   static const String trackingToday = '/tracking/today';
   static const String trackingHistory = '/tracking/history';
+
+  static const String faceEnrollment = '/users/me/face-enrollment';
 
   static const String uploadSingle = '/uploads/single';
   static const String callLogs = '/call-logs';

@@ -15,10 +15,38 @@ const {
 } = require('../../lib/rbac');
 
 function sanitizeUser(user) {
-  const { password, ...safe } = user;
+  const { password, faceEnrollmentUrls, ...safe } = user;
   safe.permissions = effectivePermissions(user);
+  const count = Array.isArray(faceEnrollmentUrls) ? faceEnrollmentUrls.length : 0;
+  safe.faceEnrollmentComplete = count >= 3;
+  safe.faceEnrollmentCount = count;
   return safe;
 }
+
+exports.getFaceEnrollment = (req, res) => {
+  const user = findById('users', req.user.id);
+  if (!user) return error(res, 'User not found', 404);
+  const urls = user.faceEnrollmentUrls || [];
+  return success(res, {
+    complete: urls.length >= 3,
+    count: urls.length,
+    required: 3,
+    enrolledAt: user.faceEnrollmentAt || null,
+  });
+};
+
+exports.saveFaceEnrollment = (req, res) => {
+  const { urls } = req.body;
+  if (!Array.isArray(urls) || urls.length < 3) {
+    return error(res, 'Upload at least 3 face reference photos');
+  }
+  const user = findById('users', req.user.id);
+  if (!user) return error(res, 'User not found', 404);
+  user.faceEnrollmentUrls = urls.slice(0, 5).map((u) => String(u).trim());
+  user.faceEnrollmentAt = new Date().toISOString();
+  upsert('users', user);
+  return success(res, sanitizeUser(user), 'Face enrollment saved');
+};
 
 exports.getAll = (req, res) => {
   const all = getCollection('users');

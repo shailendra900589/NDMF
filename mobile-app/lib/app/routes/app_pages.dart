@@ -27,6 +27,10 @@ import '../modules/team/views/team_create_view.dart';
 import '../modules/payslips/bindings/payslips_binding.dart';
 import '../modules/payslips/views/payslips_list_view.dart';
 import '../modules/payslips/views/payslip_form_view.dart';
+import '../modules/face_enrollment/bindings/face_enrollment_binding.dart';
+import '../modules/face_enrollment/views/face_enrollment_view.dart';
+import '../modules/customer_application/bindings/customer_application_binding.dart';
+import '../modules/customer_application/views/customer_application_view.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -56,6 +60,12 @@ class AppPages {
       name: AppRoutes.payslipForm,
       page: () => const PayslipFormView(),
       binding: PayslipsBinding(),
+    ),
+    GetPage(name: AppRoutes.faceEnrollment, page: () => const FaceEnrollmentView(), binding: FaceEnrollmentBinding()),
+    GetPage(
+      name: AppRoutes.customerApplication,
+      page: () => const CustomerApplicationView(),
+      binding: CustomerApplicationBinding(),
     ),
   ];
 }

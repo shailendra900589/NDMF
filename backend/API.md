@@ -203,7 +203,30 @@ List listings (filters by role/branch). Query: `search`, `status`.
 
 ### `POST /customer-listings`
 
-Submit new listing (photos via `/uploads/single` first).
+Submit customer **application** (separate from `/customers` master).
+
+**Approval chain (by submitter role):**
+
+| Submitter | Initial status | Approvers |
+|-----------|----------------|-----------|
+| `fieldOfficer` | `branchPending` | Branch Manager → Admin |
+| `branchManager` | `adminPending` | Admin only |
+| `admin` | `listed` | None (auto-published + customer created) |
+
+**Request (minimal mobile example):**
+
+```json
+{
+  "name": "Shop Owner",
+  "mobile": "9876543210",
+  "aadhaar": "123456789012",
+  "pan": "ABCDE1234F",
+  "shopFullAddress": "Market Road",
+  "shopLatitude": 28.61,
+  "shopLongitude": 77.21,
+  "branch": "Delhi Main Branch"
+}
+```
 
 ### `GET /customer-listings/:id`
 
@@ -213,11 +236,60 @@ Pending approvals (managers).
 
 ### `POST /customer-listings/approve`
 
-**Request:** `{ "id": "...", "action": "approve" | "reject" }`
+**Request:** `{ "id": "CL_xxx", "action": "approve" | "reject" | "rework" }`
+
+- Branch Manager: `approve` only when status is `branchPending` → moves to `adminPending`
+- Admin: `approve` when `adminPending` → `listed` (customer created)
 
 ### `POST /customer-listings/:id/assign`
 
 Assign listing to a field officer.
+
+---
+
+## Attendance (live face + GPS)
+
+### `GET /users/me/face-enrollment`
+
+```json
+{ "success": true, "data": { "complete": false, "count": 1, "required": 3 } }
+```
+
+### `PUT /users/me/face-enrollment`
+
+```json
+{ "urls": ["/uploads/a.jpg", "/uploads/b.jpg", "/uploads/c.jpg"] }
+```
+
+### `POST /attendance/verify-face`
+
+Multipart `file` — processed in memory only, **not stored**. Returns `{ "verified": true, "matchScore": 0.92 }`.
+
+### `POST /attendance/check-in`
+
+```json
+{ "lat": 28.61, "lng": 77.21, "faceVerified": true }
+```
+
+Field Officer / Branch Manager require `faceVerified: true` and 3 enrollment photos.
+
+---
+
+## Live tracking (no full GPS trail storage)
+
+### `POST /tracking/live-ping`
+
+```json
+{ "lat": 28.612, "lng": 77.210 }
+```
+
+**Response:** `{ "totalKm": 4.25, "lastLat": 28.612, "lastLng": 77.21 }`
+
+Updates employee last position + accumulates distance for today (does not store every point).
+
+### `GET /tracking/live`
+
+Admin / branch: list of employees with `lat`, `lng`, `totalKmToday`, `lastSeenAt`.
 
 ---
 
