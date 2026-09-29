@@ -13,6 +13,7 @@ class DialerController extends GetxController {
   final searchResults = <CustomerModel>[].obs;
   final isSearching = false.obs;
   final keypadVisible = true.obs;
+  final topSegment = 0.obs;
   final matchedCustomer = Rxn<CustomerModel>();
 
   List<CustomerModel> _allCustomers = [];
@@ -39,6 +40,11 @@ class DialerController extends GetxController {
     } catch (_) {
       _allCustomers = [];
     }
+  }
+
+  void setTopSegment(int index) {
+    topSegment.value = index;
+    keypadVisible.value = index == 0;
   }
 
   void toggleKeypad() => keypadVisible.toggle();

@@ -5,10 +5,10 @@ class AppRoutes {
   static const String login = '/login';
   static const String appLock = '/app-lock';
   static const String home = '/home';
-  static const String dashboard = '/dashboard';
   static const String attendance = '/attendance';
   static const String tracking = '/tracking';
   static const String customers = '/customers';
+  static const String customerAdd = '/customers/add';
   static const String customerDetail = '/customers/detail';
   static const String callHistory = '/call-history';
   static const String profile = '/profile';

@@ -4,6 +4,9 @@ import 'package:local_auth/local_auth.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_tokens.dart';
+import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/skeleton_loaders.dart';
 
 class DeviceInfoView extends StatefulWidget {
   const DeviceInfoView({super.key});
@@ -59,13 +62,20 @@ class _DeviceInfoViewState extends State<DeviceInfoView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Device Info')),
+      backgroundColor: AppColors.background,
+      appBar: const CustomAppBar(title: 'Device info', subtitle: 'Diagnostics'),
       body: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const ListSkeleton(itemCount: 5)
           : ListView(
               padding: const EdgeInsets.all(16),
               children: info.entries
-                  .map((e) => Card(
+                  .map((e) => Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: AppRadii.card,
+                          boxShadow: AppShadows.card,
+                        ),
                         child: ListTile(
                           title: Text(e.key, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                           subtitle: Text(e.value, style: const TextStyle(fontWeight: FontWeight.w600)),

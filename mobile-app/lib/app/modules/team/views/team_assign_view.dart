@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
+import '../../../widgets/custom_app_bar.dart';
 import '../controllers/team_controller.dart';
 
 class TeamAssignView extends GetView<TeamController> {
@@ -17,7 +18,8 @@ class TeamAssignView extends GetView<TeamController> {
         if (didPop) controller.clearAssignState();
       },
       child: Scaffold(
-      appBar: AppBar(title: const Text('Assign role')),
+      backgroundColor: AppColors.background,
+      appBar: const CustomAppBar(title: 'Assign role', subtitle: 'Update access'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

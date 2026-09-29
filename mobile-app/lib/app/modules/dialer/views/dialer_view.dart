@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
 import '../../../data/services/call_service.dart';
 import '../../../widgets/animated_entrance.dart';
-import '../../../widgets/app_page_header.dart';
+import '../../../widgets/ndfa_segment_bar.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../controllers/dialer_controller.dart';
 
@@ -18,7 +18,7 @@ class DialerView extends GetView<DialerController> {
       backgroundColor: AppColors.background,
       appBar: CustomAppBar(
         title: 'Dialer',
-        subtitle: 'Outbound calls',
+        subtitle: 'Keypad • outbound calls',
         actions: [
           Obx(() => Padding(
                 padding: const EdgeInsets.only(right: 12),
@@ -49,12 +49,12 @@ class DialerView extends GetView<DialerController> {
       body: SafeArea(
         child: Column(
           children: [
-            const AppGradientBanner(
-              icon: Icons.mic,
-              title: 'Recorded outbound calls',
-              subtitle: 'Any valid number • registered or new • recording starts before call',
-              accent: AppColors.error,
-            ),
+            Obx(() => NdfaSegmentBar(
+                  labels: const ['Keypad', 'Recent'],
+                  selectedIndex: controller.topSegment.value,
+                  onSelected: controller.setTopSegment,
+                )),
+            const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: TextField(

@@ -13,8 +13,8 @@ class AppColors {
   static const Color error = Color(0xFFD32F2F);
   static const Color success = Color(0xFF388E3C);
   static const Color warning = Color(0xFFF9A825);
-  static const Color textPrimary = Color(0xFF1A1A2E);
-  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textPrimary = Color(0xFF1E293B);
+  static const Color textSecondary = Color(0xFF64748B);
   static const Color divider = Color(0xFFE5E7EB);
 }
 

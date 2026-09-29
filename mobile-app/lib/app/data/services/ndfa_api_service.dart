@@ -70,6 +70,29 @@ class NdfaApiService extends GetxService {
       _api.getCustomers(search: search);
   Future<CustomerModel> getCustomerById(String id) => _api.getCustomerById(id);
 
+  Future<CustomerModel> createCustomer({
+    required String name,
+    required String mobile,
+    String address = '',
+    String aadhaar = '',
+    String pan = '',
+    double? latitude,
+    double? longitude,
+  }) async {
+    if (!ApiConstants.useRemoteApi) {
+      throw Exception('Create customer requires online API');
+    }
+    return Get.find<RemoteApiService>().createCustomer({
+      'name': name,
+      'mobile': mobile,
+      'address': address,
+      'aadhaar': aadhaar,
+      'pan': pan,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+    });
+  }
+
   Future<AttendanceModel> markAttendance({
     required bool isCheckIn,
     required double lat,
@@ -205,6 +228,11 @@ class NdfaApiService extends GetxService {
   Future<void> syncCallLog(Map<String, dynamic> data) async {
     if (!ApiConstants.useRemoteApi) return;
     await Get.find<RemoteApiService>().logCall(data);
+  }
+
+  Future<void> updateCallLog(String id, Map<String, dynamic> data) async {
+    if (!ApiConstants.useRemoteApi) return;
+    await Get.find<RemoteApiService>().updateCallLog(id, data);
   }
 
   Future<void> changePassword(String oldPass, String newPass) async {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../theme/app_colors.dart';
+import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/form_widgets.dart';
 import '../controllers/profile_controller.dart';
 
@@ -13,7 +15,8 @@ class ChangePasswordView extends GetView<ProfileController> {
     final confirmCtrl = TextEditingController();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Change Password')),
+      backgroundColor: AppColors.background,
+      appBar: const CustomAppBar(title: 'Change password', subtitle: 'Secure your account'),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

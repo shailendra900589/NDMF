@@ -406,6 +406,24 @@ class CallService extends GetxService with WidgetsBindingObserver {
     }
   }
 
+  Future<bool> updateCallSummary(String id, String summary) async {
+    final list = _storage.readList(ApiConstants.callLogsKey);
+    final idx = list.indexWhere((e) => e['id'] == id);
+    if (idx < 0) return false;
+    final log = CallLogModel.fromJson(list[idx]).copyWith(callSummary: summary);
+    _updateStoredLog(log);
+    final i = recentLogs.indexWhere((l) => l.id == id);
+    if (i >= 0) recentLogs[i] = log;
+    if (ApiConstants.useRemoteApi) {
+      try {
+        await _api.updateCallLog(id, {'callSummary': summary});
+      } catch (_) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   Future<List<CallLogModel>> fetchFromServer() async {
     await refreshFromServer();
     return recentLogs;

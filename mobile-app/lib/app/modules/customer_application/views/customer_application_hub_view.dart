@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import '../../../data/models/customer_listing_model.dart';
 import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
@@ -9,8 +10,11 @@ import '../../../widgets/approval_bottom_sheet.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/listing_approval_timeline.dart';
-import '../../../widgets/listing_status_chip.dart';
+import '../../../widgets/ndfa_search_field.dart';
+import '../../../widgets/ndfa_segment_bar.dart';
+import '../../../widgets/status_badge.dart';
 import '../../../widgets/skeleton_loaders.dart';
+import '../../../widgets/application_detail_sheet.dart';
 import '../controllers/customer_application_hub_controller.dart';
 
 class CustomerApplicationHubView extends GetView<CustomerApplicationHubController> {
@@ -18,156 +22,154 @@ class CustomerApplicationHubView extends GetView<CustomerApplicationHubControlle
 
   @override
   Widget build(BuildContext context) {
-    final tabs = controller.showApprovalsTab ? 2 : 1;
-    return DefaultTabController(
-      length: tabs,
-      child: Scaffold(
-        appBar: CustomAppBar(
-          title: 'Applications',
-          subtitle: 'Customer onboarding',
-          bottom: tabs > 1
-              ? const TabBar(
-                  tabs: [
-                    Tab(text: 'All'),
-                    Tab(text: 'Pending'),
-                  ],
-                )
-              : null,
-          actions: [
-            IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: controller.refresh),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () async {
-            final ok = await Get.toNamed<bool>(AppRoutes.customerApplicationNew);
-            if (ok == true) controller.refresh();
-          },
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('New'),
-        ),
-        body: Obx(() {
-          final state = controller.loadState.value;
-          if (state == ViewLoadState.loading && controller.listings.isEmpty) {
-            return const ListSkeleton();
-          }
-          if (state == ViewLoadState.error && controller.listings.isEmpty) {
-            return EmptyState(
-              title: 'Load failed',
-              message: 'Check network and try again.',
-              icon: Icons.wifi_off_rounded,
-              actionLabel: 'Retry',
-              onAction: controller.refresh,
-            );
-          }
-          if (tabs > 1) {
-            return TabBarView(
-              children: [
-                _AllTab(listings: controller.listings, onRefresh: controller.refresh),
-                _PendingTab(controller: controller),
-              ],
-            );
-          }
-          return _AllTab(listings: controller.listings, onRefresh: controller.refresh);
-        }),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: const CustomAppBar(title: 'Applications', subtitle: 'Customer onboarding'),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final ok = await Get.toNamed<bool>(AppRoutes.customerApplicationNew);
+          if (ok == true) controller.refresh();
+        },
+        backgroundColor: AppColors.accent,
+        child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
+      body: Obx(() {
+        final state = controller.loadState.value;
+        if (state == ViewLoadState.loading && controller.listings.isEmpty) {
+          return const ListSkeleton();
+        }
+        if (state == ViewLoadState.error && controller.listings.isEmpty) {
+          return EmptyState(
+            title: 'Load failed',
+            message: 'Check network and try again.',
+            icon: Icons.wifi_off_rounded,
+            actionLabel: 'Retry',
+            onAction: controller.refresh,
+          );
+        }
+        return Column(
+          children: [
+            NdfaSegmentBar(
+              labels: controller.filterLabels,
+              selectedIndex: controller.filterIndex,
+              onSelected: controller.setFilterIndex,
+            ),
+            NdfaSearchField(
+              hint: 'Search application ID, name…',
+              onChanged: (v) => controller.searchQuery.value = v,
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: controller.refresh,
+                child: _ApplicationList(
+                  listings: controller.visibleListings,
+                  isPendingMode: controller.listingFilter.value == ListingUiFilter.pending,
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
 }
 
-class _AllTab extends StatelessWidget {
-  const _AllTab({required this.listings, required this.onRefresh});
+class _ApplicationList extends GetView<CustomerApplicationHubController> {
+  const _ApplicationList({required this.listings, required this.isPendingMode});
 
-  final RxList<CustomerListingModel> listings;
-  final Future<void> Function() onRefresh;
+  final List<CustomerListingModel> listings;
+  final bool isPendingMode;
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      if (listings.isEmpty) {
-        return const EmptyState(
-          title: 'No applications',
-          message: 'Tap New to submit a customer application.',
-          icon: Icons.assignment_outlined,
-        );
-      }
-      return RefreshIndicator(
-        onRefresh: onRefresh,
-        child: ListView.separated(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 88),
-          itemCount: listings.length,
-          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-          itemBuilder: (context, i) => _ApplicationCard(listing: listings[i]),
-        ),
+    if (listings.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(height: 48),
+          EmptyState(
+            title: 'No applications',
+            message: 'Tap + to submit a new customer application.',
+            icon: Icons.assignment_outlined,
+          ),
+        ],
       );
-    });
-  }
-}
-
-class _PendingTab extends StatelessWidget {
-  const _PendingTab({required this.controller});
-
-  final CustomerApplicationHubController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final list = controller.approvals;
-      if (list.isEmpty) {
-        return const EmptyState(title: 'Nothing pending', icon: Icons.task_alt_outlined);
-      }
-      return ListView.separated(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        itemCount: list.length,
-        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-        itemBuilder: (context, i) {
-          final listing = list[i];
-          return Material(
-            color: Colors.white,
-            borderRadius: AppRadii.card,
-            child: InkWell(
-              borderRadius: AppRadii.card,
-              onTap: () async {
-                final action = await showListingApprovalSheet(listing);
-                if (action != null) {
-                  await controller.actOnApproval(listing.id, action);
+    }
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 8, AppSpacing.md, 96),
+      itemCount: listings.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, i) {
+        final listing = listings[i];
+        return _ApplicationCard(
+          listing: listing,
+          onTap: isPendingMode
+              ? () async {
+                  final action = await showListingApprovalSheet(listing);
+                  if (action != null) await controller.actOnApproval(listing.id, action);
                 }
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: _ApplicationCard(listing: listing, showTimeline: true),
-              ),
-            ),
-          );
-        },
-      );
-    });
+              : () => ApplicationDetailSheet.show(listing),
+        );
+      },
+    );
   }
 }
 
 class _ApplicationCard extends StatelessWidget {
-  const _ApplicationCard({required this.listing, this.showTimeline = false});
+  const _ApplicationCard({required this.listing, this.onTap});
 
   final CustomerListingModel listing;
-  final bool showTimeline;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: AppDecorations.surfaceCard(),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(child: Text(listing.name, style: AppTextStyles.titleMedium)),
-              ListingStatusChip(status: listing.status),
-            ],
+    final initials = listing.name.isNotEmpty ? listing.name[0].toUpperCase() : '?';
+    return Material(
+      color: AppColors.surface,
+      borderRadius: AppRadii.card,
+      elevation: 0,
+      child: DecoratedBox(
+        decoration: BoxDecoration(borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: AppRadii.card,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                      child: Text(initials, style: const TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w800)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(listing.id, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          Text(listing.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                        ],
+                      ),
+                    ),
+                    StatusBadge.listing(listing.status),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text('Mobile: ${listing.mobile}', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                Text(
+                  'Created: ${DateFormat('dd MMM yyyy').format(listing.createdAt)}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 8),
+                ListingApprovalTimeline(status: listing.status),
+              ],
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(listing.mobile, style: AppTextStyles.bodyMedium),
-          if (showTimeline) ListingApprovalTimeline(status: listing.status),
-        ],
+        ),
       ),
     );
   }

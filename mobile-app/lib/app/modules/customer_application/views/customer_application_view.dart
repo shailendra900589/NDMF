@@ -12,6 +12,7 @@ class CustomerApplicationView extends GetView<CustomerApplicationController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: const CustomAppBar(title: 'New application', subtitle: 'Step-by-step wizard'),
       body: Obx(() {
         final step = controller.wizardStep.value;

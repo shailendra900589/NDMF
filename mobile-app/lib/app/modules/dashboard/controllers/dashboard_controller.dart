@@ -14,7 +14,7 @@ class DashboardController extends GetxController {
 
   final Rx<DashboardStats?> stats = Rx<DashboardStats?>(null);
   final isLoading = true.obs;
-  final selectedNavIndex = 0.obs;
+  final homeNavIndex = 0.obs;
 
   @override
   void onInit() {
@@ -45,4 +45,16 @@ class DashboardController extends GetxController {
 
   String get userName => _storage.getUser()?.name ?? 'User';
   String get userRole => _storage.getUser()?.role.label ?? '';
+
+  String get userBranch {
+    final fromStats = stats.value?.branch;
+    if (fromStats != null && fromStats.isNotEmpty) return fromStats;
+    return _storage.getUser()?.branch ?? '';
+  }
+
+  String get avatarLetter {
+    final n = userName.trim();
+    if (n.isNotEmpty) return n[0];
+    return 'N';
+  }
 }

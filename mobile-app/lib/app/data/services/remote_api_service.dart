@@ -178,6 +178,11 @@ class RemoteApiService extends GetxService {
     return CustomerModel.fromJson(_unwrapMap(res));
   }
 
+  Future<CustomerModel> createCustomer(Map<String, dynamic> payload) async {
+    final res = await _http.post(ApiConstants.customers, data: payload);
+    return CustomerModel.fromJson(_unwrapMap(res));
+  }
+
   // ─── Attendance ───
 
   Future<AttendanceModel> markAttendance({
@@ -390,6 +395,10 @@ class RemoteApiService extends GetxService {
   Future<List<Map<String, dynamic>>> getCallLogs() async {
     final res = await _http.get(ApiConstants.callLogs);
     return _unwrapList(res);
+  }
+
+  Future<void> updateCallLog(String id, Map<String, dynamic> data) async {
+    await _http.put('${ApiConstants.callLogs}/$id', data: data);
   }
 
   // ─── Profile ───

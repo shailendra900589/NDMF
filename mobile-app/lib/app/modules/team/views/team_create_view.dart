@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
+import '../../../widgets/custom_app_bar.dart';
 import '../controllers/team_controller.dart';
 
 class TeamCreateView extends GetView<TeamController> {
@@ -14,7 +15,8 @@ class TeamCreateView extends GetView<TeamController> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create user & assign role')),
+      backgroundColor: AppColors.background,
+      appBar: const CustomAppBar(title: 'Create user & role', subtitle: 'HR onboarding'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

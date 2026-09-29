@@ -12,6 +12,7 @@ import '../modules/customers/bindings/customers_binding.dart';
 import '../modules/customers/views/call_history_view.dart';
 import '../modules/customers/views/customer_detail_view.dart';
 import '../modules/customers/views/customers_list_view.dart';
+import '../modules/customers/views/customer_add_view.dart';
 import '../modules/profile/bindings/profile_binding.dart';
 import '../modules/profile/views/change_password_view.dart';
 import '../modules/profile/views/device_info_view.dart';
@@ -44,10 +45,11 @@ class AppPages {
     GetPage(name: AppRoutes.splash, page: () => const SplashView()),
     GetPage(name: AppRoutes.login, page: () => const LoginView(), binding: AuthBinding()),
     GetPage(name: AppRoutes.appLock, page: () => const AppLockView(), binding: SecurityBinding()),
-    GetPage(name: AppRoutes.home, page: () => const HomeView(), binding: DashboardBinding()),
+    GetPage(name: AppRoutes.home, page: () => HomeView(), binding: DashboardBinding()),
     GetPage(name: AppRoutes.attendance, page: () => const AttendanceView(), binding: AttendanceBinding()),
     GetPage(name: AppRoutes.tracking, page: () => const TrackingView(), binding: TrackingBinding()),
     GetPage(name: AppRoutes.customers, page: () => const CustomersListView(), binding: CustomersBinding()),
+    GetPage(name: AppRoutes.customerAdd, page: () => const CustomerAddView(), binding: CustomersBinding()),
     GetPage(name: AppRoutes.customerDetail, page: () => const CustomerDetailView(), binding: CustomersBinding()),
     GetPage(name: AppRoutes.callHistory, page: () => const CallHistoryView(), binding: CustomersBinding()),
     GetPage(name: AppRoutes.profile, page: () => const ProfileView(), binding: ProfileBinding()),

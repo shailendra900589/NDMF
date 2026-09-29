@@ -33,6 +33,7 @@ dependencies:
   audioplayers: ^6.1.0
   flutter_phone_direct_caller: ^2.2.1
   call_log: ^5.0.0
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:

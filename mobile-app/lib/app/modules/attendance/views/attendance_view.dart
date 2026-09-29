@@ -14,134 +14,168 @@ class AttendanceView extends GetView<AttendanceController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const CustomAppBar(title: 'Attendance', subtitle: 'Face verify + GPS'),
-      body: Obx(() {
-        if (controller.isLoading.value) return const ListSkeleton(itemCount: 3);
-        return RefreshIndicator(
-          onRefresh: controller.loadHistory,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Text(DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now()),
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                        Text(DateFormat('hh:mm a').format(DateTime.now()),
-                            style: const TextStyle(color: AppColors.textSecondary)),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: FilledButton.icon(
-                            onPressed: controller.canCheckIn && !controller.isProcessing.value
-                                ? controller.checkIn
-                                : null,
-                            icon: const Icon(Icons.fingerprint_rounded, size: 28),
-                            label: const Text('Check in', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.success,
-                              shape: RoundedRectangleBorder(borderRadius: AppRadii.button),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: FilledButton.icon(
-                            onPressed: controller.canCheckOut && !controller.isProcessing.value
-                                ? controller.checkOut
-                                : null,
-                            icon: const Icon(Icons.logout_rounded, size: 26),
-                            label: const Text('Check out', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.accent,
-                              shape: RoundedRectangleBorder(borderRadius: AppRadii.button),
-                            ),
-                          ),
-                        ),
-                        if (controller.todayRecord != null) ...[
-                          const SizedBox(height: 16),
-                          Text('Distance from branch: ${(controller.distanceFromBranch / 1000).toStringAsFixed(2)} KM',
-                              style: const TextStyle(color: AppColors.textSecondary)),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _TrackingStatusCard(),
-                const SizedBox(height: 16),
-                const Text('Attendance History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                if (controller.history.isEmpty)
-                  const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No attendance records')))
-                else
-                  ...controller.history.map((a) => Card(
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: a.status == 'Present'
-                                ? AppColors.success.withValues(alpha: 0.15)
-                                : AppColors.error.withValues(alpha: 0.15),
-                            child: Icon(
-                              a.status == 'Present' ? Icons.check : Icons.close,
-                              color: a.status == 'Present' ? AppColors.success : AppColors.error,
-                            ),
-                          ),
-                          title: Text(DateFormat('dd MMM yyyy').format(a.date)),
-                          subtitle: Text(
-                            'In: ${a.checkInTime != null ? DateFormat('hh:mm a').format(a.checkInTime!) : '-'} | '
-                            'Out: ${a.checkOutTime != null ? DateFormat('hh:mm a').format(a.checkOutTime!) : '-'}',
-                          ),
-                          trailing: Text(a.status, style: TextStyle(
-                            color: a.status == 'Present' ? AppColors.success : AppColors.error,
-                            fontWeight: FontWeight.w600,
-                          )),
-                        ),
-                      )),
-              ],
-            ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: CustomAppBar(
+          title: 'Attendance',
+          subtitle: 'Face verify + GPS',
+          bottom: TabBar(
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            tabs: const [
+              Tab(text: 'Check In / Out'),
+              Tab(text: 'History'),
+            ],
           ),
-        );
-      }),
+        ),
+        body: Obx(() {
+          if (controller.isLoading.value) return const ListSkeleton(itemCount: 3);
+          return TabBarView(
+            children: [
+              const _CheckTab(),
+              const _HistoryTab(),
+            ],
+          );
+        }),
+      ),
     );
   }
 }
 
-class _TrackingStatusCard extends StatelessWidget {
+class _CheckTab extends GetView<AttendanceController> {
+  const _CheckTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: controller.loadHistory,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: AppRadii.card,
+                boxShadow: AppShadows.card,
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    controller.canCheckOut ? Icons.check_circle_rounded : Icons.schedule_rounded,
+                    size: 56,
+                    color: controller.canCheckOut ? AppColors.success : AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    controller.canCheckOut ? 'Checked In' : 'Not Checked In',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    DateFormat('EEEE, dd MMM yyyy • hh:mm a').format(DateTime.now()),
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                  const SizedBox(height: 20),
+                  _TrackingToggle(),
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: AppRadii.card,
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.map_rounded, color: AppColors.primary, size: 36),
+                          const SizedBox(height: 8),
+                          const Text('GPS location captured on check-in', style: TextStyle(fontWeight: FontWeight.w600)),
+                          TextButton(onPressed: () => Get.toNamed(AppRoutes.mapView), child: const Text('Open map')),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 58,
+              child: FilledButton.icon(
+                onPressed: controller.canCheckIn && !controller.isProcessing.value ? controller.checkIn : null,
+                icon: const Icon(Icons.fingerprint_rounded, size: 28),
+                label: const Text('Check In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.success, shape: RoundedRectangleBorder(borderRadius: AppRadii.button)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 58,
+              child: FilledButton.icon(
+                onPressed: controller.canCheckOut && !controller.isProcessing.value ? controller.checkOut : null,
+                icon: const Icon(Icons.logout_rounded, size: 26),
+                label: const Text('Check Out', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.error, shape: RoundedRectangleBorder(borderRadius: AppRadii.button)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryTab extends GetView<AttendanceController> {
+  const _HistoryTab();
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.history.isEmpty) {
+      return const Center(child: Text('No attendance records'));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: controller.history.length,
+      itemBuilder: (_, i) {
+        final a = controller.history[i];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: a.status == 'Present' ? AppColors.success.withValues(alpha: 0.15) : AppColors.error.withValues(alpha: 0.15),
+              child: Icon(a.status == 'Present' ? Icons.check : Icons.close, color: a.status == 'Present' ? AppColors.success : AppColors.error),
+            ),
+            title: Text(DateFormat('dd MMM yyyy').format(a.date)),
+            subtitle: Text(
+              'In: ${a.checkInTime != null ? DateFormat('hh:mm a').format(a.checkInTime!) : '-'} | '
+              'Out: ${a.checkOutTime != null ? DateFormat('hh:mm a').format(a.checkOutTime!) : '-'}',
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TrackingToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tracking = Get.find<TrackingService>();
-    return Obx(() => Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: (tracking.isTracking.value ? AppColors.success : AppColors.textSecondary)
-                  .withValues(alpha: 0.15),
-              child: Icon(
-                tracking.isTracking.value ? Icons.gps_fixed : Icons.gps_off,
-                color: tracking.isTracking.value ? AppColors.success : AppColors.textSecondary,
-              ),
-            ),
-            title: Text(
-              tracking.isTracking.value ? 'Route tracking ON' : 'Route tracking OFF',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              tracking.isTracking.value
-                  ? '${tracking.totalKmToday.value.toStringAsFixed(2)} KM today • auto with check-in'
-                  : 'Check in to start GPS route for today',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Get.toNamed(AppRoutes.mapView),
-          ),
+    return Obx(() => SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Auto GPS tracking', style: TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: Text(tracking.isTracking.value ? 'On duty — live pings' : 'Starts with attendance check-in'),
+          value: tracking.isTracking.value,
+          activeThumbColor: AppColors.primary,
+          onChanged: null,
         ));
   }
 }

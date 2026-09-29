@@ -12,4 +12,24 @@ class CustomerRepository {
   Future<CustomerModel> getCustomerById(String id) {
     return _api.getCustomerById(id);
   }
+
+  Future<CustomerModel> createCustomer({
+    required String name,
+    required String mobile,
+    String address = '',
+    String aadhaar = '',
+    String pan = '',
+    double? latitude,
+    double? longitude,
+  }) {
+    return _api.createCustomer(
+      name: name,
+      mobile: mobile,
+      address: address,
+      aadhaar: aadhaar,
+      pan: pan,
+      latitude: latitude,
+      longitude: longitude,
+    );
+  }
 }

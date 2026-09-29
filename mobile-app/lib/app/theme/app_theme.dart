@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
   AppTheme._();
 
   static ThemeData get lightTheme {
+    final baseText = GoogleFonts.interTextTheme();
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.primary,
       primary: AppColors.primary,
@@ -18,6 +20,10 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
+      textTheme: baseText.apply(
+        bodyColor: AppColors.textPrimary,
+        displayColor: AppColors.textPrimary,
+      ),
       scaffoldBackgroundColor: AppColors.background,
       appBarTheme: const AppBarTheme(
         elevation: 0,
@@ -82,8 +88,29 @@ class AppTheme {
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        elevation: 0,
+        height: 72,
+        backgroundColor: AppColors.surface,
+        indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? AppColors.primary : AppColors.textSecondary,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? AppColors.primary : AppColors.textSecondary,
+            size: 24,
+          );
+        }),
+      ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textSecondary,
         type: BottomNavigationBarType.fixed,

@@ -1,12 +1,16 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../data/models/customer_model.dart';
 import '../../../data/models/call_log_model.dart';
+import '../../../data/models/enums/app_enums.dart';
 import '../../../data/repositories/customer_repository.dart';
 import '../../../data/services/call_service.dart';
 import '../../../routes/app_routes.dart';
 
 enum CustomerFilter { all, recent, withLocation }
+
+enum CallLogFilter { all, outgoing, incoming, missed }
 
 class CustomersController extends GetxController {
   final CustomerRepository _repo = CustomerRepository();
@@ -18,7 +22,70 @@ class CustomersController extends GetxController {
   final isLoadingLogs = false.obs;
   final searchQuery = ''.obs;
   final selectedFilter = CustomerFilter.all.obs;
+  final callLogFilter = CallLogFilter.all.obs;
+  final isSavingCustomer = false.obs;
   List<CustomerModel> _allCustomers = [];
+
+  final addNameCtrl = TextEditingController();
+  final addMobileCtrl = TextEditingController();
+  final addAddressCtrl = TextEditingController();
+  final addAadhaarCtrl = TextEditingController();
+  final addPanCtrl = TextEditingController();
+  final RxnDouble addLatitude = RxnDouble();
+  final RxnDouble addLongitude = RxnDouble();
+
+  @override
+  void onClose() {
+    addNameCtrl.dispose();
+    addMobileCtrl.dispose();
+    addAddressCtrl.dispose();
+    addAadhaarCtrl.dispose();
+    addPanCtrl.dispose();
+    super.onClose();
+  }
+
+  void resetAddCustomerForm() {
+    addNameCtrl.clear();
+    addMobileCtrl.clear();
+    addAddressCtrl.clear();
+    addAadhaarCtrl.clear();
+    addPanCtrl.clear();
+    addLatitude.value = null;
+    addLongitude.value = null;
+  }
+
+  Future<void> createCustomer() async {
+    final name = addNameCtrl.text.trim();
+    final mobile = addMobileCtrl.text.replaceAll(RegExp(r'\D'), '');
+    if (name.isEmpty) {
+      Get.snackbar('Validation', 'Customer name required');
+      return;
+    }
+    if (mobile.length < 10) {
+      Get.snackbar('Validation', 'Enter valid 10-digit mobile');
+      return;
+    }
+    isSavingCustomer.value = true;
+    try {
+      final customer = await _repo.createCustomer(
+        name: name,
+        mobile: mobile.length > 10 ? mobile.substring(mobile.length - 10) : mobile,
+        address: addAddressCtrl.text.trim(),
+        aadhaar: addAadhaarCtrl.text.trim(),
+        pan: addPanCtrl.text.trim().toUpperCase(),
+        latitude: addLatitude.value,
+        longitude: addLongitude.value,
+      );
+      Get.back();
+      resetAddCustomerForm();
+      await loadCustomers();
+      Get.snackbar('Success', '${customer.name} added');
+    } catch (e) {
+      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      isSavingCustomer.value = false;
+    }
+  }
 
   @override
   void onInit() {
@@ -103,6 +170,34 @@ class CustomersController extends GetxController {
   Future<void> smsCustomer(String mobile) async {
     final uri = Uri(scheme: 'sms', path: mobile);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  List<CallLogModel> get filteredCallLogs {
+    switch (callLogFilter.value) {
+      case CallLogFilter.outgoing:
+        return callLogs.where((l) => l.type == CallType.outgoing).toList();
+      case CallLogFilter.incoming:
+        return callLogs.where((l) => l.type == CallType.incoming).toList();
+      case CallLogFilter.missed:
+        return callLogs.where((l) => l.type == CallType.missed).toList();
+      case CallLogFilter.all:
+        return callLogs.toList();
+    }
+  }
+
+  Future<void> saveCallNotes(CallLogModel log, String summary) async {
+    final ok = await _callService.updateCallSummary(log.id, summary);
+    if (!ok) {
+      Get.snackbar('Error', 'Could not save notes');
+      return;
+    }
+    await loadCallLogs();
+    Get.snackbar('Saved', 'Call notes updated');
+  }
+
+  List<CallLogModel> callLogsForCustomer(String mobile) {
+    final m = mobile.trim();
+    return filteredCallLogs.where((l) => l.mobile.trim() == m).toList();
   }
 
   Future<void> loadCallLogs() async {

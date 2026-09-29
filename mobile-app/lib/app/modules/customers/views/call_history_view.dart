@@ -7,8 +7,9 @@ import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/skeleton_loaders.dart';
 import '../../../widgets/animated_entrance.dart';
-import '../../../widgets/app_page_header.dart';
+import '../../../widgets/ndfa_segment_bar.dart';
 import '../../../widgets/streaming_recording_player.dart';
+import '../../../widgets/call_log_detail_sheet.dart';
 import '../controllers/customers_controller.dart';
 
 class CallHistoryView extends GetView<CustomersController> {
@@ -37,17 +38,18 @@ class CallHistoryView extends GetView<CustomersController> {
       ),
       body: Column(
         children: [
-          const AppGradientBanner(
-            icon: Icons.cloud_upload_outlined,
-            title: 'Synced call logs',
-            subtitle: 'Recordings stream to admin dashboard when online',
-          ),
+          Obx(() => NdfaSegmentBar(
+                labels: const ['All', 'Outgoing', 'Incoming', 'Missed'],
+                selectedIndex: controller.callLogFilter.value.index,
+                onSelected: (i) => controller.callLogFilter.value = CallLogFilter.values[i],
+              )),
           Expanded(
             child: Obx(() {
               if (controller.isLoadingLogs.value) {
                 return const ListSkeleton();
               }
-              if (controller.callLogs.isEmpty) {
+              final logs = controller.filteredCallLogs;
+              if (logs.isEmpty) {
                 return const EmptyState(
                   icon: Icons.call_outlined,
                   title: 'No call logs yet',
@@ -59,14 +61,23 @@ class CallHistoryView extends GetView<CustomersController> {
                 color: AppColors.primary,
                 child: ListView.builder(
                   padding: const EdgeInsets.all(12),
-                  itemCount: controller.callLogs.length,
+                  itemCount: logs.length,
                   itemBuilder: (context, index) {
-                    final log = controller.callLogs[index];
+                    final log = logs[index];
                     return FadeSlideIn(
                       index: index.clamp(0, 8),
                       child: Card(
                         margin: const EdgeInsets.only(bottom: 10),
-                        child: Padding(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => CallLogDetailSheet.show(
+                            log: log,
+                            onSave: (s) => controller.saveCallNotes(log, s),
+                            onCallBack: () => controller.callCustomer(log.customerName, log.mobile),
+                          ),
+                          child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,6 +128,7 @@ class CallHistoryView extends GetView<CustomersController> {
                               ],
                             ],
                           ),
+                        ),
                         ),
                       ),
                     );

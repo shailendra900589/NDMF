@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../routes/app_routes.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_tokens.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/skeleton_loaders.dart';
@@ -12,6 +14,7 @@ class PayslipsListView extends GetView<PayslipsController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: const CustomAppBar(title: 'Pay slips', subtitle: 'Admin payroll'),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -37,9 +40,20 @@ class PayslipsListView extends GetView<PayslipsController> {
             itemCount: controller.slips.length,
             itemBuilder: (_, i) {
               final p = controller.slips[i];
-              return Card(
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: AppRadii.card,
+                  boxShadow: AppShadows.card,
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.08)),
+                ),
                 child: ListTile(
-                  title: Text(p['employeeName']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                    child: const Icon(Icons.receipt_long_rounded, color: AppColors.primaryDark, size: 20),
+                  ),
+                  title: Text(p['employeeName']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w800)),
                   subtitle: Text('${p['employeeNo']} • ${p['month']} • Net ₹${p['netPay'] ?? 0}'),
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) {

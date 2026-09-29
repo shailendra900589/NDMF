@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_tokens.dart';
 import '../../../data/models/customer_model.dart';
 import '../../../data/models/enums/app_enums.dart';
 import '../../../data/services/maps_navigation_service.dart';
+import '../../../widgets/custom_app_bar.dart';
 import '../../tracking/views/map_view.dart';
 import '../../tracking/bindings/tracking_binding.dart';
 import '../controllers/customers_controller.dart';
@@ -17,132 +20,167 @@ class CustomerDetailView extends GetView<CustomersController> {
     final customer = Get.arguments as CustomerModel;
     final mapsNav = Get.find<MapsNavigationService>();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Customer Profile')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: const CustomAppBar(title: 'Customer', subtitle: 'Profile & history'),
+        body: Column(
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                      child: Text(customer.name[0], style: const TextStyle(fontSize: 32, color: AppColors.primary)),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(customer.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                    Text(customer.mobile, style: const TextStyle(color: AppColors.textSecondary)),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _actionBtn(Icons.phone, 'Call', AppColors.success,
-                            () => controller.callCustomer(customer.name, customer.mobile)),
-                        _actionBtn(Icons.message, 'WhatsApp', Colors.green,
-                            () => controller.whatsappCustomer(customer.mobile)),
-                        _actionBtn(Icons.sms, 'SMS', AppColors.primary,
-                            () => controller.smsCustomer(customer.mobile)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _infoSection('Personal Info', [
-              _row('Address', customer.address),
-              _row('Aadhaar', customer.aadhaar),
-              _row('PAN', customer.pan),
-            ]),
-            _infoSection('Location', [
-              if (customer.latitude != null) _row('Latitude', '${customer.latitude}'),
-              if (customer.longitude != null) _row('Longitude', '${customer.longitude}'),
-              Row(
+            Container(
+              margin: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+              child: Column(
                 children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        if (customer.latitude != null && customer.longitude != null) {
-                          Get.to(
-                            () => MapView.customer(
-                              lat: customer.latitude!,
-                              lng: customer.longitude!,
-                              name: customer.name,
-                            ),
-                            binding: TrackingBinding(),
-                          );
-                        } else {
-                          Get.snackbar('Location', 'Customer location not available');
-                        }
-                      },
-                      icon: const Icon(Icons.map),
-                      label: const Text('View Map'),
-                    ),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.14),
+                        child: Text(customer.name[0], style: const TextStyle(fontSize: 24, color: AppColors.primaryDark, fontWeight: FontWeight.w800)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(customer.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                            Text(customer.mobile, style: const TextStyle(color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text('Lead', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accentDark)),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: customer.latitude != null && customer.longitude != null
-                          ? () => mapsNav.openInGoogleMaps(
-                                latitude: customer.latitude!,
-                                longitude: customer.longitude!,
-                                label: customer.name,
-                              )
-                          : null,
-                      icon: const Icon(Icons.directions),
-                      label: const Text('Directions'),
-                    ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _actionBtn(Icons.phone_rounded, 'Call', AppColors.success, () => controller.callCustomer(customer.name, customer.mobile)),
+                      _actionBtn(Icons.message_rounded, 'WhatsApp', Colors.green, () => controller.whatsappCustomer(customer.mobile)),
+                      _actionBtn(Icons.more_horiz_rounded, 'Options', AppColors.primary, () {}),
+                    ],
                   ),
                 ],
               ),
-            ]),
-            _infoSection('Loan History', [
-              if (customer.loanHistory.isEmpty)
-                const Text('No loan history', style: TextStyle(color: AppColors.textSecondary))
-              else
-                ...customer.loanHistory.map((l) => ListTile(
-                      title: Text('₹${l.business.loanAmount.toStringAsFixed(0)}'),
-                      subtitle: Text(l.status.label),
-                    )),
-            ]),
-            _infoSection('Documents', [
-              if (customer.documentPaths.isEmpty)
-                const Text('No documents uploaded', style: TextStyle(color: AppColors.textSecondary))
-              else
-                SizedBox(
-                  height: 80,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: customer.documentPaths.length,
-                    itemBuilder: (_, i) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          File(customer.documentPaths[i]),
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 80,
-                            color: AppColors.divider,
-                            child: const Icon(Icons.image),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ]),
+            ),
+            const TabBar(
+              labelColor: AppColors.primary,
+              unselectedLabelColor: AppColors.textSecondary,
+              indicatorColor: AppColors.primary,
+              tabs: [
+                Tab(text: 'Details'),
+                Tab(text: 'Applications'),
+                Tab(text: 'Call History'),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _detailsTab(customer, mapsNav),
+                  _applicationsTab(customer),
+                  _callHistoryTab(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _detailsTab(CustomerModel customer, MapsNavigationService mapsNav) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      children: [
+        _infoSection('Personal Info', [
+          _row('Full Name', customer.name),
+          _row('Mobile', customer.mobile),
+          _row('Address', customer.address.isEmpty ? '—' : customer.address),
+          _row('Aadhaar', customer.aadhaar.isEmpty ? '—' : customer.aadhaar),
+          _row('PAN', customer.pan.isEmpty ? '—' : customer.pan),
+          _row('Created', DateFormat('dd MMM yyyy').format(customer.createdAt)),
+        ]),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: () {
+            if (customer.latitude != null && customer.longitude != null) {
+              Get.to(
+                () => MapView.customer(lat: customer.latitude!, lng: customer.longitude!, name: customer.name),
+                binding: TrackingBinding(),
+              );
+            } else {
+              Get.snackbar('Location', 'Customer location not available');
+            }
+          },
+          icon: const Icon(Icons.map_rounded),
+          label: const Text('View on map'),
+        ),
+        if (Platform.isAndroid)
+          OutlinedButton.icon(
+            onPressed: () {
+              if (customer.latitude != null && customer.longitude != null) {
+                mapsNav.openInGoogleMaps(
+                  latitude: customer.latitude!,
+                  longitude: customer.longitude!,
+                  label: customer.name,
+                );
+              }
+            },
+            icon: const Icon(Icons.navigation_rounded),
+            label: const Text('Navigate'),
+          ),
+      ],
+    );
+  }
+
+  Widget _applicationsTab(CustomerModel customer) {
+    return Center(
+      child: Text(
+        customer.listingId != null ? 'Listing ${customer.listingId}' : 'No linked application',
+        style: const TextStyle(color: AppColors.textSecondary),
+      ),
+    );
+  }
+
+  Widget _callHistoryTab() {
+    final customer = Get.arguments as CustomerModel;
+    return Obx(() {
+      final logs = controller.callLogsForCustomer(customer.mobile);
+      if (logs.isEmpty) {
+        return const Center(child: Text('No calls logged yet', style: TextStyle(color: AppColors.textSecondary)));
+      }
+      return ListView.builder(
+        itemCount: logs.length,
+        itemBuilder: (_, i) {
+          final log = logs[i];
+          return ListTile(
+            leading: Icon(_typeIcon(log.type), color: AppColors.primary),
+            title: Text(log.customerName),
+            subtitle: Text('${log.time} • ${log.duration}'),
+          );
+        },
+      );
+    });
+  }
+
+  IconData _typeIcon(CallType type) {
+    switch (type) {
+      case CallType.incoming:
+        return Icons.call_received_rounded;
+      case CallType.outgoing:
+        return Icons.call_made_rounded;
+      case CallType.missed:
+        return Icons.call_missed_rounded;
+    }
   }
 
   Widget _actionBtn(IconData icon, String label, Color color, VoidCallback onTap) {
@@ -150,12 +188,12 @@ class CustomerDetailView extends GetView<CustomersController> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 28),
+            Icon(icon, color: color),
             const SizedBox(height: 4),
-            Text(label, style: TextStyle(fontSize: 12, color: color)),
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
           ],
         ),
       ),
@@ -163,29 +201,28 @@ class CustomerDetailView extends GetView<CustomersController> {
   }
 
   Widget _infoSection(String title, List<Widget> children) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.primary)),
-            const Divider(),
-            ...children,
-          ],
-        ),
+    return Container(
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+          const SizedBox(height: 12),
+          ...children,
+        ],
       ),
     );
   }
 
   Widget _row(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 80, child: Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13))),
-          Expanded(child: Text(value)),
+          SizedBox(width: 110, child: Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13))),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
         ],
       ),
     );
