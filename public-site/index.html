@@ -80,7 +80,8 @@
       <a class="brand" href="#top">
         <img src="/brand/logo-full.png" width="280" height="64" alt="Nirmaldhara" />
       </a>
-      <nav class="nav__links" aria-label="Page">
+      <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+      <nav class="nav__links" id="site-nav" aria-label="Page">
         <a href="#about">About</a>
         <a href="#roles">Who uses it</a>
         <a href="#flow">How it works</a>
@@ -273,17 +274,53 @@
       </div>
     </section>
   </main>
-  <footer>
-    <div class="wrap">
-      <img class="footer__brand" src="/brand/logo-full.png" width="240" height="52" alt="Nirmaldhara" />
+  <footer class="site-footer">
+    <div class="wrap footer__grid">
+      <div>
+        <img class="footer__brand" src="/brand/logo-full.png" width="220" height="65" alt="Nirmaldhara" />
+        <p>Field operations for Nirmaldhara Micro Foundation: customer visits, branch review, and admin approval, with calls, attendance, and GPS.</p>
+      </div>
+      <div>
+        <h2>On this page</h2>
+        <ul>
+          <li><a href="#about">About</a></li>
+          <li><a href="#roles">Who uses it</a></li>
+          <li><a href="#flow">How it works</a></li>
+          <li><a href="#modules">Modules</a></li>
+          <li><a href="#faq">Questions</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Staff access</h2>
+        <ul>
+          <li><a href="/login">Admin login</a></li>
+          <li><a href="/login">Branch manager login</a></li>
+        </ul>
+        <p>Field officers use the Android app. This page does not take public applications.</p>
+      </div>
     </div>
-    <div class="wrap footer__row">
+    <div class="wrap footer__bar">
       <p>© <span id="year">2026</span> All rights reserved by Nirmaldhara Micro Foundation.</p>
       <p>Designed and Developed by <a href="https://www.nectradigital.com" rel="noopener noreferrer">NectraDigital</a></p>
     </div>
   </footer>
   <script>
     document.getElementById('year').textContent = String(new Date().getFullYear());
+    var menuBtn = document.querySelector('.menu-btn');
+    var siteNav = document.getElementById('site-nav');
+    menuBtn.addEventListener('click', function () {
+      var open = siteNav.classList.toggle('is-open');
+      menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      menuBtn.textContent = open ? 'Close' : 'Menu';
+    });
+    siteNav.querySelectorAll('a').forEach(function (link) {
+      link.addEventListener('click', function () {
+        siteNav.classList.remove('is-open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+        menuBtn.textContent = 'Menu';
+      });
+    });
   </script>
 </body>
 </html>
