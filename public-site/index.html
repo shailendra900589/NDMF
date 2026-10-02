@@ -18,8 +18,8 @@
   <meta name="twitter:title" content="Nirmaldhara Micro Foundation | Field operations platform" />
   <meta name="twitter:description" content="Customer onboarding, approvals, recorded calls, attendance, and live tracking for Nirmaldhara field teams." />
   <meta name="twitter:image" content="https://ndclients.co.in/brand/field.jpg" />
-  <link rel="icon" href="/brand/logo.jpg" />
-  <link rel="apple-touch-icon" href="/brand/logo.jpg" />
+  <link rel="icon" href="/brand/logo-full.png" />
+  <link rel="apple-touch-icon" href="/brand/logo-full.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Fraunces:opsz,wght@9..144,560;9..144,680&display=swap" rel="stylesheet" />
@@ -32,7 +32,7 @@
         "@type": "Organization",
         "name": "Nirmaldhara Micro Foundation",
         "url": "https://ndclients.co.in/",
-        "logo": "https://ndclients.co.in/brand/logo.jpg",
+        "logo": "https://ndclients.co.in/brand/logo-full.png",
         "description": "Field operations platform for customer onboarding, approvals, calls, attendance, and GPS tracking."
       },
       {
@@ -78,14 +78,14 @@
   <header class="nav">
     <div class="wrap nav__row">
       <a class="brand" href="#top">
-        <img src="/brand/logo.jpg" width="42" height="42" alt="Nirmaldhara Micro Foundation logo" />
-        <span>Nirmaldhara</span>
+        <img src="/brand/logo-full.png" width="280" height="64" alt="Nirmaldhara" />
       </a>
       <nav class="nav__links" aria-label="Page">
         <a href="#about">About</a>
-        <a href="#platform">Platform</a>
+        <a href="#roles">Who uses it</a>
         <a href="#flow">How it works</a>
         <a href="#modules">Modules</a>
+        <a href="#faq">Questions</a>
         <a href="#contact">Contact</a>
       </nav>
       <a class="btn btn--solid" href="/login">Staff login</a>
@@ -107,6 +107,15 @@
           <img src="/brand/field.jpg" width="1600" height="1067" alt="Staff member assisting a customer at a service counter" />
           <figcaption>Operations stay tied to a branch, a person, and a recorded visit.</figcaption>
         </figure>
+      </div>
+    </section>
+
+    <section aria-label="At a glance">
+      <div class="wrap stats">
+        <article class="stat"><b>Field visit</b><span>Officer files the customer at the shop, with address and GPS.</span></article>
+        <article class="stat"><b>Branch check</b><span>Branch manager approves staff from that location.</span></article>
+        <article class="stat"><b>Admin close</b><span>Admin publishes the customer, or files one with no extra approval.</span></article>
+        <article class="stat"><b>Same day</b><span>Calls, attendance, and the live route stay on that staff account.</span></article>
       </div>
     </section>
 
@@ -132,6 +141,29 @@
           <p class="kicker">On the platform</p>
           <h2>One record for the customer, the call, and the visit.</h2>
           <p>A new customer starts as an application: name, mobile, identity details, shop address, and live GPS. After approval, the person appears on the customer list. Calls placed from the field app are meant to be recorded and stored with the call log. Attendance uses face and GPS where policy requires it. Supervisors watch live tracking from the web console.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="roles">
+      <div class="wrap">
+        <h2>Who signs in, and from where</h2>
+        <p class="lead">The mark you see above is the foundation logo: the letters, the leaf, and the coins. Staff use the same name on the web console and on the phone.</p>
+        <div class="roles" style="margin-top:22px">
+          <article class="panel">
+            <h3>Admin</h3>
+            <p>Sees every location. Publishes applications, creates users and roles, manages branches, and opens pay slips. An application filed by admin does not wait for anyone else.</p>
+            <p><a class="btn btn--solid" href="/login">Admin login</a></p>
+          </article>
+          <article class="panel">
+            <h3>Branch manager</h3>
+            <p>Works inside one branch. Reviews field-officer applications, then sends them to admin. If the manager files the application, only admin approval is left.</p>
+            <p><a class="btn btn--ghost" href="/login">Branch manager login</a></p>
+          </article>
+          <article class="panel">
+            <h3>Field officer</h3>
+            <p>Does not use this website for daily visits. The Android app is for the dialer, new applications, attendance, and GPS. Those files then appear here for the branch and for admin.</p>
+          </article>
         </div>
       </div>
     </section>
@@ -205,6 +237,28 @@
       </div>
     </section>
 
+    <section id="faq">
+      <div class="wrap faq">
+        <h2>Questions</h2>
+        <details open>
+          <summary>What is this website for?</summary>
+          <p>It explains Nirmaldhara Micro Foundation’s field system and opens the staff console. Customer files are created on a visit, not from a public form on this page.</p>
+        </details>
+        <details>
+          <summary>Who can log in here?</summary>
+          <p>Admin and Branch Manager, with the employee ID or mobile and password issued to them. Field officers use the mobile app.</p>
+        </details>
+        <details>
+          <summary>How does approval work?</summary>
+          <p>A field officer needs the branch manager and then admin. A branch manager needs only admin. Admin publishes immediately.</p>
+        </details>
+        <details>
+          <summary>Where do call recordings go?</summary>
+          <p>Calls placed from the field app are recorded on the phone and uploaded with the call log so a supervisor can play them from the console.</p>
+        </details>
+      </div>
+    </section>
+
     <section id="contact">
       <div class="wrap contact">
         <div class="panel">
@@ -220,6 +274,9 @@
     </section>
   </main>
   <footer>
+    <div class="wrap">
+      <img class="footer__brand" src="/brand/logo-full.png" width="240" height="52" alt="Nirmaldhara" />
+    </div>
     <div class="wrap footer__row">
       <p>© <span id="year">2026</span> All rights reserved by Nirmaldhara Micro Foundation.</p>
       <p>Designed and Developed by <a href="https://www.nectradigital.com" rel="noopener noreferrer">NectraDigital</a></p>
