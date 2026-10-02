@@ -55,7 +55,7 @@ a { color: inherit; }
   font-weight: 700;
   border: 1px solid transparent;
 }
-.btn--solid { background: var(--teal); color: #fff; }
+.btn--solid { background: var(--teal); color: #fff; white-space: nowrap; }
 .btn--solid:hover { background: var(--teal-dark); }
 .btn--ghost { background: transparent; border-color: var(--line); }
 .hero { padding: 72px 0 40px; }
