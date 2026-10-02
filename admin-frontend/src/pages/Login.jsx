@@ -106,6 +106,9 @@ export default function Login() {
         <p className="login-foot">
           Admin sees all locations · others see their location only
         </p>
+        <p className="login-foot">
+          <a href="/">Back to Nirmaldhara home</a>
+        </p>
       </div>
     </div>
   );
