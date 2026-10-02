@@ -19,7 +19,7 @@ body {
   line-height: 1.6;
 }
 img { max-width: 100%; height: auto; display: block; }
-a { color: inherit; }
+a { color: inherit; text-decoration: none; }
 .skip {
   position: absolute;
   left: 12px;
@@ -102,7 +102,8 @@ section { padding: 72px 0; scroll-margin-top: 96px; }
 .faq summary { cursor: pointer; font-weight: 700; }
 .footer__brand { width: 220px; height: 65px; margin-bottom: 12px; }
 .site-footer { background: #0c2e28; color: #d7e6e1; padding: 48px 0 24px; }
-.site-footer a { color: #fff; }
+.site-footer a { color: #fff; text-decoration: none; }
+.site-footer a:hover { text-decoration: none; color: #b7e0d6; }
 .footer__grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 28px; }
 .site-footer h2 { color: #fff; font-size: 1rem; margin-bottom: 10px; }
 .site-footer ul { list-style: none; margin: 0; padding: 0; }
