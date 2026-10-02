@@ -36,7 +36,6 @@ a { color: inherit; }
   z-index: 10;
   background: rgba(244, 247, 245, 0.92);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--line);
 }
 .nav__row { display: flex; align-items: center; gap: 18px; min-height: 88px; }
 .brand { display: flex; align-items: center; flex: 0 0 auto; text-decoration: none; }
@@ -52,9 +51,8 @@ a { color: inherit; }
 }
 .footer__brand {
   width: 200px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 6px 8px;
+  background: transparent;
+  padding: 0;
 }
 .menu-btn {
   display: none;
