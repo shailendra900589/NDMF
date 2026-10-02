@@ -124,10 +124,10 @@ No body. Clears server-side session metadata if used; client should delete store
 
 ## Dashboard
 
-### `GET /dashboard`
+### `GET /dashboard/stats`
 
 **Auth:** required  
-**Response `data`:** KPIs and summaries for the logged-in user (role-scoped).
+**Response `data`:** KPIs and summaries for the logged-in user (role-scoped). Mobile app uses this path (`ApiConstants.dashboard`).
 
 ---
 

@@ -59,10 +59,12 @@ exports.create = (req, res) => {
   let loc = branch;
   if (!isAdmin(req.user)) {
     loc = req.user.branch;
-  } else if (!loc) {
-    loc = req.user.branch || '';
+  } else if (!loc || !String(loc).trim()) {
+    const userBranch = req.user.branch && String(req.user.branch).trim();
+    const addr = address && String(address).trim();
+    loc = userBranch || addr || 'All branches';
   }
-  if (!loc) return error(res, 'Location required');
+  if (!loc || !String(loc).trim()) return error(res, 'Location required');
 
   const record = {
     id: `C_${uuid().slice(0, 8)}`,

@@ -88,7 +88,7 @@ exports.getForApproval = (req, res) => {
   if (req.user.role === 'branchManager') {
     listings = listings.filter((l) => l.status === 'branchPending');
   } else if (req.user.role === 'admin') {
-    listings = listings.filter((l) => l.status === 'adminPending');
+    listings = listings.filter((l) => ['branchPending', 'adminPending'].includes(l.status));
   }
 
   return success(res, listings);
@@ -115,7 +115,13 @@ exports.submit = (req, res) => {
     shopLongitude: body.shopLongitude || 0,
     neighbors: body.neighbors || [],
     status: initialListingStatus(req.user.role),
-    branch: body.branch || req.user.branch,
+    branch: (() => {
+      const fromBody = body.branch && String(body.branch).trim();
+      const fromUser = req.user.branch && String(req.user.branch).trim();
+      if (fromBody) return fromBody;
+      if (fromUser) return fromUser;
+      return isAdmin(req.user) ? 'All branches' : fromUser || '';
+    })(),
     createdAt: body.createdAt || new Date().toISOString(),
     listedAt: null,
     isSynced: true,
