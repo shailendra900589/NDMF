@@ -16,9 +16,9 @@ export const LOAN_STATUS = {
 
 export const LISTING_STATUS = {
   draft: 'Draft',
-  branchPending: 'Manager Pending',
-  adminPending: 'Admin Pending',
-  listed: 'Listed',
+  branchPending: 'Branch Approval Pending',
+  adminPending: 'Admin Approval Pending',
+  listed: 'Customer Listed',
   rejected: 'Rejected',
 };
 

@@ -94,8 +94,41 @@ exports.getForApproval = (req, res) => {
   return success(res, listings);
 };
 
+function hasPhoto(value) {
+  if (!value) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  return Boolean(value.filePath && String(value.filePath).trim());
+}
+
 exports.submit = (req, res) => {
   const body = req.body;
+  const requiredPhotos = [
+    ['customerPhoto', 'Customer photo'],
+    ['aadhaarFront', 'Aadhaar front'],
+    ['aadhaarBack', 'Aadhaar back'],
+    ['panFront', 'PAN front'],
+    ['shopPhoto1', 'Shop photo 1'],
+    ['shopPhoto2', 'Shop photo 2'],
+    ['shopPhoto3', 'Shop photo 3'],
+    ['shopPhoto4', 'Shop photo 4'],
+  ];
+  for (const [key, label] of requiredPhotos) {
+    if (!hasPhoto(body[key])) return error(res, `${label} is required`);
+  }
+  if (!String(body.shopFullAddress || '').trim()) {
+    return error(res, 'Shop full address is required');
+  }
+  const lat = Number(body.shopLatitude);
+  const lng = Number(body.shopLongitude);
+  if (!lat || !lng) return error(res, 'Live shop GPS location is required');
+  const neighbors = Array.isArray(body.neighbors) ? body.neighbors : [];
+  const verifiedNeighbors = neighbors.filter(
+    (n) => n && String(n.shopName || '').trim() && String(n.remarks || '').trim()
+  );
+  if (verifiedNeighbors.length < 2) {
+    return error(res, 'At least 2 neighboring shop verifications are required');
+  }
+
   const listing = {
     id: body.id || `CL_${uuid().slice(0, 8)}`,
     name: body.name || '',
@@ -111,10 +144,10 @@ exports.submit = (req, res) => {
     shopPhoto3: body.shopPhoto3 || null,
     shopPhoto4: body.shopPhoto4 || null,
     shopFullAddress: body.shopFullAddress || '',
-    shopLatitude: body.shopLatitude || 0,
-    shopLongitude: body.shopLongitude || 0,
-    neighbors: body.neighbors || [],
-    status: initialListingStatus(req.user.role),
+    shopLatitude: lat,
+    shopLongitude: lng,
+    neighbors: verifiedNeighbors,
+    status: initialListingStatus(),
     branch: (() => {
       const fromBody = body.branch && String(body.branch).trim();
       const fromUser = req.user.branch && String(req.user.branch).trim();
@@ -134,12 +167,7 @@ exports.submit = (req, res) => {
     createCustomerFromListing(listing);
   }
   upsert('customerListings', listing);
-  const msg =
-    listing.status === 'listed'
-      ? 'Customer listing published (admin — no approval required)'
-      : listing.status === 'adminPending'
-        ? 'Submitted for admin approval'
-        : 'Submitted for branch approval';
+  const msg = 'Submitted for branch approval';
   return success(res, listing, msg, 201);
 };
 

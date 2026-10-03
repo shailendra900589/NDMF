@@ -1,12 +1,9 @@
 /**
- * Customer listing approval chain by submitter role.
- * - fieldOfficer → branchPending → (branch) → adminPending → (admin) → listed
- * - branchManager → adminPending → (admin) → listed
- * - admin → listed (no approval)
+ * Every customer listing starts with the branch, then admin.
+ * field officer, branch manager, and admin all submit as branchPending.
+ * Branch approval moves it to adminPending. Admin approval lists the customer.
  */
-function initialListingStatus(submitterRole) {
-  if (submitterRole === 'admin') return 'listed';
-  if (submitterRole === 'branchManager') return 'adminPending';
+function initialListingStatus() {
   return 'branchPending';
 }
 

@@ -60,6 +60,19 @@ if root.exists():
         path.write_text(updated, encoding="utf-8")
         print(f"inserted public home into {path}")
 PY
+sudo python3 << 'PY'
+from pathlib import Path
+root = Path("/etc/nginx/sites-enabled")
+if root.exists():
+    for path in root.iterdir():
+        text = path.read_text(encoding="utf-8", errors="replace")
+        updated = text.replace("client_max_body_size 120M", "client_max_body_size 220M")
+        updated = updated.replace("proxy_read_timeout 300s", "proxy_read_timeout 600s")
+        updated = updated.replace("proxy_send_timeout 300s", "proxy_send_timeout 600s")
+        if updated != text:
+            path.write_text(updated, encoding="utf-8")
+            print(f"raised upload limit in {path}")
+PY
 sudo nginx -t && sudo systemctl reload nginx
 
 echo ""

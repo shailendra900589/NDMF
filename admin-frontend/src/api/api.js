@@ -85,6 +85,18 @@ export const callLogsApi = {
   getAll: () => api.get('/call-logs'),
 };
 
+export async function uploadMedia(file, fields = {}) {
+  const body = new FormData();
+  body.append('file', file);
+  Object.entries(fields).forEach(([key, value]) => {
+    if (value != null && value !== '') body.append(key, String(value));
+  });
+  const res = await api.post('/uploads/single', body, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}
+
 export const listingsApi = {
   getAll: (params) => api.get('/customer-listings', { params }),
   getById: (id) => api.get(`/customer-listings/${id}`),
