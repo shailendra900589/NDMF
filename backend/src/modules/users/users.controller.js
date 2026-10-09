@@ -53,7 +53,7 @@ exports.getAll = (req, res) => {
   const all = getCollection('users');
   let users = listUsersVisibleTo(req.user, all);
   users = users.map(sanitizeUser);
-  users.sort((a, b) => a.name.localeCompare(b.name));
+  users.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   return success(res, users);
 };
 

@@ -13,7 +13,13 @@ const ROLE_LABELS = {
 };
 
 export default function Users() {
-  const me = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+  let me = {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+    me = parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    me = {};
+  }
   const isAdmin = me.role === 'admin';
 
   const [users, setUsers] = useState([]);
@@ -22,9 +28,11 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(null);
   const [editId, setEditId] = useState(null);
+  const [loadError, setLoadError] = useState('');
 
   const load = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const [u, s] = await Promise.all([usersApi.getAll(), usersApi.getPermissionSchema()]);
       setUsers(u.data || []);
@@ -36,7 +44,7 @@ export default function Users() {
         setBranches(me.branch ? [{ name: me.branch }] : []);
       }
     } catch (e) {
-      console.error(e);
+      setLoadError(e.message || 'Could not load users');
     } finally {
       setLoading(false);
     }
@@ -52,7 +60,9 @@ export default function Users() {
       ? ['fieldOfficer', 'branchManager', 'admin']
       : ['fieldOfficer'];
 
-  const roleOptionsForForm = [...new Set([form.role, ...creatableRoles].filter(Boolean))];
+  const roleOptionsForForm = form
+    ? [...new Set([form.role, ...creatableRoles].filter(Boolean))]
+    : creatableRoles;
 
   const openCreate = () => {
     const role = creatableRoles[0] || 'fieldOfficer';
@@ -78,7 +88,7 @@ export default function Users() {
       role: user.role,
       branch: user.branch,
       password: '',
-      permissions: { ...user.permissions },
+      permissions: { ...(user.permissions || {}) },
       isActive: user.isActive !== false,
     });
   };
@@ -129,6 +139,13 @@ export default function Users() {
           + Create user &amp; assign role
         </button>
       </PageHeader>
+
+      {loadError && (
+        <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+          <p style={{ margin: '0 0 12px', color: '#b91c1c' }}>{loadError}</p>
+          <button type="button" className="btn btn-outline" onClick={load}>Retry</button>
+        </div>
+      )}
 
       <div className="card">
         <div className="table-wrap">

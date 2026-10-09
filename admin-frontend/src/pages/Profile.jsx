@@ -9,7 +9,13 @@ function roleLabel(role) {
 }
 
 export default function Profile() {
-  const stored = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+  let stored = {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+    stored = parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    stored = {};
+  }
   const [name, setName] = useState(stored.name || '');
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');

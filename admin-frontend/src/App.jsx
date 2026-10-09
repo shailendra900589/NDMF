@@ -20,7 +20,13 @@ function PrivateRoute({ children }) {
 }
 
 function PermissionRoute({ permission, children }) {
-  const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+  let user = {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+    user = parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    user = {};
+  }
   if (!canAccess(user, permission)) {
     return <Navigate to="/" replace />;
   }

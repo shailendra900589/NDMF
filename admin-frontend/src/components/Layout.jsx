@@ -1,6 +1,7 @@
 /**
  * App shell — sidebar, topbar, outlet
  */
+import { Component } from 'react';
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { authApi } from '../api/api';
 import { filterNavByPermissions } from '../utils/permissions';
@@ -54,10 +55,53 @@ function roleLabel(role) {
   return displayRole(role);
 }
 
+function readStoredUser() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+class PageErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidUpdate(prev) {
+    if (prev.resetKey !== this.props.resetKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="card" style={{ padding: 28, maxWidth: 560 }}>
+          <h2 style={{ marginTop: 0 }}>This page could not open</h2>
+          <p style={{ color: '#64748b' }}>
+            The menu is still available. Open another page, or try this one again.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={() => this.setState({ error: null })}>
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+  const user = readStoredUser();
   const isAdmin = user.role === 'admin';
 
   let navItems = filterNavByPermissions(NAV_ITEMS, user);
@@ -128,7 +172,9 @@ export default function Layout() {
           </div>
         </header>
         <main className="content">
-          <Outlet />
+          <PageErrorBoundary resetKey={location.pathname}>
+            <Outlet />
+          </PageErrorBoundary>
         </main>
       </div>
     </div>
