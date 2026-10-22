@@ -45,7 +45,9 @@ const MIME_TYPES = {
   '.webm': 'audio/webm',
 };
 
-app.use('/uploads', (req, res, next) => {
+app.use('/uploads', require('./lib/privateUploads').privateUploadAccess, (req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
   const ext = path.extname(req.path).toLowerCase();
   if (MIME_TYPES[ext]) {
     res.setHeader('Content-Type', MIME_TYPES[ext]);

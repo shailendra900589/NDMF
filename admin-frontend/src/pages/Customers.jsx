@@ -1,3 +1,4 @@
+import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { customersApi, branchesApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
@@ -114,10 +115,10 @@ export default function Customers() {
         title="Customers"
         description="Approved / listed customers — filter, add, and export."
       >
-        <button type="button" className="btn btn-outline btn-sm" onClick={download}>
+        <button hidden={!canPerformStored('customers', 'export')} type="button" className="btn btn-outline btn-sm" onClick={download}>
           Download Excel
         </button>
-        <button type="button" className="btn btn-primary" onClick={openAdd}>
+        <button hidden={!canPerformStored('customers', 'create')} type="button" className="btn btn-primary" onClick={openAdd}>
           + Add customer
         </button>
       </PageHeader>

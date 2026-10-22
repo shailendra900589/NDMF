@@ -20,9 +20,9 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 const storage = multer.diskStorage({
   destination: (_, __, cb) => cb(null, UPLOAD_DIR),
-  filename: (_, file, cb) => {
+  filename: (req, file, cb) => {
     const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, `${uuid()}${ext}`);
+    cb(null, `${req.user.companyId}_${uuid()}${ext}`);
   },
 });
 

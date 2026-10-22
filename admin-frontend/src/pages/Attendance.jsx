@@ -1,3 +1,4 @@
+import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { attendanceApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
@@ -293,7 +294,7 @@ export default function Attendance() {
             >
               Clear filters
             </button>
-            <button type="button" className="btn btn-primary btn-sm" onClick={downloadReport}>
+            <button hidden={!canPerformStored('attendance', 'export')} type="button" className="btn btn-primary btn-sm" onClick={downloadReport}>
               Download Excel
             </button>
           </div>
@@ -429,7 +430,7 @@ export default function Attendance() {
                   employee{filteredEmployees.length === 1 ? '' : 's'}
                 </p>
               </div>
-              <button type="button" className="btn btn-primary btn-sm" onClick={downloadReport}>
+              <button hidden={!canPerformStored('attendance', 'export')} type="button" className="btn btn-primary btn-sm" onClick={downloadReport}>
                 Download Excel
               </button>
             </div>

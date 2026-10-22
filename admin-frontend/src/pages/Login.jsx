@@ -14,7 +14,7 @@ export default function Login() {
     e.preventDefault();
     const id = loginId.trim();
     if (id.length < 3) {
-      setError('Enter Login ID (Employee ID or mobile)');
+      setError('Enter email, Employee ID or mobile');
       return;
     }
     if (!password) {
@@ -27,7 +27,7 @@ export default function Login() {
       const res = await authApi.login(id, password);
       localStorage.setItem('ndfa_token', res.data.token);
       localStorage.setItem('ndfa_user', JSON.stringify(res.data));
-      navigate('/');
+      navigate(res.data.role === 'superAdmin' ? '/super-admin' : '/');
     } catch (err) {
       setError(err.message || 'Unable to sign in. Check your details.');
     } finally {
@@ -53,7 +53,7 @@ export default function Login() {
         <form className="login-form" onSubmit={handleLogin} noValidate>
           <h2 className="login-form__title">Sign in</h2>
           <p className="login-form__lead">
-            Employee ID or mobile + password — no role select
+            Email, Employee ID or mobile — sign in with your password
           </p>
 
           <div className="form-group">
@@ -63,7 +63,7 @@ export default function Login() {
               value={loginId}
               onChange={(e) => setLoginId(e.target.value.trimStart())}
               autoComplete="username"
-              placeholder="FO001 or 9000000003"
+              placeholder="Email, Employee ID or mobile"
               disabled={loading}
             />
           </div>
@@ -104,7 +104,7 @@ export default function Login() {
         </form>
 
         <p className="login-foot">
-          Admin sees all locations · others see their location only
+          Secure access for platform administrators and company teams
         </p>
         <p className="login-foot">
           <a href="/">Back to Nirmaldhara home</a>

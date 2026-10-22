@@ -22,6 +22,7 @@ exports.streamRecording = (req, res) => {
   if (!relative) return error(res, 'Invalid recording path', 400);
 
   const filename = path.basename(relative);
+  if (!require('../../lib/uploadOwnership').ownsUpload(filename, req.user.companyId)) return error(res, 'Recording not found', 404);
   const absolute = path.join(UPLOAD_DIR, filename);
   if (!absolute.startsWith(UPLOAD_DIR) || !fs.existsSync(absolute)) {
     return error(res, 'Recording not found', 404);
@@ -34,7 +35,7 @@ exports.streamRecording = (req, res) => {
 
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Content-Type', contentType);
-  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Cache-Control', 'private, max-age=300');
   // Inline play in browser — not forced download
   res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
 

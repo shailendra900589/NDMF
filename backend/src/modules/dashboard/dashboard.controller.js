@@ -1,7 +1,7 @@
 const { getCollection } = require('../../lib/db');
 const { success } = require('../../lib/response');
 const { normalizeRecordingUrl } = require('../../lib/mediaUrl');
-const { isAdmin, filterByBranch, filterByBranchViaUser } = require('../../lib/rbac');
+const { isAdmin, filterByBranch, filterByBranchViaUser, hasPermission } = require('../../lib/rbac');
 
 exports.getStats = (req, res) => {
   const users = getCollection('users');
@@ -10,7 +10,12 @@ exports.getStats = (req, res) => {
   let attendance = getCollection('attendance');
   let tracking = getCollection('tracking');
   let callLogs = getCollection('callLogs');
-  const branches = getCollection('branches');
+  const branches = hasPermission(req.user, 'branches') ? getCollection('branches') : [];
+  if (!hasPermission(req.user, 'customers')) customers = [];
+  if (!hasPermission(req.user, 'customerListings')) listings = [];
+  if (!hasPermission(req.user, 'attendance')) attendance = [];
+  if (!hasPermission(req.user, 'tracking')) tracking = [];
+  if (!hasPermission(req.user, 'callLogs')) callLogs = [];
 
   customers = filterByBranch(customers, req.user, 'branch');
   listings = filterByBranch(listings, req.user, 'branch');

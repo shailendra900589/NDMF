@@ -4,7 +4,7 @@
  */
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
-const { initDb, writeDb, flush } = require('../lib/db');
+const { initDb, writeDb, flush, getCollection } = require('../lib/db');
 const { ROLE_DEFAULTS } = require('../lib/rbac');
 
 const DEMO_PASSWORD = 'ndfa1234';
@@ -106,7 +106,9 @@ const seedData = {
 (async () => {
   try {
     await initDb();
+    if (getCollection('users').length || getCollection('companies').length) throw new Error('Seed refused: database already contains accounts. Existing company data is protected.');
     writeDb(seedData);
+    await require('../lib/platformBootstrap').bootstrapPlatform();
     await flush();
     console.log('✅ Seed v2.2 — PostgreSQL RBAC + branches');
     console.log('Password (all):', DEMO_PASSWORD);

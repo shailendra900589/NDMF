@@ -1,3 +1,4 @@
+import { canPerformStored } from '../utils/permissions';
 import { useEffect, useState } from 'react';
 import { branchesApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
@@ -81,7 +82,7 @@ export default function Branches() {
         title="Locations"
         description="Offices and their attendance area. Office staff can check in only inside the radius; field staff are not limited."
       >
-        <button type="button" className="btn btn-primary" onClick={() => setForm(toForm())}>
+        <button hidden={!canPerformStored('branches', 'create')} type="button" className="btn btn-primary" onClick={() => setForm(toForm())}>
           + Add location
         </button>
       </PageHeader>
@@ -125,7 +126,7 @@ export default function Branches() {
                   <td>{hasGps ? `${b.attendanceRadiusM || DEFAULT_RADIUS} m` : '—'}</td>
                   <td>{b.isActive === false ? 'Inactive' : 'Active'}</td>
                   <td>
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => setForm(toForm(b))}>
+                    <button hidden={!canPerformStored('branches', 'update')} type="button" className="btn btn-outline btn-sm" onClick={() => setForm(toForm(b))}>
                       {hasGps ? 'Edit' : 'Set office GPS'}
                     </button>
                   </td>

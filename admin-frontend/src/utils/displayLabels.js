@@ -15,6 +15,7 @@ export function displayPersonName(name) {
 export function displayRole(role) {
   if (role === 'branchManager') return 'Manager';
   if (role === 'fieldOfficer') return 'Employee';
+  if (role === 'superAdmin') return 'Super Administrator';
   if (role === 'admin') return 'Administrator';
   return role || '—';
 }

@@ -4,7 +4,7 @@ const auth = require('./auth.controller');
 const { authMiddleware } = require('../../middleware/authMiddleware');
 
 // POST /api/v1/auth/login
-router.post('/login', auth.login);
+router.post('/login', require('../../middleware/loginThrottle'), auth.login);
 
 // POST /api/v1/auth/otp/send
 router.post('/otp/send', auth.sendOtp);

@@ -1,3 +1,4 @@
+import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { payslipsApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
@@ -186,7 +187,7 @@ export default function PaySlips() {
         const am = computeAmounts(monthMap[m]?.earnings, monthMap[m]?.deductions);
         return {
           ...profile,
-          companyName: 'Nirmaldhara Micro Foundation',
+          companyName: JSON.parse(localStorage.getItem('ndfa_user') || '{}').company?.name || 'Nirmaldhara Micro Foundation',
           month: m,
           ...am,
         };
@@ -358,7 +359,7 @@ export default function PaySlips() {
         description="1 / 3 / 6 months or custom range · separate data per month · one combined PDF"
       >
         {mode === 'list' ? (
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
+          <button hidden={!canPerformStored('payslips', 'create')} type="button" className="btn btn-primary" onClick={openCreate}>
             + New pay slip
           </button>
         ) : (
@@ -425,10 +426,10 @@ export default function PaySlips() {
                     <td>₹ {formatAmount(p.netPay) || '0'}</td>
                     <td>
                       <div className="row-actions">
-                        <button type="button" className="btn btn-sm btn-outline" onClick={() => openEdit(p)}>
+                        <button hidden={!canPerformStored('payslips', 'update')} type="button" className="btn btn-sm btn-outline" onClick={() => openEdit(p)}>
                           Edit range
                         </button>
-                        <button type="button" className="btn btn-sm btn-danger" onClick={() => removeSlip(p.id)}>
+                        <button hidden={!canPerformStored('payslips', 'delete')} type="button" className="btn btn-sm btn-danger" onClick={() => removeSlip(p.id)}>
                           Delete
                         </button>
                       </div>
@@ -641,7 +642,7 @@ export default function PaySlips() {
               <button type="submit" className="btn btn-primary" disabled={saving}>
                 {saving ? 'Saving…' : `Save all ${monthKeys.length} month(s)`}
               </button>
-              <button type="button" className="btn btn-primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
+              <button hidden={!canPerformStored('payslips', 'export')} type="button" className="btn btn-primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
                 {pdfBusy
                   ? 'Preparing PDF…'
                   : `Download PDF (${monthKeys.length} page${monthKeys.length === 1 ? '' : 's'})`}

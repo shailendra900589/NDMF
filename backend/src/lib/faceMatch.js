@@ -148,6 +148,8 @@ function readUploadedPhoto(url) {
   const normalized = normalizeRecordingUrl(url);
   if (!normalized) return null;
   const filename = path.basename(normalized);
+  const scope = require('./tenantContext').context.getStore();
+  if (scope && !require('./uploadOwnership').ownsUpload(filename, scope.companyId)) return null;
   const absolute = path.join(UPLOAD_DIR, filename);
   if (!absolute.startsWith(UPLOAD_DIR) || !fs.existsSync(absolute)) return null;
   return fs.readFileSync(absolute);

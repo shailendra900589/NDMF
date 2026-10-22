@@ -1894,3 +1894,5 @@ tbody tr:last-child td { border-bottom: none; }
   .topbar { position: sticky; top: 0; }
   .content { padding: 20px 16px; }
 }
+
+[hidden] { display: none !important; }

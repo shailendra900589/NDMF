@@ -1,5 +1,5 @@
 const { v4: uuid } = require('uuid');
-const { getCollection, upsert } = require('../../lib/db');
+const { getCollection, findById, upsert } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { normalizeRecordingUrl } = require('../../lib/mediaUrl');
 const { filterByBranchViaUser } = require('../../lib/rbac');
@@ -44,6 +44,8 @@ exports.create = (req, res) => {
     date,
   } = req.body;
   if (!mobile) return error(res, 'Mobile required');
+  const existing = req.body.id ? findById('callLogs', req.body.id) : null;
+  if (existing && (existing.userId !== req.user.id || !require('../../lib/companyPolicy').actionAllowed(req.user, 'callLogs', 'update'))) return error(res, 'You cannot replace this call log', 403);
 
   const log = {
     id: req.body.id || `CALL_${uuid().slice(0, 8)}`,

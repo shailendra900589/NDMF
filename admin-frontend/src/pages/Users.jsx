@@ -1,3 +1,4 @@
+import { canPerformStored } from '../utils/permissions';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usersApi, branchesApi } from '../api/api';
@@ -165,7 +166,7 @@ export default function Users() {
             : `Employees in ${displayLocation(me.branch)} only. Update your account in My Profile.`
         }
       >
-        <button type="button" className="btn btn-primary" onClick={openCreate}>
+        <button hidden={!canPerformStored('users', 'create')} type="button" className="btn btn-primary" onClick={openCreate}>
           + Create user &amp; assign role
         </button>
       </PageHeader>
@@ -208,7 +209,7 @@ export default function Users() {
                 <td>{attendanceLabel(u)}</td>
                 <td>{u.isActive === false ? 'Disabled' : 'Active'}</td>
                 <td>
-                  <button type="button" className="btn btn-outline btn-sm" onClick={() => openEdit(u)}>
+                  <button hidden={!canPerformStored('users', 'update')} type="button" className="btn btn-outline btn-sm" onClick={() => openEdit(u)}>
                     Assign role / access
                   </button>
                 </td>
@@ -291,7 +292,7 @@ export default function Users() {
                       {form.faceEnrollmentComplete ? 'Registered' : 'Not registered'}
                     </span>
                     {form.faceEnrollmentComplete && (
-                      <button type="button" className="btn btn-outline btn-sm" onClick={resetFace}>
+                      <button hidden={!canPerformStored('users', 'delete')} type="button" className="btn btn-outline btn-sm" onClick={resetFace}>
                         Reset face
                       </button>
                     )}
@@ -374,7 +375,8 @@ export default function Users() {
                 <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               )}
             </div>
-            <h4 style={{ marginTop: 12 }}>Module access (mobile app / panel)</h4>
+            <h4 style={{ marginTop: 12 }}>Page & function access</h4>
+            <p style={{ color: '#64748b', fontSize: 12 }}>Access policies are managed centrally by Super Admin.</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {permKeys.map((key) => (
                 <label key={key} style={{ fontSize: 13 }}>

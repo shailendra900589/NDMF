@@ -1,7 +1,7 @@
 /** Always return a same-origin stream path — works with Vite proxy, no download needed */
 export function getRecordingStreamUrl(url) {
   if (!url) return '';
-  const match = String(url).match(/\/uploads\/[^\s?#]+/i);
+  const match = String(url).match(/\/uploads\/[^\s#]+/i);
   if (match) return match[0];
   try {
     const parsed = new URL(url);

@@ -1,7 +1,7 @@
 /**
  * App shell — sidebar, topbar, outlet
  */
-import { Component } from 'react';
+import { Component, useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { authApi } from '../api/api';
 import { filterNavByPermissions } from '../utils/permissions';
@@ -101,10 +101,22 @@ class PageErrorBoundary extends Component {
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = readStoredUser();
+  const [user, setUser] = useState(readStoredUser);
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      try { const result = await authApi.me(); if (active) { localStorage.setItem('ndfa_user', JSON.stringify(result.data)); setUser(result.data); } }
+      catch (e) { if (e.message?.includes('suspended') || e.message?.includes('disabled')) { localStorage.removeItem('ndfa_token'); navigate('/login'); } }
+    };
+    refresh();
+    const timer = setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, [navigate]);
+  const isSuperAdmin = user.role === 'superAdmin';
   const isAdmin = user.role === 'admin';
 
-  let navItems = filterNavByPermissions(NAV_ITEMS, user);
+  let navItems = isSuperAdmin ? [{ to:'/super-admin', label:'Companies & Access', icon:'branches' }] : filterNavByPermissions(NAV_ITEMS, user);
   navItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   const logout = async () => {
@@ -114,7 +126,7 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const scopeLabel = isAdmin ? 'All locations' : displayLocation(user.branch);
+  const scopeLabel = isSuperAdmin ? 'All companies' : isAdmin ? (user.company?.name || 'All locations') : displayLocation(user.branch);
   const initials = (user.name || 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   const onProfile = location.pathname === '/profile';
 
@@ -124,8 +136,8 @@ export default function Layout() {
         <div className="sidebar__brand">
           <div className="sidebar__logo-mark">N</div>
           <div>
-            <div className="sidebar__title">Nirmaldhara</div>
-            <div className="sidebar__subtitle">Micro Foundation</div>
+            <div className="sidebar__title">{isSuperAdmin ? 'NDFA Platform' : user.company?.name || 'Nirmaldhara'}</div>
+            <div className="sidebar__subtitle">{isSuperAdmin ? 'Super Admin Console' : 'Operations Console'}</div>
           </div>
         </div>
 
@@ -159,7 +171,7 @@ export default function Layout() {
       <div className="main">
         <header className="topbar">
           <div className="topbar__left">
-            <span className="topbar__eyebrow">Operations console</span>
+            <span className="topbar__eyebrow">{isSuperAdmin ? 'Platform administration' : 'Operations console'}</span>
           </div>
           <div className="topbar__right">
             <div className="user-chip">
@@ -173,7 +185,7 @@ export default function Layout() {
         </header>
         <main className="content">
           <PageErrorBoundary resetKey={location.pathname}>
-            <Outlet />
+            <Outlet key={JSON.stringify([user.permissions, user.actions])} />
           </PageErrorBoundary>
         </main>
       </div>

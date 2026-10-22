@@ -41,8 +41,9 @@ export default function Profile() {
 
   const changePassword = async (e) => {
     e.preventDefault();
-    if (newPassword.length < 4) {
-      setError('New password must be at least 4 characters');
+    const minimum = stored.role === 'superAdmin' ? 8 : 4;
+    if (newPassword.length < minimum) {
+      setError(`New password must be at least ${minimum} characters`);
       return;
     }
     setLoading(true);

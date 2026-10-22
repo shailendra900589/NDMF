@@ -18,6 +18,7 @@ const branchesRoutes = require('../modules/branches/branches.routes');
 const payslipsRoutes = require('../modules/payslips/payslips.routes');
 const settingsRoutes = require('../modules/settings/settings.routes');
 
+router.use('/super-admin', require('../modules/platform/platform.routes'));
 router.use('/auth', authRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/dashboard', dashboardRoutes);

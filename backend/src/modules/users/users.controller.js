@@ -136,6 +136,9 @@ exports.create = (req, res) => {
   }
 
   const users = getCollection('users');
+  const allUsers = require('../../lib/tenantContext').context.run(undefined, () => getCollection('users'));
+  const loginKeys = [mobile, employeeId].map(v => String(v).trim().toLowerCase());
+  if (allUsers.some(u => u.companyId !== req.user.companyId && [u.mobile, u.employeeId, u.email].some(v => loginKeys.includes(String(v || '').trim().toLowerCase())))) return error(res, 'Login ID or mobile is already in use', 409);
   if (users.some((u) => u.mobile === mobile && u.role === role)) {
     return error(res, 'User with this mobile and role already exists');
   }
@@ -242,5 +245,6 @@ exports.getPermissionSchema = (req, res) => {
     keys: assignablePermissionKeys(req.user),
     roleDefaults: ROLE_DEFAULTS,
     canCreateRoles: allowedRolesForCreator(req.user),
+    permissionManagedByPlatform: true,
   });
 };

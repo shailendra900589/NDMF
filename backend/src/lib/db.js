@@ -8,10 +8,13 @@
 const fs = require('fs');
 const path = require('path');
 const { query, getPool } = require('./pg');
+const { context, GLOBAL_COLLECTIONS } = require('./tenantContext');
 
 const JSON_FALLBACK_PATH = path.join(__dirname, '../../data/db.json');
 
 const COLLECTIONS = [
+  'companies',
+  'platformAudit',
   'branches',
   'users',
   'customers',
@@ -29,6 +32,8 @@ const COLLECTIONS = [
 ];
 
 const defaultDb = () => ({
+  companies: [],
+  platformAudit: [],
   branches: [],
   users: [],
   customers: [],
@@ -49,6 +54,7 @@ const defaultDb = () => ({
 let cache = defaultDb();
 let ready = false;
 let writeChain = Promise.resolve();
+const writeFailures = [];
 
 async function ensureSchema() {
   await query(`
@@ -101,7 +107,7 @@ async function persistCollection(name) {
 function queueTask(label, task) {
   writeChain = writeChain
     .then(task)
-    .catch((err) => console.error(`PG persist [${label}] failed:`, err.message));
+    .catch((err) => { writeFailures.push(err); console.error(`PG persist [${label}] failed:`, err.message); });
   return writeChain;
 }
 
@@ -182,11 +188,12 @@ function assertReady() {
 
 function readDb() {
   assertReady();
-  return JSON.parse(JSON.stringify(cache));
+  return JSON.parse(JSON.stringify(Object.fromEntries(Object.keys(cache).map(name => [name, getCollection(name)]))));
 }
 
 function writeDb(data) {
   assertReady();
+  if (context.getStore()) throw new Error('Bulk database replacement is platform-only');
   cache = { ...defaultDb(), ...data };
   for (const name of Object.keys(cache)) {
     if (!Array.isArray(cache[name])) cache[name] = [];
@@ -198,12 +205,24 @@ function writeDb(data) {
 function getCollection(name) {
   assertReady();
   if (!cache[name]) cache[name] = [];
+  const scope = context.getStore();
+  if (scope && !GLOBAL_COLLECTIONS.has(name)) {
+    return cache[name].filter(item => item.companyId === scope.companyId && item.role !== 'superAdmin');
+  }
   return cache[name];
 }
 
 function saveCollection(name, items) {
   assertReady();
-  cache[name] = items;
+  const scope = context.getStore();
+  if (scope && !GLOBAL_COLLECTIONS.has(name) && items.some(item =>
+    (item.companyId && item.companyId !== scope.companyId) ||
+    (cache[name] || []).some(existing => existing.id === item.id && existing.companyId !== scope.companyId))) {
+    throw Object.assign(new Error('Cross-company collection replacement denied'), { status: 403 });
+  }
+  cache[name] = scope && !GLOBAL_COLLECTIONS.has(name)
+    ? [...(cache[name] || []).filter(i => i.companyId !== scope.companyId), ...items.map(i => ({ ...i, companyId: scope.companyId }))]
+    : items;
   queuePersist(name);
   return items;
 }
@@ -218,7 +237,16 @@ function findById(collection, id) {
  * (GPS every 15s) into one write per window. Memory is always up to date.
  */
 function upsert(collection, item, { single = false, deferMs = 0 } = {}) {
-  const items = getCollection(collection);
+  const scope = context.getStore();
+  if (scope && !GLOBAL_COLLECTIONS.has(collection)) {
+    const existing = (cache[collection] || []).find(i => i.id === item.id);
+    if ((item.companyId && item.companyId !== scope.companyId) || (existing && existing.companyId !== scope.companyId)) {
+      throw Object.assign(new Error('Cross-company write denied'), { status: 403 });
+    }
+    item.companyId = scope.companyId;
+    if (item.role === 'superAdmin') throw Object.assign(new Error('Platform role is reserved'), { status: 403 });
+  }
+  const items = cache[collection] || (cache[collection] = []);
   const index = items.findIndex((i) => i.id === item.id);
   if (index >= 0) items[index] = item;
   else items.push(item);
@@ -229,13 +257,14 @@ function upsert(collection, item, { single = false, deferMs = 0 } = {}) {
 }
 
 function removeById(collection, id) {
-  const items = getCollection(collection).filter((i) => i.id !== id);
+  const scope = context.getStore();
+  const items = (cache[collection] || []).filter(i => i.id !== id || (scope && i.companyId !== scope.companyId));
   cache[collection] = items;
   cancelDeferred(`${collection}:${id}`);
   queuePersist(collection);
 }
 
-function flush() {
+async function flush() {
   for (const [key, timer] of deferredWrites) {
     clearTimeout(timer);
     const sep = key.indexOf(':');
@@ -244,7 +273,12 @@ function flush() {
     queueTask(name, () => persistItem(name, id));
   }
   deferredWrites.clear();
-  return writeChain;
+  await writeChain;
+  if (writeFailures.length) {
+    const failure = writeFailures.shift();
+    writeFailures.length = 0;
+    throw failure;
+  }
 }
 
 module.exports = {

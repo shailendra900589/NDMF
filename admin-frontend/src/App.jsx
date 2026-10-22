@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import { lazy, Suspense } from 'react';
+const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CustomerListings from './pages/CustomerListings';
@@ -29,17 +31,27 @@ function PermissionRoute({ permission, children }) {
     user = {};
   }
   if (!canAccess(user, permission)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={user.role === 'superAdmin' ? '/super-admin' : '/profile'} replace />;
   }
   return children;
 }
 
+function HomeRoute() {
+  const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+  if (user.role === 'superAdmin') return <Navigate to="/super-admin" replace />;
+  return canAccess(user, 'dashboard') ? <Dashboard /> : <Navigate to="/profile" replace />;
+}
+function SuperAdminRoute() {
+  const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+  return user.role === 'superAdmin' ? <Suspense fallback={<div>Loading company console…</div>}><SuperAdmin /></Suspense> : <Navigate to="/" replace />;
+}
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-        <Route index element={<PermissionRoute permission="dashboard"><Dashboard /></PermissionRoute>} />
+        <Route index element={<HomeRoute />} />
+        <Route path="super-admin" element={<SuperAdminRoute />} />
         <Route path="customer-listings" element={<PermissionRoute permission="customerListings"><CustomerListings /></PermissionRoute>} />
         <Route path="customers" element={<PermissionRoute permission="customers"><Customers /></PermissionRoute>} />
         <Route path="attendance" element={<PermissionRoute permission="attendance"><Attendance /></PermissionRoute>} />

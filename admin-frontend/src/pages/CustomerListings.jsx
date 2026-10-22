@@ -1,3 +1,4 @@
+import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { callLogsApi, listingsApi, uploadMedia } from '../api/api';
 import StatusBadge from '../components/StatusBadge';
@@ -67,7 +68,7 @@ async function stampPhoto(file, lat, lng) {
 
 export default function CustomerListings() {
   const me = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
-  const canApprove = me.role === 'admin' || me.role === 'branchManager';
+  const canApprove = (me.role === 'admin' || me.role === 'branchManager') && canPerformStored('customerListings', 'approve');
 
   const [listings, setListings] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -272,10 +273,10 @@ export default function CustomerListings() {
         title="Customer listing"
         description="Live photos, shop GPS and neighbor notes. Branch approval, then admin, then listed."
       >
-        <button type="button" className="btn btn-outline btn-sm" onClick={download}>
+        <button hidden={!canPerformStored('customerListings', 'export')} type="button" className="btn btn-outline btn-sm" onClick={download}>
           Download Excel
         </button>
-        <button type="button" className="btn btn-primary" onClick={() => setForm({ ...EMPTY_FORM })}>
+        <button hidden={!canPerformStored('customerListings', 'create')} type="button" className="btn btn-primary" onClick={() => setForm({ ...EMPTY_FORM })}>
           + Add listing
         </button>
       </PageHeader>

@@ -14,6 +14,8 @@ const { settingsForClient } = require('../../lib/appSettings');
 const { stripFaceSecrets } = require('../../lib/faceMatch');
 
 const DEMO_OTP = '123456';
+const { context } = require('../../lib/tenantContext');
+const { companyFor, allModules } = require('../../lib/companyPolicy');
 
 function generateToken(user) {
   return jwt.sign({ userId: user.id, role: user.role }, jwtSecret, { expiresIn: '7d' });
@@ -22,8 +24,12 @@ function generateToken(user) {
 function sanitizeUser(user) {
   const { password, ...rest } = user;
   const safe = stripFaceSecrets(rest);
+  if (user.role === 'superAdmin') return { ...safe, permissions: {}, company: null };
+  const company = companyFor(user);
   safe.permissions = effectivePermissions(user);
-  return { ...safe, ...settingsForClient() };
+  safe.company = company ? { id: company.id, name: company.name, code: company.code } : null;
+  safe.actions = Object.fromEntries(Object.keys(allModules()).map(k => [k, Object.fromEntries(['create','update','delete','approve','export'].map(a => [a, company?.actions?.[k]?.[a] !== false && user.platformActions?.[k]?.[a] !== false]))]));
+  return context.run({ companyId: user.companyId, userId: user.id }, () => require('../../lib/privateUploads').signMedia({ ...safe, ...settingsForClient() }));
 }
 
 /** Normalize Login ID from body (loginId | mobile | employeeId). */
@@ -40,7 +46,7 @@ function findByLoginId(loginId) {
   return users.filter((u) => {
     const mobile = String(u.mobile || '').trim();
     const emp = String(u.employeeId || '').trim().toLowerCase();
-    return mobile === loginId || emp === needle;
+    return mobile === loginId || emp === needle || String(u.email || '').trim().toLowerCase() === needle;
   });
 }
 
@@ -88,16 +94,18 @@ exports.login = (req, res) => {
     return error(res, 'Account is disabled. Contact admin.', 403);
   }
 
+  if (user.role !== 'superAdmin' && companyFor(user)?.isActive !== true) return error(res, 'Company is suspended or unavailable', 403);
   const token = generateToken(user);
   return success(res, { ...sanitizeUser(user), token }, 'Login successful');
 };
 
 exports.sendOtp = (req, res) => {
+  if (process.env.ENABLE_DEMO_OTP !== 'true') return error(res, 'OTP login is unavailable. Use your password.', 403);
   const loginId = resolveLoginId(req.body);
   if (!loginId || loginId.length < 3) {
     return error(res, 'Valid Login ID or mobile required');
   }
-  const candidates = findByLoginId(loginId);
+  const candidates = findByLoginId(loginId).filter(u => u.role !== 'superAdmin' && companyFor(u)?.isActive === true);
   if (!candidates.length) {
     return error(res, 'User not found', 404);
   }
@@ -105,6 +113,7 @@ exports.sendOtp = (req, res) => {
 };
 
 exports.verifyOtp = (req, res) => {
+  if (process.env.ENABLE_DEMO_OTP !== 'true') return error(res, 'OTP login is unavailable. Use your password.', 403);
   const loginId = resolveLoginId(req.body);
   const { otp, role } = req.body;
 
@@ -112,7 +121,7 @@ exports.verifyOtp = (req, res) => {
     return error(res, 'Invalid OTP', 401);
   }
 
-  const candidates = findByLoginId(loginId);
+  const candidates = findByLoginId(loginId).filter(u => u.role !== 'superAdmin' && companyFor(u)?.isActive === true);
   if (!candidates.length) {
     return error(res, 'User not found', 404);
   }
@@ -142,8 +151,9 @@ exports.logout = (req, res) => {
 
 exports.changePassword = (req, res) => {
   const { oldPassword, newPassword } = req.body;
-  if (!oldPassword || !newPassword || newPassword.length < 4) {
-    return error(res, 'Valid old and new password required (min 4 chars)');
+  const minimum = req.user.role === 'superAdmin' ? 8 : 4;
+  if (typeof oldPassword !== 'string' || typeof newPassword !== 'string' || newPassword.length < minimum) {
+    return error(res, `Valid old and new password required (min ${minimum} chars)`);
   }
 
   const users = getCollection('users');

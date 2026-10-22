@@ -118,4 +118,13 @@ export const payslipsApi = {
   remove: (id) => api.delete(`/payslips/${id}`),
 };
 
+export const platformApi = {
+  overview: () => api.get('/super-admin/overview'),
+  createCompany: data => api.post('/super-admin/companies', data),
+  updateCompany: (id, data) => api.put(`/super-admin/companies/${id}`, data),
+  users: id => api.get(`/super-admin/companies/${id}/users`),
+  createUser: (id, data) => api.post(`/super-admin/companies/${id}/users`, data),
+  updateUser: (id, userId, data) => api.put(`/super-admin/companies/${id}/users/${userId}`, data),
+};
+
 export default api;

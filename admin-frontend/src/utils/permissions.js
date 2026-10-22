@@ -47,6 +47,7 @@ export const PERMISSION_LABELS = {
 };
 
 export function getUserPermissions(user) {
+  if (user?.role === 'superAdmin') return Object.fromEntries(Object.keys(ROLE_DEFAULTS.admin).map(k => [k, false]));
   const base = { ...(ROLE_DEFAULTS[user?.role] || ROLE_DEFAULTS.fieldOfficer) };
   const stored = user?.permissions;
   if (stored && typeof stored === 'object') {
@@ -66,4 +67,11 @@ export function filterNavByPermissions(items, user) {
     if (!item.permission) return true;
     return canAccess(user, item.permission);
   });
+}
+
+export function canPerformStored(module, action) {
+  try {
+    const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+    return canAccess(user, module) && user.actions?.[module]?.[action] !== false;
+  } catch { return false; }
 }

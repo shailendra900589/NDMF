@@ -78,7 +78,11 @@ class RemoteApiService extends GetxService {
         'mobile': id,
         'password': password,
       });
-      final user = UserModel.fromJson(_unwrapMap(res));
+      final authData = _unwrapMap(res);
+      if (authData['role'] == 'superAdmin') {
+        throw Exception('Super Admin accounts use the website: ndclients.co.in');
+      }
+      final user = UserModel.fromJson(authData);
       _storage.saveUser(user);
       try {
         await syncSession();
@@ -121,7 +125,11 @@ class RemoteApiService extends GetxService {
         'loginId': loginId,
         'otp': otp,
       });
-      final user = UserModel.fromJson(_unwrapMap(res));
+      final authData = _unwrapMap(res);
+      if (authData['role'] == 'superAdmin') {
+        throw Exception('Super Admin accounts use the website: ndclients.co.in');
+      }
+      final user = UserModel.fromJson(authData);
       _storage.saveUser(user);
       return user;
     } catch (e) {

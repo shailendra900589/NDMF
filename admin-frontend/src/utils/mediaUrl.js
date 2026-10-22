@@ -3,7 +3,7 @@ export function mediaUrl(path) {
   if (!path) return null;
   let raw = path;
   if (typeof raw === 'object' && raw.filePath) raw = raw.filePath;
-  const match = String(raw).match(/\/uploads\/[^\s?#]+/i);
+  const match = String(raw).match(/\/uploads\/[^\s#]+/i);
   if (match) return match[0];
   if (String(raw).startsWith('http')) {
     const i = raw.indexOf('/uploads/');

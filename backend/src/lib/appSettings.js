@@ -1,10 +1,11 @@
 const { getCollection, upsert } = require('./db');
 
-const SETTINGS_ID = 'global';
+const { context, DEFAULT_COMPANY_ID } = require('./tenantContext');
+const settingsId = () => `settings_${context.getStore()?.companyId || DEFAULT_COMPANY_ID}`;
 
 function readDoc() {
   const coll = getCollection('appSettings');
-  return coll.find((s) => s.id === SETTINGS_ID) || null;
+  return coll.find((s) => s.id === settingsId()) || null;
 }
 
 function getAppSettings() {
@@ -21,7 +22,7 @@ function settingsForClient() {
 
 function setFaceAttendanceRequired(required) {
   const doc = {
-    id: SETTINGS_ID,
+    id: settingsId(),
     faceAttendanceRequired: !!required,
     updatedAt: new Date().toISOString(),
   };

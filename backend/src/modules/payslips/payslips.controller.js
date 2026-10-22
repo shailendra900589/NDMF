@@ -5,7 +5,7 @@
 const { getCollection, findById, upsert, removeById } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 
-const COMPANY_NAME = 'Nirmaldhara Micro Foundation';
+const { companyFor, actionAllowed } = require('../../lib/companyPolicy');
 const DEFAULT_ADDRESS = '';
 
 function num(v) {
@@ -68,7 +68,7 @@ function buildRecord(id, body, actorId, existing) {
   return {
     record: {
       id,
-      companyName: COMPANY_NAME,
+      companyName: companyFor(findById('users', actorId))?.name || 'Company',
       companyAddress: String(body.companyAddress ?? existing?.companyAddress ?? DEFAULT_ADDRESS).trim(),
       employeeName: v.employeeName,
       employeeNo: v.employeeNo,
@@ -235,6 +235,9 @@ exports.bulkUpsert = (req, res) => {
     const existing = all.find(
       (p) => String(p.employeeNo).toLowerCase() === empNo && p.month === month
     );
+    if (!actionAllowed(req.user, 'payslips', existing ? 'update' : 'create')) {
+      return error(res, `You cannot ${existing ? 'edit' : 'create'} pay slips`, 403);
+    }
     const id = existing?.id || `PS_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const built = buildRecord(
       id,
@@ -248,10 +251,10 @@ exports.bulkUpsert = (req, res) => {
       existing || null
     );
     if (built.error) return error(res, built.error);
-    upsert('payslips', built.record);
     saved.push(built.record);
   }
 
+  for (const record of saved) upsert('payslips', record);
   saved.sort((a, b) => a.month.localeCompare(b.month));
   return success(res, saved, `${saved.length} pay slip(s) saved`);
 };

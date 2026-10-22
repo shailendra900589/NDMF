@@ -10,6 +10,7 @@ const tracking = require('./modules/tracking/tracking.controller');
 async function start() {
   try {
     await initDb();
+    await require('./lib/platformBootstrap').bootstrapPlatform();
   } catch (err) {
     console.error('❌ Database init failed:', err.message);
     console.error('   Set DATABASE_URL and ensure PostgreSQL is running.');

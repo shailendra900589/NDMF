@@ -60,6 +60,8 @@ function effectivePermissions(user) {
       if (typeof user.permissions[k] === 'boolean') base[k] = user.permissions[k];
     });
   }
+  const company = require('./companyPolicy').companyFor(user);
+  PERMISSION_KEYS.forEach(k => { if (!company || company.isActive !== true || company.modules?.[k] === false || user?.platformPermissions?.[k] === false) base[k] = false; });
   return base;
 }
 
@@ -104,6 +106,7 @@ function listUsersVisibleTo(actor, allUsers) {
 }
 
 function canManageUser(actor, target) {
+  if (target.role === 'superAdmin' || actor.companyId !== target.companyId) return false;
   if (!hasPermission(actor, 'users')) return false;
   if (isAdmin(actor)) return true;
   if (actor.role === 'branchManager') {
@@ -115,8 +118,8 @@ function canManageUser(actor, target) {
 
 /** BM/Admin: module keys they may assign to employees */
 function assignablePermissionKeys(actor) {
-  if (isAdmin(actor)) return PERMISSION_KEYS;
-  return PERMISSION_KEYS.filter((k) => !['users', 'branches', 'payslips'].includes(k));
+  // Page/function entitlements are managed exclusively by the platform console.
+  return [];
 }
 
 function allowedRolesForCreator(creator) {
