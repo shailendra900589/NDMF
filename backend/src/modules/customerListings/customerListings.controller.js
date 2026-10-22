@@ -102,6 +102,15 @@ function hasPhoto(value) {
 
 exports.submit = (req, res) => {
   const body = req.body;
+  const existing = body.id ? findById('customerListings', body.id) : null;
+  if (existing) {
+    // Offline clients may retry the same upload; never reset its approval stage.
+    if (existing.userId !== req.user.id) return error(res, 'A listing with this ID already exists', 409);
+    if (existing.status !== 'draft') return success(res, existing, 'Listing already submitted');
+  }
+  if (!isAdmin(req.user) && body.branch && !sameBranch(req.user, body.branch)) {
+    return error(res, 'You can only submit listings in your location', 403);
+  }
   const requiredPhotos = [
     ['customerPhoto', 'Customer photo'],
     ['aadhaarFront', 'Aadhaar front'],
@@ -210,6 +219,9 @@ exports.processApproval = (req, res) => {
     return error(res, 'Forbidden', 403);
   }
 
+  if (!canActorApprove(req.user, listing)) {
+    return error(res, 'You cannot review this listing at its current stage', 403);
+  }
   if (action === 'reject' || action === 'finalReject') {
     listing.status = 'rejected';
   } else if (action === 'rework') {

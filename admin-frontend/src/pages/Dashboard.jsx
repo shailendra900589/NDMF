@@ -8,6 +8,7 @@ import LiveTeamMap from '../components/LiveTeamMap';
 import useLiveTeam from '../hooks/useLiveTeam';
 import { displayLocation } from '../utils/displayLabels';
 import { canAccess } from '../utils/permissions';
+import { useSession } from '../auth/Session';
 
 const STAT_META = {
   'Team members': { tone: 'teal', abbr: 'TM' },
@@ -19,21 +20,29 @@ const STAT_META = {
 };
 
 export default function Dashboard() {
-  const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+  const { user } = useSession();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const showMap = user.role === 'admin' || canAccess(user, 'tracking');
+  const [error, setError] = useState('');
+  const showMap = canAccess(user, 'tracking');
   const live = useLiveTeam(15000, showMap);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError('');
     dashboardApi
       .getStats()
       .then((dash) => setStats(dash.data))
-      .catch(console.error)
+      .catch(e => setError(e.message || 'Unable to load dashboard'))
       .finally(() => setLoading(false));
-  }, []);
+  };
+  useEffect(load, []);
 
   if (loading) return <PageLoader label="Loading dashboard..." />;
+  if (error) return <div className="card" role="alert" style={{ padding: 24 }}>
+    <h2>Dashboard could not load</h2><p>{error}</p>
+    <button type="button" className="btn btn-primary" onClick={load}>Retry</button>
+  </div>;
 
   const isAllBranches = stats?.scope === 'all_branches';
 

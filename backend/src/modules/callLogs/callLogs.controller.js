@@ -2,7 +2,7 @@ const { v4: uuid } = require('uuid');
 const { getCollection, findById, upsert } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { normalizeRecordingUrl } = require('../../lib/mediaUrl');
-const { filterByBranchViaUser } = require('../../lib/rbac');
+const { filterByBranchViaUser, isAdmin, sameBranch } = require('../../lib/rbac');
 
 function enrichLog(log) {
   const users = getCollection('users');
@@ -85,6 +85,10 @@ exports.update = (req, res) => {
   if (idx < 0) return error(res, 'Call log not found', 404);
   const existing = logs[idx];
   if (req.user.role === 'fieldOfficer' && existing.userId !== req.user.id) {
+    return error(res, 'Forbidden', 403);
+  }
+  const owner = getCollection('users').find(u => u.id === existing.userId);
+  if (!isAdmin(req.user) && !sameBranch(req.user, existing.branch || owner?.branch)) {
     return error(res, 'Forbidden', 403);
   }
   const patch = {

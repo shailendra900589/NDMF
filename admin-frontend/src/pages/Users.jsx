@@ -162,7 +162,7 @@ export default function Users() {
         title={isAdmin ? 'Users & Permissions' : 'Team employees'}
         description={
           isAdmin
-            ? 'Manage all locations, roles, and module access.'
+            ? 'Manage company employees, roles and attendance settings. Super Admin controls page and function access.'
             : `Employees in ${displayLocation(me.branch)} only. Update your account in My Profile.`
         }
       >
@@ -177,6 +177,10 @@ export default function Users() {
           <button type="button" className="btn btn-outline" onClick={load}>Retry</button>
         </div>
       )}
+      {isAdmin && !loadError && !branches.length && <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <p>Create a company location before adding managers or employees.</p>
+        {canPerformStored('branches', 'create') && <Link to="/branches" className="btn btn-outline">Create location</Link>}
+      </div>}
 
       <div className="card">
         <div className="table-wrap">
@@ -303,10 +307,11 @@ export default function Users() {
             <div className="form-group">
               <label>Location</label>
               <select
-                value={form.branch}
+                value={form.branch || ''}
                 disabled={!isAdmin}
                 onChange={(e) => setForm({ ...form, branch: e.target.value })}
               >
+                <option value="">{form.role === 'admin' ? 'All company locations' : 'Choose a location'}</option>
                 {branches.map((b) => (
                   <option key={b.id || b.name} value={b.name}>{b.name}</option>
                 ))}

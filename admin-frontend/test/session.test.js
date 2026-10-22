@@ -6,7 +6,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { createServer } from 'vite';
 
 test('protected console uses verified role and refreshes all consumers together', async () => {
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', optimizeDeps: { noDiscovery: true, include: [], entries: [] } });
+  const server = await createServer({ configFile: false, esbuild: { jsx: 'automatic' }, server: { middlewareMode: true, hmr: false }, appType: 'custom', optimizeDeps: { noDiscovery: true, include: [], entries: [] } });
   const previous = { localStorage: globalThis.localStorage, window: globalThis.window };
   let tree;
   try {

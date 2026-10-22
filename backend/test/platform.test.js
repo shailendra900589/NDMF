@@ -29,6 +29,7 @@ test('Super Admin lifecycle, company isolation and live permission enforcement',
   const server = require('../src/app').listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
+  t.after(() => { rows.clear(); assert.equal(rows.size, 0, 'temporary test data is cleared'); });
   const base = `http://127.0.0.1:${server.address().port}/api/v1`;
   async function call(path, method = 'GET', body, token) {
     const r = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -85,6 +86,83 @@ test('Super Admin lifecycle, company isolation and live permission enforcement',
     await call(`/super-admin/companies/${co.id}`, 'PUT', {modules:{customers:false}}, sa);
     assert.equal((await fetch(origin + url)).status, 403);
     await call(`/super-admin/companies/${co.id}`, 'PUT', {modules:{customers:true}}, sa);
+  });
+  await t.test('new company onboarding and every role panel enforce branch and company boundaries', async () => {
+    const north = await call('/branches', 'POST', { name:'North office' }, admin);
+    const south = await call('/branches', 'POST', { name:'South office' }, admin);
+    assert.equal(north.status, 201, north.message); assert.equal(south.status, 201, south.message);
+    const createStaff = async (employeeId, role, branch, actor = admin) => {
+      const r = await call('/users', 'POST', { name:employeeId, mobile:employeeId === 'MANAGER_N' ? '8100000001' : employeeId === 'STAFF_N' ? '8100000002' : '8100000003', employeeId, role, branch, password:'StaffTest432!' }, actor);
+      assert.equal(r.status, 201, r.message); return { user:r.data, token:await login(employeeId, 'StaffTest432!') };
+    };
+    const manager = await createStaff('MANAGER_N', 'branchManager', 'North office');
+    const employee = await createStaff('STAFF_N', 'fieldOfficer', 'North office', manager.token);
+    const other = await createStaff('STAFF_S', 'fieldOfficer', 'South office');
+    assert.equal((await call('/users', 'POST', { name:'Invalid branch', mobile:'8100000004', employeeId:'INVALID_BRANCH', role:'fieldOfficer', branch:'Missing', password:'StaffTest432!' }, admin)).status, 400);
+    assert.equal((await call(`/users/${employee.user.id}`, 'PUT', { name:'Must not persist', branch:'Missing' }, admin)).status, 400);
+    assert.equal(db.findById('users', employee.user.id).name, 'STAFF_N', 'failed updates must not mutate cached users');
+    assert.equal((await call(`/users/${employee.user.id}`, 'PUT', {name:'Must not persist either',password:'x'}, admin)).status, 400);
+    assert.equal(db.findById('users', employee.user.id).name, 'STAFF_N');
+
+    assert.equal((await call(`/users/${other.user.id}`, 'PUT', { name:'Cross branch' }, manager.token)).status, 403);
+    assert.equal((await call('/branches', 'POST', { name:'Forbidden' }, manager.token)).status, 403);
+    assert.equal((await call('/users', 'GET', undefined, employee.token)).status, 403);
+    assert.equal((await call('/payslips', 'GET', undefined, manager.token)).status, 403);
+    const visible = (await call('/users', 'GET', undefined, manager.token)).data;
+    assert.deepEqual(visible.map(u => u.id), [employee.user.id]);
+    for (const token of [admin, manager.token, employee.token]) {
+      for (const path of ['/auth/me','/dashboard/stats','/customer-listings','/customers','/attendance/history','/attendance/monthly','/tracking/live','/tracking/today','/tracking/history','/tracking/people','/call-logs','/branches']) {
+        const r = await call(path, 'GET', undefined, token);
+        assert.equal(r.status, 200, `${path}: ${r.message}`);
+      }
+      assert.equal((await call('/super-admin/overview', 'GET', undefined, token)).status, 403);
+    }
+    for (const path of ['/users','/users/permission-schema','/payslips']) assert.equal((await call(path, 'GET', undefined, admin)).status, 200, path);
+    assert.equal((await call('/dashboard/stats', 'GET', undefined, admin)).data.scope, 'all_branches');
+    assert.equal((await call('/dashboard/stats', 'GET', undefined, manager.token)).data.scope, 'branch');
+    const log = await call('/call-logs', 'POST', { mobile:'8000000000', callSummary:'South private call' }, other.token);
+    assert.equal(log.status, 201);
+    assert.equal((await call(`/call-logs/${log.data.id}`, 'PUT', {callSummary:'Hijacked'}, manager.token)).status, 403);
+    assert.equal((await call(`/call-logs/${log.data.id}`, 'PUT', {callSummary:'Own update'}, other.token)).status, 200);
+    assert.equal((await call('/call-logs', 'GET', undefined, manager.token)).data.length, 0);
+    assert.equal((await call('/call-logs', 'GET', undefined, old)).data.length, 0);
+    assert.equal((await call('/call-logs', 'POST', {mobile:'8000000001'}, employee.token)).status, 201);
+    assert.equal((await call('/call-logs', 'POST', {mobile:'8000000002'}, manager.token)).status, 201);
+    assert.equal((await call('/dashboard/stats', 'GET', undefined, employee.token)).data.totalCallsToday, 1, 'employee dashboard counts only own calls');
+    assert.equal((await call('/dashboard/stats', 'GET', undefined, manager.token)).data.totalCallsToday, 2, 'manager dashboard covers own branch');
+    assert.equal((await call('/dashboard/stats', 'GET', undefined, admin)).data.totalCallsToday, 3, 'admin dashboard covers the company');
+
+    const listingBody = { name:'North applicant', mobile:'8200000000', branch:'North office', shopFullAddress:'Test office', shopLatitude:28.61, shopLongitude:77.20,
+      neighbors:[{shopName:'One',remarks:'Verified'},{shopName:'Two',remarks:'Verified'}],
+      ...Object.fromEntries(['customerPhoto','aadhaarFront','aadhaarBack','panFront','shopPhoto1','shopPhoto2','shopPhoto3','shopPhoto4'].map(k => [k,'https://example.test/photo.jpg'])) };
+    assert.equal((await call('/customer-listings', 'POST', {...listingBody,branch:'South office'}, employee.token)).status, 403);
+    const listing = await call('/customer-listings', 'POST', listingBody, employee.token);
+    assert.equal(listing.status, 201, listing.message); assert.equal(listing.data.status, 'branchPending');
+    assert.equal((await call(`/customer-listings/${listing.data.id}`, 'GET', undefined, other.token)).status, 403);
+    assert.equal((await call('/customer-listings', 'POST', {...listingBody,id:listing.data.id}, other.token)).status, 409);
+    assert.equal((await call('/customer-listings/approve', 'POST', {id:listing.data.id,action:'approve'}, employee.token)).status, 403);
+    assert.equal((await call('/customer-listings/approve', 'POST', {id:listing.data.id,action:'approve'}, manager.token)).data.status, 'adminPending');
+    assert.equal((await call('/customer-listings/approve', 'POST', {id:listing.data.id,action:'reject'}, manager.token)).status, 403);
+    assert.equal((await call('/customer-listings/approve', 'POST', {id:listing.data.id,action:'rework'}, admin)).data.status, 'draft');
+    assert.equal((await call('/customer-listings', 'POST', {...listingBody,id:listing.data.id}, employee.token)).data.status, 'branchPending');
+    assert.equal((await call('/customer-listings/approve', 'POST', {id:listing.data.id,action:'approve'}, manager.token)).data.status, 'adminPending');
+
+    assert.equal((await call('/customer-listings/approve', 'POST', {id:listing.data.id,action:'finalApprove'}, admin)).data.status, 'listed');
+    const retry = await call('/customer-listings', 'POST', {...listingBody,id:listing.data.id}, employee.token);
+    assert.equal(retry.status, 200); assert.equal(retry.data.status, 'listed', 'offline retries preserve final approval');
+    assert.equal((await call('/customers', 'GET', undefined, employee.token)).data.length, 1);
+    assert.equal((await call('/customers', 'GET', undefined, other.token)).data.length, 0);
+    await call(`/super-admin/companies/${co.id}`, 'PUT', {modules:{tracking:false}}, sa);
+    assert.equal((await call('/auth/me', 'GET', undefined, admin)).data.permissions.tracking, false);
+    assert.equal((await call('/tracking/live', 'GET', undefined, admin)).status, 403);
+    await call(`/super-admin/companies/${co.id}`, 'PUT', {modules:{tracking:true}}, sa);
+    const disabled = await call(`/super-admin/companies/${co.id}/users`, 'POST', {name:'Disabled staff',employeeId:'DISABLED_STAFF',role:'fieldOfficer',branch:'North office',password:'StaffTest432!',isActive:false}, sa);
+    assert.equal(disabled.status, 201, disabled.message); assert.equal(disabled.data.isActive, false);
+    assert.equal((await call('/auth/login', 'POST', {loginId:'DISABLED_STAFF',password:'StaffTest432!'})).status, 403);
+    const owner = db.getCollection('users').find(u => u.companyId === co.id && u.role === 'admin');
+    assert.equal((await call(`/super-admin/companies/${co.id}/users/${owner.id}`, 'PUT', {role:'fieldOfficer'}, sa)).status, 400);
+    await call(`/super-admin/companies/${co.id}/users/${employee.user.id}`, 'PUT', {isActive:false}, sa);
+    assert.equal((await call('/auth/me', 'GET', undefined, employee.token)).status, 403);
   });
   await t.test('company module and action revocations affect already issued tokens', async () => {
     await call(`/super-admin/companies/${co.id}`, 'PUT', { modules:{ customers:false } }, sa);

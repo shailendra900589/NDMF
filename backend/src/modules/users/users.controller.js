@@ -122,10 +122,11 @@ exports.getAll = (req, res) => {
 
 exports.create = (req, res) => {
   const { name, mobile, employeeId, role, branch, password, permissions } = req.body;
-  if (!name || !mobile || !employeeId || !role || !branch || !password) {
-    return error(res, 'name, mobile, employeeId, role, branch, password required');
+  if (!name || !mobile || !employeeId || !role || !password || (role !== 'admin' && !branch)) {
+    return error(res, 'Name, mobile, employee ID, role and password are required; employees also need a location');
   }
-  if (password.length < 4) return error(res, 'Password min 4 characters');
+  if (typeof password !== 'string' || password.length < 4) return error(res, 'Password min 4 characters');
+  if (req.body.isActive !== undefined && typeof req.body.isActive !== 'boolean') return error(res, 'Invalid account status');
 
   const allowed = allowedRolesForCreator(req.user);
   if (!allowed.includes(role)) {
@@ -133,6 +134,9 @@ exports.create = (req, res) => {
   }
   if (!isAdmin(req.user) && !sameBranch(req.user, branch)) {
     return error(res, 'You can only create employees in your branch', 403);
+  }
+  if (role !== 'admin' && !getCollection('branches').some(b => b.name === String(branch).trim() && b.isActive !== false)) {
+    return error(res, 'Choose an active company location');
   }
 
   const users = getCollection('users');
@@ -165,14 +169,14 @@ exports.create = (req, res) => {
     name: name.trim(),
     mobile: mobile.trim(),
     employeeId: employeeId.trim(),
-    branch: branch.trim(),
+    branch: branch ? branch.trim() : null,
     role,
     password: bcrypt.hashSync(password, 10),
     permissions: Object.keys(perm).length ? perm : undefined,
     workType: 'field',
     attendanceRadiusM: null,
     ...attendance.fields,
-    isActive: true,
+    isActive: req.body.isActive !== false,
     createdBy: req.user.id,
     createdAt: new Date().toISOString(),
   };
@@ -181,8 +185,9 @@ exports.create = (req, res) => {
 };
 
 exports.update = (req, res) => {
-  const target = findById('users', req.params.id);
-  if (!target) return error(res, 'User not found', 404);
+  const stored = findById('users', req.params.id);
+  if (!stored) return error(res, 'User not found', 404);
+  const target = structuredClone(stored);
   if (!canManageUser(req.user, target)) return error(res, 'Forbidden', 403);
 
   const { name, branch, role, permissions, isActive, password } = req.body;
@@ -213,8 +218,11 @@ exports.update = (req, res) => {
     }
   }
 
-  if (branch && isAdmin(req.user)) {
-    target.branch = branch.trim();
+  if (branch !== undefined && isAdmin(req.user)) {
+    target.branch = String(branch || '').trim() || null;
+  }
+  if (target.role !== 'admin' && !getCollection('branches').some(b => b.name === target.branch && b.isActive !== false)) {
+    return error(res, 'Choose an active company location');
   }
 
   if (permissions && typeof permissions === 'object') {
@@ -230,7 +238,8 @@ exports.update = (req, res) => {
     target.isActive = isActive;
   }
 
-  if (password && password.length >= 4) {
+  if (password && (typeof password !== 'string' || password.length < 4)) return error(res, 'Password min 4 characters');
+  if (password) {
     target.password = bcrypt.hashSync(password, 10);
   }
 

@@ -103,10 +103,11 @@ router.post('/companies/:id/users', wrap(async (req, res) => {
   if (!ROLE_DEFAULTS[role] || !Object.hasOwn(ROLE_DEFAULTS, role)) fail('Invalid company role');
   const name = text(b.name), login = text(b.employeeId), email = text(b.email).toLowerCase();
   if (!name || !login || typeof b.password !== 'string' || b.password.length < 8) fail('Name, login ID and password of at least 8 characters are required');
-  if (role !== 'admin' && !getCollection('branches').some(x => x.companyId === c.id && x.name === b.branch)) fail('Choose an existing company location');
+  if (b.isActive !== undefined && typeof b.isActive !== 'boolean') fail('Invalid account status');
+  if (role !== 'admin' && !getCollection('branches').some(x => x.companyId === c.id && x.name === b.branch && x.isActive !== false)) fail('Choose an active company location');
   assertLoginAvailable([login, email, b.mobile]);
   const user = { id: id('U'), companyId: c.id, name, employeeId: login, email, mobile: text(b.mobile), role,
-    branch: text(b.branch) || null, password: bcrypt.hashSync(b.password, 12), isActive: true,
+    branch: text(b.branch) || null, password: bcrypt.hashSync(b.password, 12), isActive: b.isActive !== false,
     permissions: cleanModules(b.permissions, ROLE_DEFAULTS[role]), platformPermissions: cleanModules(b.permissions, ROLE_DEFAULTS[role]), platformActions: cleanActions(b.actions), createdAt: now(), createdBy: req.user.id };
   upsert('users', user, { single: true }); audit(req, 'Company user created', c.id, user.id);
   await flush(); return success(res, safeUser(user), 'User created', 201);
@@ -122,6 +123,7 @@ router.put('/companies/:id/users/:userId', wrap(async (req, res) => {
     if (next.role !== 'admin' && !getCollection('branches').some(x => x.companyId === c.id && x.name === b.branch)) fail('Choose an existing company location');
     next.branch = text(b.branch) || null;
   }
+  if (next.role !== 'admin' && !getCollection('branches').some(x => x.companyId === c.id && x.name === next.branch && x.isActive !== false)) fail('Choose an active company location');
   if (b.password) { if (typeof b.password !== 'string' || b.password.length < 8) fail('Password must contain at least 8 characters'); next.password = bcrypt.hashSync(b.password, 12); }
   next.platformPermissions = cleanModules(b.permissions, b.role && b.role !== current.role ? ROLE_DEFAULTS[next.role] : current.platformPermissions || current.permissions || ROLE_DEFAULTS[next.role]);
   next.platformActions = cleanActions(b.actions, current.platformActions || allActions());

@@ -22,6 +22,12 @@ exports.getStats = (req, res) => {
   attendance = filterByBranchViaUser(attendance, req.user, users);
   tracking = filterByBranchViaUser(tracking, req.user, users);
   callLogs = filterByBranchViaUser(callLogs, req.user, users);
+  if (req.user.role === 'fieldOfficer') {
+    // Match the employee's attendance, route and call panels: personal activity only.
+    attendance = attendance.filter(a => a.userId === req.user.id);
+    tracking = tracking.filter(t => t.userId === req.user.id);
+    callLogs = callLogs.filter(c => c.userId === req.user.id);
+  }
 
   const today = new Date().toISOString().split('T')[0];
   const todayAttendance = attendance.find(
