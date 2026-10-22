@@ -32,7 +32,7 @@ api.interceptors.response.use(
     }
     const payload = err.response?.data;
     return Promise.reject(
-      payload?.message ? { ...payload, message: payload.message } : payload || err
+      { ...(payload || {}), status: err.response?.status, message: payload?.message || err.message || 'Request failed' }
     );
   }
 );

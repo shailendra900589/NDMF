@@ -27,7 +27,7 @@ export default function Login() {
       const res = await authApi.login(id, password);
       localStorage.setItem('ndfa_token', res.data.token);
       localStorage.setItem('ndfa_user', JSON.stringify(res.data));
-      navigate(res.data.role === 'superAdmin' ? '/super-admin' : '/');
+      navigate(res.data.role === 'superAdmin' ? '/super-admin' : '/', { replace: true });
     } catch (err) {
       setError(err.message || 'Unable to sign in. Check your details.');
     } finally {

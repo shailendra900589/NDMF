@@ -35,6 +35,11 @@ The field app continues to use the same login API and effective module permissio
 ```bash
 cd backend && npm test
 cd ../admin-frontend && npm run build
+npm test
 ```
 
 The HTTP tests use an isolated PostgreSQL adapter and never connect to production. They cover existing-data migration, bootstrap idempotency, email sign-in, tenant reads/writes and concurrent requests, company/user entitlements, privilege escalation attempts, private documents, company-specific settings, suspension/reactivation and the OTP restriction. This does not replace a deployment smoke test against the production PostgreSQL service.
+
+The browser verifies `/auth/me` before rendering protected pages. Routes and the sidebar share this verified session, including role changes received on focus or periodic refresh. Malformed or outdated `ndfa_user` storage cannot select the dashboard. Frontend regression coverage checks initial verification, shared role updates and disabled-account sign-out.
+
+If a Super Admin still sees the operations dashboard, open `/login` in a fresh tab and inspect the active Nginx HTTPS configuration. Its SPA entry document must have the `Cache-Control` header from `deploy/nginx-host.conf` (or `deploy/nginx-admin.conf` for Docker). Confirm the deployed build with `deploy/update-production.sh`; building locally alone does not publish it. After deployment, verify `/super-admin` opens Companies & Access and company users cannot access that console.

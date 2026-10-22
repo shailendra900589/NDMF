@@ -15,21 +15,10 @@ import Branches from './pages/Branches';
 import PaySlips from './pages/PaySlips';
 import Profile from './pages/Profile';
 import { canAccess } from './utils/permissions';
-
-function PrivateRoute({ children }) {
-  const token = localStorage.getItem('ndfa_token');
-  if (!token) return <Navigate to="/login" />;
-  return children;
-}
+import VerifiedSession, { useSession } from './auth/Session';
 
 function PermissionRoute({ permission, children }) {
-  let user = {};
-  try {
-    const parsed = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
-    user = parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    user = {};
-  }
+  const { user } = useSession();
   if (!canAccess(user, permission)) {
     return <Navigate to={user.role === 'superAdmin' ? '/super-admin' : '/profile'} replace />;
   }
@@ -37,19 +26,19 @@ function PermissionRoute({ permission, children }) {
 }
 
 function HomeRoute() {
-  const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+  const { user } = useSession();
   if (user.role === 'superAdmin') return <Navigate to="/super-admin" replace />;
   return canAccess(user, 'dashboard') ? <Dashboard /> : <Navigate to="/profile" replace />;
 }
 function SuperAdminRoute() {
-  const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
+  const { user } = useSession();
   return user.role === 'superAdmin' ? <Suspense fallback={<div>Loading company console…</div>}><SuperAdmin /></Suspense> : <Navigate to="/" replace />;
 }
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
+      <Route path="/" element={<VerifiedSession><Layout /></VerifiedSession>}>
         <Route index element={<HomeRoute />} />
         <Route path="super-admin" element={<SuperAdminRoute />} />
         <Route path="customer-listings" element={<PermissionRoute permission="customerListings"><CustomerListings /></PermissionRoute>} />
@@ -62,6 +51,7 @@ export default function App() {
         <Route path="branches" element={<PermissionRoute permission="branches"><Branches /></PermissionRoute>} />
         <Route path="payslips" element={<PermissionRoute permission="payslips"><PaySlips /></PermissionRoute>} />
         <Route path="profile" element={<Profile />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

@@ -1,7 +1,8 @@
 /**
  * App shell — sidebar, topbar, outlet
  */
-import { Component, useEffect, useState } from 'react';
+import { Component } from 'react';
+import { useSession } from '../auth/Session';
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { authApi } from '../api/api';
 import { filterNavByPermissions } from '../utils/permissions';
@@ -55,15 +56,6 @@ function roleLabel(role) {
   return displayRole(role);
 }
 
-function readStoredUser() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
 class PageErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -101,18 +93,7 @@ class PageErrorBoundary extends Component {
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState(readStoredUser);
-  useEffect(() => {
-    let active = true;
-    const refresh = async () => {
-      try { const result = await authApi.me(); if (active) { localStorage.setItem('ndfa_user', JSON.stringify(result.data)); setUser(result.data); } }
-      catch (e) { if (e.message?.includes('suspended') || e.message?.includes('disabled')) { localStorage.removeItem('ndfa_token'); navigate('/login'); } }
-    };
-    refresh();
-    const timer = setInterval(refresh, 60000);
-    window.addEventListener('focus', refresh);
-    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refresh); };
-  }, [navigate]);
+  const { user } = useSession();
   const isSuperAdmin = user.role === 'superAdmin';
   const isAdmin = user.role === 'admin';
 
@@ -185,7 +166,7 @@ export default function Layout() {
         </header>
         <main className="content">
           <PageErrorBoundary resetKey={location.pathname}>
-            <Outlet key={JSON.stringify([user.permissions, user.actions])} />
+            <Outlet key={JSON.stringify([user.id, user.role, user.companyId, user.permissions, user.actions])} />
           </PageErrorBoundary>
         </main>
       </div>
