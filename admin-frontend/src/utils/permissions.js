@@ -39,7 +39,7 @@ export const PERMISSION_LABELS = {
   customerListings: 'Customer Listing',
   customers: 'Customers',
   attendance: 'Attendance',
-  tracking: 'GPS Tracking',
+  tracking: 'Live GPS tracking (team map)',
   callLogs: 'Call Logs',
   users: 'User management',
   branches: 'Locations',

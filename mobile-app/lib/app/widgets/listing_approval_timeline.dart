@@ -26,7 +26,7 @@ class ListingApprovalTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['Submitted', 'Branch', 'Admin', 'Listed'];
+    const labels = ['Submitted', 'Branch', 'Office', 'Listed'];
     final step = _step;
     final rejected = status == CustomerListingStatus.rejected;
 

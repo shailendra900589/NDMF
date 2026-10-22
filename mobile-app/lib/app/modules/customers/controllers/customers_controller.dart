@@ -154,14 +154,6 @@ class CustomersController extends GetxController {
     Get.toNamed(AppRoutes.customerDetail, arguments: customer);
   }
 
-  Future<void> callCustomer(String name, String mobile) async {
-    if (!await _callService.ensureRecordingReady()) {
-      Get.snackbar('Recording required', 'Grant phone & microphone permissions to call customers.');
-      return;
-    }
-    await _callService.placeCustomerCall(mobile: mobile, customerName: name);
-  }
-
   Future<void> whatsappCustomer(String mobile) async {
     final uri = Uri.parse('https://wa.me/91$mobile');
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);

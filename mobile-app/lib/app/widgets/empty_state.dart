@@ -66,8 +66,8 @@ class NoPermissionsState extends StatelessWidget {
   Widget build(BuildContext context) {
     return const EmptyState(
       icon: Icons.lock_outline,
-      title: 'Koi module assign nahi hai',
-      message: 'No modules assigned — contact admin.\nAdmin se permissions set karwayein.',
+      title: 'No modules assigned',
+      message: 'Ask your branch to turn on the work you need.',
     );
   }
 }

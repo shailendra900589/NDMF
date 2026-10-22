@@ -8,6 +8,9 @@ import 'listing_approval_timeline.dart';
 import 'listing_status_chip.dart';
 
 Future<ApprovalAction?> showListingApprovalSheet(CustomerListingModel listing) {
+  final isBranchStage = listing.status == CustomerListingStatus.branchPending;
+  final approveLabel = isBranchStage ? 'Approve at branch' : 'Approve listing';
+
   return Get.bottomSheet<ApprovalAction>(
     SafeArea(
       child: Padding(
@@ -30,7 +33,7 @@ Future<ApprovalAction?> showListingApprovalSheet(CustomerListingModel listing) {
             const SizedBox(height: AppSpacing.md),
             FilledButton(
               onPressed: () => Get.back(result: ApprovalAction.approve),
-              child: const Text('Approve'),
+              child: Text(approveLabel),
             ),
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton(

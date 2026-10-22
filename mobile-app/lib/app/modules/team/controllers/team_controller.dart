@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/storage_service.dart';
+import '../../../data/models/enums/app_enums.dart';
 import '../../../utils/access_control.dart';
+import '../../../utils/app_permissions.dart';
 
 class TeamController extends GetxController {
   final NdfaApiService _api = Get.find<NdfaApiService>();
@@ -11,7 +13,10 @@ class TeamController extends GetxController {
   final users = <Map<String, dynamic>>[].obs;
   final branches = <Map<String, dynamic>>[].obs;
   final isLoading = false.obs;
+  final loadError = RxnString();
   final canCreateRoles = <String>['fieldOfficer'].obs;
+  final assignablePermKeys = <String>[].obs;
+  final selectedPermissions = RxMap<String, bool>({});
 
   final nameCtrl = TextEditingController();
   final mobileCtrl = TextEditingController();
@@ -25,30 +30,117 @@ class TeamController extends GetxController {
   final editingEmployeeId = ''.obs;
   final editingMobile = ''.obs;
 
-  bool get isAdmin => AccessControl.isAdmin;
+  bool get isAdmin => false;
   bool get isAssignMode => editingUserId.value != null;
+  /// Branch creates employees for its own location.
+  bool get canCreateUsers => AccessControl.isBranchManager;
+
+  bool get canAssignUsers => AccessControl.canManageTeam;
+
+  static const _managerCreatableRoles = ['fieldOfficer'];
+  static const _hiddenPermKeys = {'users', 'branches', 'payslips', 'callLogs'};
 
   @override
   void onInit() {
     super.onInit();
+    _seedCreatableRolesForCurrentUser();
     loadTeam();
     final me = _storage.getUser();
     if (me != null && me.branch.isNotEmpty) selectedBranch.value = me.branch;
+  }
+
+  void _seedCreatableRolesForCurrentUser() {
+    if (AccessControl.isBranchManager) {
+      canCreateRoles.value = List<String>.from(_managerCreatableRoles);
+      selectedRole.value = 'fieldOfficer';
+    }
+  }
+
+  List<String> _creatableRolesFromSchema(Map<String, dynamic> schema) {
+    final roles = schema['canCreateRoles'];
+    final parsed = roles is List
+        ? roles.map((e) => e.toString()).where((r) => r == 'fieldOfficer').toList()
+        : <String>[];
+    if (parsed.isNotEmpty) return parsed;
+    if (AccessControl.isBranchManager) return List<String>.from(_managerCreatableRoles);
+    return [];
+  }
+
+  void _applyCreatableRoles(Map<String, dynamic> schema) {
+    final roles = _creatableRolesFromSchema(schema);
+    if (roles.isEmpty) return;
+    canCreateRoles.value = roles;
+    if (!canCreateRoles.contains(selectedRole.value)) {
+      selectedRole.value = canCreateRoles.first;
+    }
+  }
+
+  void _loadPermissionSchema(Map<String, dynamic> schema) {
+    final keys = schema['keys'];
+    if (keys is List && keys.isNotEmpty) {
+      assignablePermKeys.value = keys
+          .map((e) => e.toString())
+          .where((k) => !_hiddenPermKeys.contains(k))
+          .toList();
+    } else {
+      assignablePermKeys.value = AppPermissions.keys.where((k) => !_hiddenPermKeys.contains(k)).toList();
+    }
+    _roleDefaultsFromSchema = {};
+    final defaults = schema['roleDefaults'];
+    if (defaults is Map) {
+      for (final entry in defaults.entries) {
+        if (entry.value is Map) {
+          _roleDefaultsFromSchema[entry.key.toString()] = Map<String, bool>.from(
+            (entry.value as Map).map((k, v) => MapEntry(k.toString(), v == true)),
+          );
+        }
+      }
+    }
+  }
+
+  Map<String, Map<String, bool>> _roleDefaultsFromSchema = {};
+
+  void applyPermissionsForRole(String role) {
+    final fromSchema = _roleDefaultsFromSchema[role];
+    if (fromSchema != null) {
+      selectedPermissions.assignAll(fromSchema);
+      return;
+    }
+    final userRole = UserRole.values.firstWhere(
+      (e) => e.name == role,
+      orElse: () => UserRole.fieldOfficer,
+    );
+    selectedPermissions.assignAll(AppPermissions.defaultsForRole(userRole));
+  }
+
+  void setPermissionsFromUser(Map<String, dynamic>? raw) {
+    if (raw == null) return;
+    for (final k in assignablePermKeys) {
+      final v = raw[k];
+      if (v is bool) selectedPermissions[k] = v;
+    }
+    selectedPermissions.refresh();
+  }
+
+  void togglePermission(String key) {
+    selectedPermissions[key] = !(selectedPermissions[key] ?? false);
+  }
+
+  Map<String, bool> permissionsPayload() {
+    final out = <String, bool>{};
+    for (final k in assignablePermKeys) {
+      out[k] = selectedPermissions[k] ?? false;
+    }
+    return out;
   }
 
   /// Load branches + creatable roles when opening Create employee screen.
   Future<void> prepareCreateScreen() async {
     try {
       final schema = await _api.getUsersPermissionSchema();
-      final roles = schema['canCreateRoles'];
-      if (roles is List && roles.isNotEmpty) {
-        canCreateRoles.value = roles.map((e) => e.toString()).toList();
-        if (!canCreateRoles.contains(selectedRole.value)) {
-          selectedRole.value = canCreateRoles.first;
-        }
-      } else if (isAdmin) {
-        canCreateRoles.value = ['fieldOfficer', 'branchManager', 'admin'];
-      }
+      _loadPermissionSchema(schema);
+      _applyCreatableRoles(schema);
+      applyPermissionsForRole(selectedRole.value);
 
       if (isAdmin) {
         branches.value = await _api.getBranches();
@@ -81,16 +173,12 @@ class TeamController extends GetxController {
 
   Future<void> loadTeam() async {
     isLoading.value = true;
+    loadError.value = null;
     try {
       final schema = await _api.getUsersPermissionSchema();
-      final roles = schema['canCreateRoles'];
-      if (roles is List && roles.isNotEmpty) {
-        canCreateRoles.value = roles.map((e) => e.toString()).toList();
-        if (!canCreateRoles.contains(selectedRole.value)) {
-          selectedRole.value = canCreateRoles.first;
-        }
-      }
-      users.value = await _api.getUsers();
+      _loadPermissionSchema(schema);
+      _applyCreatableRoles(schema);
+      users.value = (await _api.getUsers()).where((u) => u['role']?.toString() != 'admin').toList();
       if (isAdmin) {
         branches.value = await _api.getBranches();
         if (selectedBranch.value.isEmpty && branches.isNotEmpty) {
@@ -98,7 +186,8 @@ class TeamController extends GetxController {
         }
       }
     } catch (e) {
-      Get.snackbar('Error', e.toString());
+      users.clear();
+      loadError.value = e.toString().replaceFirst('Exception: ', '');
     } finally {
       isLoading.value = false;
     }
@@ -128,9 +217,10 @@ class TeamController extends GetxController {
     final branch = user['branch']?.toString() ?? '';
     if (branch.isNotEmpty) selectedBranch.value = branch;
     await prepareCreateScreen();
-    if (!canCreateRoles.contains(role)) {
+    if (role != 'admin' && !canCreateRoles.contains(role)) {
       canCreateRoles.value = [...canCreateRoles, role];
     }
+    setPermissionsFromUser(user['permissions'] is Map ? Map<String, dynamic>.from(user['permissions'] as Map) : null);
   }
 
   Future<void> assignRole() async {
@@ -156,6 +246,7 @@ class TeamController extends GetxController {
         'role': selectedRole.value,
       };
       if (isAdmin) payload['branch'] = branch;
+      payload['permissions'] = permissionsPayload();
       await _api.updateUser(id, payload);
       Get.back();
       clearAssignState();
@@ -169,6 +260,10 @@ class TeamController extends GetxController {
   }
 
   Future<void> createEmployee() async {
+    if (!AccessControl.isBranchManager) {
+      Get.snackbar('Access', 'Only a branch account can add employees');
+      return;
+    }
     if (nameCtrl.text.trim().isEmpty || mobileCtrl.text.trim().length < 10) {
       Get.snackbar('Validation', 'Name and valid mobile required');
       return;
@@ -192,6 +287,7 @@ class TeamController extends GetxController {
         'role': selectedRole.value,
         'branch': branch,
         'password': passwordCtrl.text.trim().isEmpty ? 'ndfa1234' : passwordCtrl.text.trim(),
+        'permissions': permissionsPayload(),
       });
       Get.back();
       Get.snackbar('Success', 'Employee created & role assigned');
@@ -206,11 +302,11 @@ class TeamController extends GetxController {
   String roleLabel(String role) {
     switch (role) {
       case 'branchManager':
-        return 'Branch Manager';
+        return 'Branch';
       case 'admin':
         return 'Admin';
       default:
-        return 'Field Officer';
+        return 'Employee';
     }
   }
 }

@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../controllers/team_controller.dart';
+import '../widgets/team_permissions_section.dart';
+import '../widgets/team_role_picker.dart';
 
 class TeamAssignView extends GetView<TeamController> {
   const TeamAssignView({super.key});
@@ -35,20 +37,7 @@ class TeamAssignView extends GetView<TeamController> {
               decoration: const InputDecoration(labelText: 'Full name'),
             ),
             const SizedBox(height: 12),
-            Obx(() => DropdownButtonFormField<String>(
-                  value: controller.canCreateRoles.contains(controller.selectedRole.value)
-                      ? controller.selectedRole.value
-                      : controller.canCreateRoles.isNotEmpty
-                          ? controller.canCreateRoles.first
-                          : null,
-                  decoration: const InputDecoration(labelText: 'Assign role'),
-                  items: controller.canCreateRoles
-                      .map((r) => DropdownMenuItem(value: r, child: Text(controller.roleLabel(r))))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) controller.selectedRole.value = v;
-                  },
-                )),
+            const TeamRolePicker(),
             const SizedBox(height: 12),
             Obx(() {
               if (!controller.isAdmin) {
@@ -70,10 +59,12 @@ class TeamAssignView extends GetView<TeamController> {
                 );
               }
               final current = controller.selectedBranch.value;
+              final branchValue = controller.branches.any((b) => b['name']?.toString() == current)
+                  ? current
+                  : controller.branches.first['name']?.toString();
               return DropdownButtonFormField<String>(
-                value: controller.branches.any((b) => b['name']?.toString() == current)
-                    ? current
-                    : controller.branches.first['name']?.toString(),
+                key: ValueKey(branchValue),
+                initialValue: branchValue,
                 decoration: const InputDecoration(labelText: 'Branch'),
                 items: controller.branches
                     .map((b) => DropdownMenuItem(
@@ -86,6 +77,7 @@ class TeamAssignView extends GetView<TeamController> {
                 },
               );
             }),
+            const TeamPermissionsSection(),
             const SizedBox(height: 24),
             Obx(() => ElevatedButton(
                   onPressed: controller.isSaving.value ? null : controller.assignRole,

@@ -9,7 +9,6 @@ import '../modules/attendance/views/attendance_view.dart';
 import '../modules/tracking/bindings/tracking_binding.dart';
 import '../modules/tracking/views/tracking_view.dart';
 import '../modules/customers/bindings/customers_binding.dart';
-import '../modules/customers/views/call_history_view.dart';
 import '../modules/customers/views/customer_detail_view.dart';
 import '../modules/customers/views/customers_list_view.dart';
 import '../modules/customers/views/customer_add_view.dart';
@@ -20,8 +19,8 @@ import '../modules/profile/views/profile_view.dart';
 import '../modules/security/bindings/security_binding.dart';
 import '../modules/security/views/app_lock_view.dart';
 import '../modules/tracking/views/map_view.dart';
-import '../modules/dialer/bindings/dialer_binding.dart';
-import '../modules/dialer/views/dialer_view.dart';
+import '../modules/branches/bindings/branches_binding.dart';
+import '../modules/branches/views/branches_list_view.dart';
 import '../modules/team/bindings/team_binding.dart';
 import '../modules/team/views/team_list_view.dart';
 import '../modules/team/views/team_create_view.dart';
@@ -32,6 +31,7 @@ import '../modules/payslips/views/payslip_form_view.dart';
 import '../modules/face_enrollment/bindings/face_enrollment_binding.dart';
 import '../modules/face_enrollment/views/face_enrollment_view.dart';
 import '../modules/customer_application/bindings/customer_application_binding.dart';
+import '../modules/customer_application/bindings/customer_application_form_binding.dart';
 import '../modules/customer_application/views/customer_application_hub_view.dart';
 import '../modules/customer_application/views/customer_application_view.dart';
 import 'app_routes.dart';
@@ -45,18 +45,17 @@ class AppPages {
     GetPage(name: AppRoutes.splash, page: () => const SplashView()),
     GetPage(name: AppRoutes.login, page: () => const LoginView(), binding: AuthBinding()),
     GetPage(name: AppRoutes.appLock, page: () => const AppLockView(), binding: SecurityBinding()),
-    GetPage(name: AppRoutes.home, page: () => HomeView(), binding: DashboardBinding()),
+    GetPage(name: AppRoutes.home, page: () => const HomeView(), binding: DashboardBinding()),
     GetPage(name: AppRoutes.attendance, page: () => const AttendanceView(), binding: AttendanceBinding()),
     GetPage(name: AppRoutes.tracking, page: () => const TrackingView(), binding: TrackingBinding()),
     GetPage(name: AppRoutes.customers, page: () => const CustomersListView(), binding: CustomersBinding()),
     GetPage(name: AppRoutes.customerAdd, page: () => const CustomerAddView(), binding: CustomersBinding()),
     GetPage(name: AppRoutes.customerDetail, page: () => const CustomerDetailView(), binding: CustomersBinding()),
-    GetPage(name: AppRoutes.callHistory, page: () => const CallHistoryView(), binding: CustomersBinding()),
     GetPage(name: AppRoutes.profile, page: () => const ProfileView(), binding: ProfileBinding()),
     GetPage(name: AppRoutes.changePassword, page: () => const ChangePasswordView(), binding: ProfileBinding()),
     GetPage(name: AppRoutes.deviceInfo, page: () => const DeviceInfoView(), binding: ProfileBinding()),
     GetPage(name: AppRoutes.mapView, page: () => const MapView(), binding: TrackingBinding()),
-    GetPage(name: AppRoutes.dialer, page: () => const DialerView(), binding: DialerBinding()),
+    GetPage(name: AppRoutes.branches, page: () => const BranchesListView(), binding: BranchesBinding()),
     GetPage(name: AppRoutes.team, page: () => const TeamListView(), binding: TeamBinding()),
     GetPage(name: AppRoutes.teamCreate, page: () => const TeamCreateView(), binding: TeamBinding()),
     GetPage(name: AppRoutes.teamAssign, page: () => const TeamAssignView(), binding: TeamBinding()),
@@ -68,13 +67,13 @@ class AppPages {
     ),
     GetPage(name: AppRoutes.faceEnrollment, page: () => const FaceEnrollmentView(), binding: FaceEnrollmentBinding()),
     GetPage(
-      name: AppRoutes.customerApplication,
-      page: () => const CustomerApplicationHubView(),
-      binding: CustomerApplicationBinding(),
-    ),
-    GetPage(
       name: AppRoutes.customerApplicationNew,
       page: () => const CustomerApplicationView(),
+      binding: CustomerApplicationFormBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.customerApplication,
+      page: () => const CustomerApplicationHubView(),
       binding: CustomerApplicationBinding(),
     ),
   ];

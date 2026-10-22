@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import '../../../data/models/customer_listing_model.dart';
+import '../customer_application_navigation.dart';
 import '../../../data/models/enums/app_enums.dart';
 import '../../../data/repositories/customer_listing_repository.dart';
 import '../../../utils/access_control.dart';
@@ -18,7 +19,7 @@ class CustomerApplicationHubController extends GetxController {
   final listingFilter = ListingUiFilter.all.obs;
   final searchQuery = ''.obs;
 
-  bool get showApprovalsTab => AccessControl.isAdmin || AccessControl.isBranchManager;
+  bool get showApprovalsTab => AccessControl.isBranchManager;
 
   List<CustomerListingModel> get visibleListings {
     Iterable<CustomerListingModel> list = listings;
@@ -100,6 +101,15 @@ class CustomerApplicationHubController extends GetxController {
   void onInit() {
     super.onInit();
     refresh();
+  }
+
+  Future<void> openNewApplication() async {
+    try {
+      final ok = await CustomerApplicationNavigation.openNewForm();
+      if (ok == true) await refresh();
+    } catch (e) {
+      Get.snackbar('Error', 'Could not open application form. Try again.');
+    }
   }
 
   @override

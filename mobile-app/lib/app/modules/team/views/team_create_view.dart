@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
+import '../../../utils/access_control.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../controllers/team_controller.dart';
+import '../widgets/team_permissions_section.dart';
+import '../widgets/team_role_picker.dart';
 
 class TeamCreateView extends GetView<TeamController> {
   const TeamCreateView({super.key});
@@ -10,20 +13,25 @@ class TeamCreateView extends GetView<TeamController> {
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!AccessControl.isBranchManager) {
+        Get.back();
+        Get.snackbar('Access', 'Only a branch account can add employees');
+        return;
+      }
       controller.clearAssignState();
       controller.prepareCreateScreen();
     });
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const CustomAppBar(title: 'Create user & role', subtitle: 'HR onboarding'),
+      appBar: const CustomAppBar(title: 'Add employee', subtitle: 'Your branch'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Create user, select role, and assign branch. Admin can create Field Officer, Branch Manager, or Admin.',
+              'Add an employee for your branch. They sign in with the employee ID and password you set.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 16),
@@ -44,18 +52,7 @@ class TeamCreateView extends GetView<TeamController> {
               decoration: const InputDecoration(labelText: 'Employee ID (Login ID)'),
             ),
             const SizedBox(height: 12),
-            Obx(() => DropdownButtonFormField<String>(
-                  initialValue: controller.canCreateRoles.contains(controller.selectedRole.value)
-                      ? controller.selectedRole.value
-                      : null,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: controller.canCreateRoles
-                      .map((r) => DropdownMenuItem(value: r, child: Text(controller.roleLabel(r))))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) controller.selectedRole.value = v;
-                  },
-                )),
+            const TeamRolePicker(),
             const SizedBox(height: 12),
             Obx(() {
               if (controller.branches.isEmpty) {
@@ -90,6 +87,7 @@ class TeamCreateView extends GetView<TeamController> {
               obscureText: true,
               decoration: const InputDecoration(labelText: 'Initial password'),
             ),
+            const TeamPermissionsSection(),
             const SizedBox(height: 24),
             Obx(() => ElevatedButton(
                   onPressed: controller.isSaving.value ? null : controller.createEmployee,

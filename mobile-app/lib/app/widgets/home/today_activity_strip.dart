@@ -48,13 +48,14 @@ class TodayActivityStrip extends StatelessWidget {
                   ),
                 ),
               ),
-              TextButton(
-                onPressed: onViewAll,
-                child: const Text(
-                  'View All',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary),
+              if (onViewAll != null)
+                TextButton(
+                  onPressed: onViewAll,
+                  child: const Text(
+                    'View All',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -66,11 +67,7 @@ class TodayActivityStrip extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (context, i) {
               final item = items[i];
-              return FadeSlideIn(
-                index: i,
-                child: PressScale(
-                  onTap: item.onTap,
-                  child: Container(
+              final card = Container(
                     width: 132,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -112,8 +109,10 @@ class TodayActivityStrip extends StatelessWidget {
                         ),
                       ],
                     ),
-                  ),
-                ),
+                  );
+              return FadeSlideIn(
+                index: i,
+                child: item.onTap == null ? card : PressScale(onTap: item.onTap, child: card),
               );
             },
           ),

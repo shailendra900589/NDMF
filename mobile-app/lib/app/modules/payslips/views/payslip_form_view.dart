@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
+import '../../../widgets/custom_app_bar.dart';
 import '../controllers/payslips_controller.dart';
 
 class PayslipFormView extends GetView<PayslipsController> {
@@ -9,7 +10,10 @@ class PayslipFormView extends GetView<PayslipsController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(controller.editId == null ? 'New pay slip' : 'Edit pay slip')),
+      appBar: CustomAppBar(
+        title: controller.editId == null ? 'New pay slip' : 'Edit pay slip',
+        subtitle: 'Admin payroll',
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

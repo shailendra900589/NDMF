@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
+import '../../../utils/app_logout.dart';
 import '../controllers/security_controller.dart';
 
 class AppLockView extends GetView<SecurityController> {
@@ -12,8 +13,11 @@ class AppLockView extends GetView<SecurityController> {
       backgroundColor: AppColors.primary,
       body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
             const Icon(Icons.lock, size: 64, color: Colors.white),
             const SizedBox(height: 16),
             Obx(() => Text(
@@ -55,6 +59,14 @@ class AppLockView extends GetView<SecurityController> {
                 onPressed: controller.startSetPin,
                 child: const Text('Set PIN', style: TextStyle(color: Colors.white70)),
               ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => AppLogout.confirmAndRun(),
+              child: const Text('Sign out', style: TextStyle(color: Colors.white70)),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

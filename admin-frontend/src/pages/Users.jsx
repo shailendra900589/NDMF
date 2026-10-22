@@ -6,6 +6,12 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { displayLocation, displayRole } from '../utils/displayLabels';
 
+function attendanceLabel(u) {
+  if (u.role === 'admin') return '—';
+  if (u.workType !== 'office') return 'Field';
+  return u.attendanceRadiusM ? `Office · ${u.attendanceRadiusM} m` : 'Office · office radius';
+}
+
 const ROLE_LABELS = {
   fieldOfficer: 'Employee',
   branchManager: 'Manager',
@@ -37,10 +43,11 @@ export default function Users() {
       const [u, s] = await Promise.all([usersApi.getAll(), usersApi.getPermissionSchema()]);
       setUsers(u.data || []);
       setSchema(s.data || { keys: [], roleDefaults: {}, canCreateRoles: ['fieldOfficer'] });
-      if (isAdmin) {
+      try {
         const b = await branchesApi.getAll();
-        setBranches(b.data || []);
-      } else {
+        const list = b.data || [];
+        setBranches(isAdmin || list.length ? list : me.branch ? [{ name: me.branch }] : []);
+      } catch {
         setBranches(me.branch ? [{ name: me.branch }] : []);
       }
     } catch (e) {
@@ -76,6 +83,8 @@ export default function Users() {
       password: 'ndfa1234',
       permissions: { ...(schema.roleDefaults?.[role] || {}) },
       isActive: true,
+      workType: 'field',
+      attendanceRadiusM: '',
     });
   };
 
@@ -90,7 +99,26 @@ export default function Users() {
       password: '',
       permissions: { ...(user.permissions || {}) },
       isActive: user.isActive !== false,
+      faceEnrollmentComplete: !!user.faceEnrollmentComplete,
+      workType: user.workType === 'office' ? 'office' : 'field',
+      attendanceRadiusM: user.attendanceRadiusM ?? '',
     });
+  };
+
+  const attendancePayload = () => {
+    const radius = form.attendanceRadiusM === '' || form.attendanceRadiusM == null ? null : Number(form.attendanceRadiusM);
+    return { workType: form.workType, attendanceRadiusM: form.workType === 'office' ? radius : null };
+  };
+
+  const resetFace = async () => {
+    if (!window.confirm('Reset this employee’s registered face? They must capture 3 new selfies before attendance.')) return;
+    try {
+      await usersApi.resetFace(editId);
+      setForm((f) => ({ ...f, faceEnrollmentComplete: false }));
+      load();
+    } catch (err) {
+      alert(err.message || 'Reset failed');
+    }
   };
 
   const save = async () => {
@@ -103,9 +131,11 @@ export default function Users() {
           permissions: form.permissions,
           isActive: form.isActive,
           ...(form.password ? { password: form.password } : {}),
+          ...attendancePayload(),
         });
       } else {
-        await usersApi.create(form);
+        const { faceEnrollmentComplete, ...rest } = form;
+        await usersApi.create({ ...rest, ...attendancePayload() });
       }
       setForm(null);
       load();
@@ -156,6 +186,7 @@ export default function Users() {
               <th>Mobile</th>
               <th>Role</th>
               <th>Location</th>
+              <th>Attendance</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -163,7 +194,7 @@ export default function Users() {
           <tbody>
             {users.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: 24, color: '#6b7280' }}>
+                <td colSpan={7} style={{ padding: 24, color: '#6b7280' }}>
                   No employees yet. Use &quot;Add employee&quot; to create an Employee.
                 </td>
               </tr>
@@ -174,6 +205,7 @@ export default function Users() {
                 <td>{u.mobile}</td>
                 <td>{ROLE_LABELS[u.role] || u.role}</td>
                 <td>{displayLocation(u.branch)}</td>
+                <td>{attendanceLabel(u)}</td>
                 <td>{u.isActive === false ? 'Disabled' : 'Active'}</td>
                 <td>
                   <button type="button" className="btn btn-outline btn-sm" onClick={() => openEdit(u)}>
@@ -252,6 +284,19 @@ export default function Users() {
                     ))}
                   </select>
                 </div>
+                <div className="form-group">
+                  <label>Attendance face</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, color: form.faceEnrollmentComplete ? '#047857' : '#6b7280' }}>
+                      {form.faceEnrollmentComplete ? 'Registered' : 'Not registered'}
+                    </span>
+                    {form.faceEnrollmentComplete && (
+                      <button type="button" className="btn btn-outline btn-sm" onClick={resetFace}>
+                        Reset face
+                      </button>
+                    )}
+                  </div>
+                </div>
               </>
             )}
             <div className="form-group">
@@ -266,6 +311,53 @@ export default function Users() {
                 ))}
               </select>
             </div>
+            {form.role !== 'admin' && (
+              <div className="form-group">
+                <label>Attendance type</label>
+                <div className="choice-row">
+                  <label>
+                    <input
+                      type="radio"
+                      name="workType"
+                      checked={form.workType === 'office'}
+                      onChange={() => setForm({ ...form, workType: 'office' })}
+                    />
+                    Office — check-in only inside office radius
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="workType"
+                      checked={form.workType !== 'office'}
+                      onChange={() => setForm({ ...form, workType: 'field' })}
+                    />
+                    Field — check-in from anywhere
+                  </label>
+                </div>
+                {form.workType === 'office' && (() => {
+                  const office = branches.find((b) => b.name === form.branch);
+                  const hasGps = office?.officeLat != null && office?.officeLng != null;
+                  return (
+                    <div style={{ marginTop: 8 }}>
+                      <input
+                        type="number"
+                        min={20}
+                        max={5000}
+                        step={10}
+                        placeholder={`Office default (${office?.attendanceRadiusM || 100} m)`}
+                        value={form.attendanceRadiusM}
+                        onChange={(e) => setForm({ ...form, attendanceRadiusM: e.target.value })}
+                      />
+                      <p style={{ fontSize: 12, margin: '4px 0 0', color: hasGps ? '#64748b' : '#b45309' }}>
+                        {hasGps
+                          ? 'Allowed radius in metres for this employee. Leave empty to use the office default.'
+                          : `Office GPS for ${form.branch || 'this location'} is not set yet — this employee cannot check in until admin sets it under Locations.`}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
             <div className="form-group">
               <label>
                 <input

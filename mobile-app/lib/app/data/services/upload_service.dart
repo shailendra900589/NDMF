@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart' hide Response, FormData, MultipartFile;
+import 'package:http_parser/http_parser.dart';
 import '../models/customer_listing_model.dart';
 import 'api_constants.dart';
 import 'api_service.dart';
@@ -13,6 +14,17 @@ class UploadService extends GetxService {
     final base = ApiConstants.baseUrl;
     return base.replaceAll('/api/v1', '');
   }
+
+  /// Server DB stores `/uploads/...` (relative).
+  static String normalizeUploadPath(String fileUrl) {
+    final trimmed = fileUrl.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final i = trimmed.indexOf('/uploads/');
+    if (i >= 0) return trimmed.substring(i);
+    return trimmed;
+  }
+
+  static const int minVoiceFileBytes = 800;
 
   String fullUrl(String path) {
     if (path.startsWith('http')) {
@@ -47,32 +59,39 @@ class UploadService extends GetxService {
 
   /// Returns relative `/uploads/...` path for DB storage; stream via [fullUrl].
   Future<String?> uploadVoiceFileWithRetry(String localPath, {int attempts = 3}) async {
-    Object? lastError;
     for (var i = 0; i < attempts; i++) {
       try {
         return await uploadVoiceFile(localPath);
-      } catch (e) {
-        lastError = e;
+      } catch (_) {
         if (i < attempts - 1) {
           await Future<void>.delayed(Duration(seconds: 2 * (i + 1)));
         }
       }
     }
-    if (lastError != null) throw lastError;
     return null;
   }
 
   Future<String> uploadVoiceFile(String localPath) async {
-    if (localPath.startsWith('/uploads')) return localPath;
+    if (localPath.startsWith('/uploads')) return normalizeUploadPath(localPath);
     if (localPath.startsWith('http')) {
-      final i = localPath.indexOf('/uploads/');
-      return i >= 0 ? localPath.substring(i) : localPath;
+      return normalizeUploadPath(localPath);
     }
     final file = File(localPath);
-    if (!await file.exists()) return localPath;
+    if (!await file.exists()) {
+      throw Exception('Recording file missing on device');
+    }
+    final bytes = await file.length();
+    if (bytes < minVoiceFileBytes) {
+      throw Exception('Recording too short or empty ($bytes bytes)');
+    }
 
+    final isWav = localPath.toLowerCase().endsWith('.wav');
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(localPath, filename: 'voice.m4a'),
+      'file': await MultipartFile.fromFile(
+        localPath,
+        filename: 'call_${DateTime.now().millisecondsSinceEpoch}.${isWav ? 'wav' : 'm4a'}',
+        contentType: MediaType('audio', isWav ? 'wav' : 'mp4'),
+      ),
       'type': 'voice',
     });
 
@@ -80,7 +99,11 @@ class UploadService extends GetxService {
     final body = res.data as Map<String, dynamic>;
     if (body['success'] != true) throw Exception(body['message'] ?? 'Upload failed');
     final data = body['data'] as Map<String, dynamic>;
-    return data['fileUrl'] as String;
+    final url = data['fileUrl']?.toString() ?? '';
+    if (!url.contains('/uploads/')) {
+      throw Exception('Invalid upload response');
+    }
+    return normalizeUploadPath(url);
   }
 
   Future<String?> uploadPlainFile(String? path, {String type = 'photo'}) async {

@@ -1,23 +1,21 @@
 const { v4: uuid } = require('uuid');
-const { getCollection, upsert } = require('../../lib/db');
+const { getCollection, findById, upsert } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { filterByBranchViaUser, isAdmin, sameBranch } = require('../../lib/rbac');
 const { getAppSettings } = require('../../lib/appSettings');
+const {
+  FaceCheckError,
+  describeFace,
+  compare,
+  isEnrollmentComplete,
+  ensureEnrolledDescriptors,
+} = require('../../lib/faceMatch');
+const { checkAttendancePosition, workTypeOf } = require('../../lib/officeGeofence');
 
-const BRANCH_LAT = 28.6139;
-const BRANCH_LNG = 77.209;
-
-function distanceMeters(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+/** A passed face check is good for one check-in within this window. */
+const FACE_PASS_TTL_MS = 10 * 60 * 1000;
+const FACE_FAIL_WINDOW_MS = 15 * 60 * 1000;
+const FACE_FAIL_LIMIT = 5;
 
 function dateKey(iso) {
   if (!iso) return '';
@@ -50,15 +48,25 @@ function requiresFaceVerification(user) {
 }
 
 exports.checkIn = (req, res) => {
-  const { lat, lng, faceVerified } = req.body;
+  const { lat, lng, accuracy } = req.body;
   if (lat == null || lng == null) return error(res, 'GPS location required');
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+    return error(res, 'GPS location is not valid');
+  }
 
-  if (requiresFaceVerification(req.user)) {
-    const urls = req.user.faceEnrollmentUrls || [];
-    if (urls.length < 3) {
+  const user = findById('users', req.user.id) || req.user;
+  const faceRequired = requiresFaceVerification(user);
+  let facePass = null;
+  if (faceRequired) {
+    if (!isEnrollmentComplete(user)) {
       return error(res, 'Complete face enrollment (3 photos) before attendance', 403);
     }
-    if (!faceVerified) {
+    facePass = user.faceVerification;
+    const fresh =
+      facePass &&
+      !facePass.usedAt &&
+      new Date(facePass.expiresAt).getTime() > Date.now();
+    if (!fresh) {
       return error(res, 'Live face verification required for check-in', 400);
     }
   }
@@ -73,6 +81,20 @@ exports.checkIn = (req, res) => {
     return error(res, 'Already checked in today');
   }
 
+  const place = checkAttendancePosition(user, lat, lng, accuracy);
+  if (!place.allowed) {
+    return res.status(403).json({
+      success: false,
+      message: place.message,
+      data: {
+        reason: 'outside_office',
+        distanceMeters: place.distanceMeters,
+        radiusMeters: place.radiusMeters,
+        office: place.officeName,
+      },
+    });
+  }
+
   const record = existing || {
     id: `ATT_${uuid().slice(0, 8)}`,
     userId: req.user.id,
@@ -83,10 +105,18 @@ exports.checkIn = (req, res) => {
   };
 
   record.checkInTime = new Date().toISOString();
-  record.checkInLat = lat;
-  record.checkInLng = lng;
-  record.distanceFromBranch = Math.round(distanceMeters(lat, lng, BRANCH_LAT, BRANCH_LNG));
-  record.faceVerified = !!faceVerified;
+  record.checkInLat = Number(lat);
+  record.checkInLng = Number(lng);
+  record.distanceFromBranch = place.distanceMeters;
+  record.workType = place.workType;
+  record.officeRadiusM = place.radiusMeters;
+  record.faceVerified = !!facePass;
+  if (facePass) {
+    record.faceMatchScore = facePass.matchScore;
+    record.faceVerifiedAt = facePass.verifiedAt;
+    facePass.usedAt = new Date().toISOString();
+    upsert('users', user);
+  }
 
   upsert('attendance', record);
   return success(res, record, 'Checked in successfully');
@@ -117,23 +147,80 @@ exports.checkOut = (req, res) => {
   return success(res, record, 'Checked out successfully');
 };
 
+function recentFailures(user) {
+  const since = Date.now() - FACE_FAIL_WINDOW_MS;
+  return (user.faceVerifyFailures || []).filter((t) => new Date(t).getTime() > since);
+}
+
 /**
- * Live selfie for verification only — image is NOT stored (processed in memory).
+ * Live selfie is compared with the employee's own enrolled face.
+ * The image is NOT stored (processed in memory).
  */
-exports.verifyLiveFace = (req, res) => {
+exports.verifyLiveFace = async (req, res) => {
   if (!requiresFaceVerification(req.user)) {
     return success(res, { verified: true, matchScore: 1, skipped: true, message: 'Face not required' });
   }
   if (!req.file) return error(res, 'Live photo required');
-  const urls = req.user.faceEnrollmentUrls || [];
-  if (urls.length < 3) {
+  const user = findById('users', req.user.id);
+  if (!user) return error(res, 'User not found', 404);
+  if (!isEnrollmentComplete(user)) {
     return error(res, 'Face enrollment incomplete', 403);
   }
-  const sizeOk = req.file.size > 8000;
+  if (recentFailures(user).length >= FACE_FAIL_LIMIT) {
+    return error(res, 'Too many failed face checks — try again in 15 minutes', 429);
+  }
+
+  const save = (u) => upsert('users', u);
+  let enrolled;
+  try {
+    enrolled = await ensureEnrolledDescriptors(user, save);
+  } catch (err) {
+    if (err instanceof FaceCheckError) {
+      return error(
+        res,
+        'Your saved face photos are not clear. Open Profile → Face enrollment and capture 3 new selfies.',
+        403
+      );
+    }
+    console.error('Face enrollment load failed:', err);
+    return error(res, 'Face check is not available right now — try again in a minute', 503);
+  }
+
+  const fail = (message, reason, extra = {}) => {
+    user.faceVerifyFailures = [...recentFailures(user), new Date().toISOString()];
+    user.faceVerification = null;
+    save(user);
+    return success(res, { verified: false, matchScore: 0, reason, message, ...extra });
+  };
+
+  let live;
+  try {
+    live = await describeFace(req.file.buffer);
+  } catch (err) {
+    if (err instanceof FaceCheckError) return fail(err.message, err.code);
+    console.error('Live face check failed:', err);
+    return error(res, 'Face check is not available right now — try again in a minute', 503);
+  }
+
+  const result = compare(live.descriptor, enrolled);
+  if (!result.matched) {
+    return fail('Face does not match the registered employee', 'mismatch', { matchScore: result.matchScore });
+  }
+
+  const now = new Date();
+  user.faceVerification = {
+    id: uuid(),
+    verifiedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + FACE_PASS_TTL_MS).toISOString(),
+    matchScore: result.matchScore,
+    distance: result.distance,
+  };
+  user.faceVerifyFailures = [];
+  save(user);
   return success(res, {
-    verified: sizeOk,
-    matchScore: sizeOk ? 0.92 : 0,
-    message: sizeOk ? 'Face verified' : 'Could not verify face — retake photo',
+    verified: true,
+    matchScore: result.matchScore,
+    message: 'Face verified',
   });
 };
 
@@ -224,6 +311,7 @@ exports.getMonthly = (req, res) => {
       mobile: u.mobile,
       role: u.role,
       branch: u.branch,
+      workType: workTypeOf(u),
       presentDays: present,
       partialDays: partial,
       workingDaysSoFar: Object.values(days).filter((d) =>

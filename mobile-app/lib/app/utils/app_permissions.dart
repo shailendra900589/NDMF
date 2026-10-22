@@ -4,6 +4,18 @@ import '../data/models/enums/app_enums.dart';
 class AppPermissions {
   AppPermissions._();
 
+  static const labels = <String, String>{
+    'dashboard': 'Dashboard',
+    'customerListings': 'Customer listing',
+    'customers': 'Customers',
+    'attendance': 'Attendance',
+    'tracking': 'GPS tracking',
+    'callLogs': 'Call logs',
+    'users': 'User management',
+    'branches': 'Locations',
+    'payslips': 'Pay slips',
+  };
+
   static const keys = [
     'dashboard',
     'customerListings',

@@ -18,14 +18,14 @@ class AttendanceView extends GetView<AttendanceController> {
       length: 2,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: CustomAppBar(
+        appBar: const CustomAppBar(
           title: 'Attendance',
           subtitle: 'Face verify + GPS',
           bottom: TabBar(
             indicatorColor: Colors.white,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
-            tabs: const [
+            tabs: [
               Tab(text: 'Check In / Out'),
               Tab(text: 'History'),
             ],
@@ -33,10 +33,10 @@ class AttendanceView extends GetView<AttendanceController> {
         ),
         body: Obx(() {
           if (controller.isLoading.value) return const ListSkeleton(itemCount: 3);
-          return TabBarView(
+          return const TabBarView(
             children: [
-              const _CheckTab(),
-              const _HistoryTab(),
+              _CheckTab(),
+              _HistoryTab(),
             ],
           );
         }),

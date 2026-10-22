@@ -1,152 +1,391 @@
 const { v4: uuid } = require('uuid');
-const { getCollection, upsert } = require('../../lib/db');
+const { getCollection, saveCollection, findById, upsert } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
-const { filterByBranchViaUser } = require('../../lib/rbac');
+const { isAdmin, hasPermission, sameBranch } = require('../../lib/rbac');
+const { normalizePoint, ingest, reportPoints, compactReport } = require('../../lib/gpsTrack');
+const { analyzeShift } = require('../../lib/routeAnalysis');
+const { workTypeOf } = require('../../lib/officeGeofence');
 
-function haversineKm(p1, p2) {
-  const R = 6371;
-  const dLat = ((p2.latitude - p1.latitude) * Math.PI) / 180;
-  const dLng = ((p2.longitude - p1.longitude) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((p1.latitude * Math.PI) / 180) *
-      Math.cos((p2.latitude * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+/** Route history is kept for this many days. */
+const RETENTION_DAYS = Math.max(1, parseInt(process.env.TRACKING_RETENTION_DAYS || '90', 10));
+
+/** Live position counts as "live" when the last fix is this fresh. */
+const LIVE_WINDOW_MS = 45 * 1000;
+const DELAYED_WINDOW_MS = 5 * 60 * 1000;
+/** Heavy day reports are written to the database at most this often. */
+const REPORT_WRITE_DELAY_MS = 30 * 1000;
+const LIVE_WRITE_DELAY_MS = 15 * 1000;
+const DUTY_GRACE_MS = 2 * 60 * 1000;
+/** A check-in left open longer than this is treated as forgotten, not on duty. */
+const MAX_SHIFT_MS = 20 * 60 * 60 * 1000;
+const MAX_BATCH = 3000;
+
+function dayKey(date = new Date()) {
+  return new Date(date).toISOString().slice(0, 10);
 }
 
-/** Live ping — updates last position + km only (no full route history stored). */
-exports.livePing = (req, res) => {
-  const { lat, lng } = req.body;
-  if (lat == null || lng == null) return error(res, 'lat and lng required');
+function withinDuty(att, at) {
+  if (!att?.checkInTime) return false;
+  const start = Date.parse(att.checkInTime) - DUTY_GRACE_MS;
+  const end = att.checkOutTime
+    ? Date.parse(att.checkOutTime) + DUTY_GRACE_MS
+    : Date.parse(att.checkInTime) + MAX_SHIFT_MS;
+  return at >= start && at <= end;
+}
 
-  const users = getCollection('users');
-  const user = users.find((u) => u.id === req.user.id);
-  if (user) {
-    user.liveLocation = {
-      lat: parseFloat(lat),
-      lng: parseFloat(lng),
-      at: new Date().toISOString(),
-    };
-    upsert('users', user);
-  }
+function attendancesOf(userId) {
+  return getCollection('attendance')
+    .filter((a) => a.userId === userId && a.checkInTime)
+    .sort((a, b) => Date.parse(b.checkInTime) - Date.parse(a.checkInTime));
+}
 
-  const today = new Date().toISOString().split('T')[0];
+/** The shift a fix belongs to, so a duty that crosses midnight stays one route. */
+function shiftAt(userId, at) {
+  return attendancesOf(userId).find((a) => withinDuty(a, at)) || null;
+}
+
+/** The shift to show on the live map: still open, or checked in today. */
+function currentShift(userId, now) {
+  const latest = attendancesOf(userId)[0];
+  if (!latest) return null;
+  if (!latest.checkOutTime && withinDuty(latest, now)) return latest;
+  return String(latest.date).startsWith(dayKey(now)) ? latest : null;
+}
+
+function reportFor(user, att, create) {
+  if (!att) return null;
   const tracking = getCollection('tracking');
-  let report = tracking.find(
-    (t) => t.userId === req.user.id && t.date.startsWith(today)
-  );
-
-  if (!report) {
+  const key = dayKey(att.checkInTime);
+  let report =
+    tracking.find((t) => t.attendanceId === att.id) ||
+    tracking.find((t) => t.userId === user.id && !t.attendanceId && String(t.date).startsWith(key));
+  if (!report && create) {
     report = {
       id: `TRK_${uuid().slice(0, 8)}`,
-      userId: req.user.id,
-      employeeId: req.user.employeeId,
-      employeeName: req.user.name,
-      branch: req.user.branch,
-      date: new Date().toISOString(),
+      userId: user.id,
+      attendanceId: att.id,
+      employeeId: user.employeeId,
+      employeeName: user.name,
+      branch: user.branch,
+      date: att.checkInTime,
+      startTime: att.checkInTime,
       routePoints: [],
       totalKm: 0,
-      lastLat: lat,
-      lastLng: lng,
+      totalMeters: 0,
     };
   }
+  return report;
+}
 
-  const point = { latitude: parseFloat(lat), longitude: parseFloat(lng), timestamp: new Date().toISOString() };
-  if (report.lastLat != null && report.lastLng != null) {
-    const seg = haversineKm(
-      { latitude: report.lastLat, longitude: report.lastLng },
-      point
-    );
-    if (seg > 0.01) report.totalKm = Math.round((report.totalKm + seg) * 100) / 100;
+function saveLive(user, point) {
+  const live = findById('liveLocations', user.id) || { id: user.id, userId: user.id };
+  if (live.at && point.at <= Date.parse(live.at)) return live;
+  Object.assign(live, {
+    lat: point.lat,
+    lng: point.lng,
+    accuracy: point.accuracy,
+    speed: point.speed,
+    heading: point.heading,
+    mocked: point.mocked,
+    at: new Date(point.at).toISOString(),
+    receivedAt: new Date().toISOString(),
+    attendanceId: point.attendanceId || null,
+  });
+  upsert('liveLocations', live, { deferMs: LIVE_WRITE_DELAY_MS });
+  return live;
+}
+
+/** Adds fixes for the signed-in employee. Only fixes taken during a check-in are kept. */
+function recordFixes(user, rawPoints) {
+  const now = Date.now();
+  const byShift = new Map();
+  for (const raw of rawPoints) {
+    const p = normalizePoint(raw, now);
+    if (!p) continue;
+    const att = shiftAt(user.id, p.at);
+    if (!att) continue;
+    if (!byShift.has(att.id)) byShift.set(att.id, { att, points: [] });
+    byShift.get(att.id).points.push(p);
   }
-  report.lastLat = point.latitude;
-  report.lastLng = point.longitude;
-  report.endTime = new Date().toISOString();
-  report.employeeName = req.user.name;
 
-  upsert('tracking', report);
+  const current = currentShift(user.id, now);
+  const onDuty = !!current && !current.checkOutTime;
+  let report = reportFor(user, current, false);
+  let accepted = 0;
+  let latest = null;
+  for (const { att, points } of byShift.values()) {
+    points.sort((a, b) => a.at - b.at);
+    const shiftReport = reportFor(user, att, true);
+    for (const p of points) {
+      if (ingest(shiftReport, p) !== 'old') accepted += 1;
+    }
+    shiftReport.attendanceId = att.id;
+    shiftReport.employeeName = user.name;
+    shiftReport.branch = user.branch;
+    upsert('tracking', shiftReport, { deferMs: REPORT_WRITE_DELAY_MS });
+    const last = points[points.length - 1];
+    if (!latest || last.at > latest.at) latest = { ...last, attendanceId: att.id };
+    if (current && att.id === current.id) report = shiftReport;
+  }
+  if (latest) saveLive(user, latest);
+  return { onDuty, accepted, totalKm: report?.totalKm || 0, report };
+}
+
+/** Single fix sent every ~15 seconds while on duty. */
+exports.livePing = (req, res) => {
+  const { lat, lng } = req.body || {};
+  if (lat == null || lng == null) return error(res, 'lat and lng required');
+  const result = recordFixes(req.user, [req.body]);
   return success(res, {
-    totalKm: report.totalKm,
-    lastLat: report.lastLat,
-    lastLng: report.lastLng,
+    onDuty: result.onDuty,
+    accepted: result.accepted,
+    totalKm: result.totalKm,
+    lastLat: result.report?.lastLat ?? null,
+    lastLng: result.report?.lastLng ?? null,
   });
 };
 
-exports.getLiveTeam = (req, res) => {
-  const users = getCollection('users');
-  let team = users.filter((u) => u.isActive !== false && u.role !== 'admin');
-  if (req.user.role === 'branchManager') {
-    team = team.filter((u) => u.branch === req.user.branch);
-  } else if (req.user.role === 'fieldOfficer') {
-    team = team.filter((u) => u.id === req.user.id);
-  }
+/** Batch of fixes, e.g. collected while the phone had no internet. */
+exports.saveRoutePoints = (req, res) => {
+  const { routePoints } = req.body || {};
+  if (!Array.isArray(routePoints) || !routePoints.length) return error(res, 'Route points required');
+  const result = recordFixes(req.user, routePoints.slice(-MAX_BATCH));
+  const report = result.report || { totalKm: 0, routePoints: [] };
+  return success(
+    res,
+    { ...publicReport(report, true), onDuty: result.onDuty, accepted: result.accepted },
+    'Route saved'
+  );
+};
 
-  const today = new Date().toISOString().split('T')[0];
-  const tracking = getCollection('tracking');
+function publicReport(report, withPoints) {
+  const {
+    anchor,
+    anchorSeenAt,
+    pendingJump,
+    lastFixAt,
+    totalMeters,
+    gaps,
+    path,
+    compactedAt,
+    routePoints: _raw,
+    ...rest
+  } = report;
+  const points = reportPoints(report);
+  if (!withPoints) return { ...rest, routePointCount: points.length };
+  const routePoints = points.map((p) => ({
+    latitude: p.lat,
+    longitude: p.lng,
+    timestamp: new Date(p.at).toISOString(),
+    accuracy: p.accuracy,
+  }));
+  return { ...rest, routePoints, routePointCount: points.length };
+}
+
+exports.getToday = (req, res) => {
+  const report = reportFor(req.user, currentShift(req.user.id, Date.now()), false);
+  return success(res, report ? publicReport(report, true) : { totalKm: 0, routePoints: [] });
+};
+
+/** Who the viewer may see on the live map. Field staff see only themselves. */
+function visibleUsers(viewer, branchFilter) {
+  const users = getCollection('users').filter((u) => u.isActive !== false && u.role !== 'admin');
+  if (viewer.role === 'fieldOfficer') return users.filter((u) => u.id === viewer.id);
+  let team = isAdmin(viewer) ? users : users.filter((u) => sameBranch(viewer, u.branch));
+  if (branchFilter) team = team.filter((u) => sameBranch({ branch: branchFilter }, u.branch));
+  return team;
+}
+
+function canViewTeam(viewer) {
+  return isAdmin(viewer) || hasPermission(viewer, 'tracking');
+}
+
+function canViewUser(viewer, target) {
+  if (!target) return false;
+  if (viewer.id === target.id) return true;
+  if (viewer.role === 'fieldOfficer') return false;
+  if (!canViewTeam(viewer)) return false;
+  return isAdmin(viewer) || sameBranch(viewer, target.branch);
+}
+
+exports.getLiveTeam = (req, res) => {
+  if (req.user.role !== 'fieldOfficer' && !canViewTeam(req.user)) {
+    return error(res, 'You do not have access to live tracking', 403);
+  }
+  const now = Date.now();
+  const team = visibleUsers(req.user, req.query.branch);
+
   const live = team
     .map((u) => {
-      const loc = u.liveLocation;
-      const tr = tracking.find((t) => t.userId === u.id && t.date.startsWith(today));
+      const att = currentShift(u.id, now);
+      if (!att) return null;
+      const loc = findById('liveLocations', u.id);
+      const report = reportFor(u, att, false);
+      const todayLoc = loc && loc.attendanceId === att.id ? loc : null;
+      const lat = todayLoc?.lat ?? report?.lastLat ?? att.checkInLat ?? null;
+      const lng = todayLoc?.lng ?? report?.lastLng ?? att.checkInLng ?? null;
+      if (lat == null || lng == null) return null;
+      const lastSeenAt = todayLoc?.at || report?.endTime || att.checkInTime;
+      const age = now - Date.parse(lastSeenAt);
+      let status = 'offline';
+      if (att.checkOutTime) status = 'checked_out';
+      else if (age <= LIVE_WINDOW_MS) status = 'live';
+      else if (age <= DELAYED_WINDOW_MS) status = 'delayed';
       return {
         userId: u.id,
         employeeId: u.employeeId,
         name: u.name,
         branch: u.branch,
         role: u.role,
-        lat: loc?.lat ?? tr?.lastLat ?? null,
-        lng: loc?.lng ?? tr?.lastLng ?? null,
-        lastSeenAt: loc?.at ?? tr?.endTime ?? null,
-        totalKmToday: tr?.totalKm ?? 0,
+        lat: Number(lat),
+        lng: Number(lng),
+        accuracy: todayLoc?.accuracy ?? report?.lastAccuracy ?? null,
+        speedKmh: todayLoc?.speed != null ? Math.round(todayLoc.speed * 36) / 10 : null,
+        heading: todayLoc?.heading ?? null,
+        mocked: !!todayLoc?.mocked || (report?.mockedFixes || 0) > 0,
+        lastSeenAt,
+        secondsAgo: Math.max(0, Math.round(age / 1000)),
+        status,
+        onDuty: !att.checkOutTime,
+        checkInTime: att.checkInTime,
+        checkOutTime: att.checkOutTime || null,
+        totalKmToday: report?.totalKm || 0,
       };
     })
-    .filter((e) => e.lat != null && e.lng != null);
+    .filter(Boolean)
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
   return success(res, live);
 };
 
-exports.saveRoutePoints = (req, res) => {
-  const { routePoints } = req.body;
-  if (!routePoints?.length) return error(res, 'Route points required');
+function minStopFrom(query) {
+  const n = parseInt(query.minStop || '5', 10);
+  return Number.isFinite(n) ? Math.min(120, Math.max(1, n)) : 5;
+}
 
-  const today = new Date().toISOString().split('T')[0];
-  const tracking = getCollection('tracking');
-  let report = tracking.find(
-    (t) => t.userId === req.user.id && t.date.startsWith(today)
-  );
+function personInfo(u) {
+  return {
+    userId: u.id,
+    name: u.name,
+    employeeId: u.employeeId,
+    branch: u.branch,
+    role: u.role,
+    workType: workTypeOf(u),
+  };
+}
 
-  if (!report) {
-    report = {
-      id: `TRK_${uuid().slice(0, 8)}`,
-      userId: req.user.id,
-      employeeId: req.user.employeeId,
-      branch: req.user.branch,
-      date: new Date().toISOString(),
-      routePoints: [],
-      totalKm: 0,
-    };
+/** Employees whose routes the viewer may open. */
+exports.getPeople = (req, res) => {
+  if (req.user.role !== 'fieldOfficer' && !canViewTeam(req.user)) {
+    return error(res, 'You do not have access to tracking', 403);
   }
-
-  report.routePoints.push(...routePoints);
-
-  let totalKm = 0;
-  for (let i = 1; i < report.routePoints.length; i++) {
-    totalKm += haversineKm(report.routePoints[i - 1], report.routePoints[i]);
-  }
-  report.totalKm = Math.round(totalKm * 100) / 100;
-  report.endTime = new Date().toISOString();
-
-  upsert('tracking', report);
-  return success(res, report, 'Route saved');
+  const people = visibleUsers(req.user, req.query.branch)
+    .map((u) => {
+      const last = attendancesOf(u.id)[0];
+      return { ...personInfo(u), lastDutyAt: last?.checkInTime || null };
+    })
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  return success(res, { retentionDays: RETENTION_DAYS, people });
 };
 
-exports.getToday = (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
+/** Day-by-day summary for one employee over the stored history (up to 90 days). */
+exports.getDays = (req, res) => {
+  const target = findById('users', req.query.userId || req.user.id);
+  if (!canViewUser(req.user, target)) return error(res, 'You cannot view this employee', 403);
+  const now = Date.now();
+  const days = Math.min(RETENTION_DAYS, Math.max(1, parseInt(req.query.days || String(RETENTION_DAYS), 10) || RETENTION_DAYS));
+  const since = now - days * 86400000;
+  const minStopMinutes = minStopFrom(req.query);
+  const list = attendancesOf(target.id)
+    .filter((a) => Date.parse(a.checkInTime) >= since)
+    .map((att) => {
+      const report = reportFor(target, att, false);
+      const { summary } = analyzeShift(report, att, { minStopMinutes, now });
+      return {
+        date: dayKey(att.checkInTime),
+        attendanceId: att.id,
+        checkInTime: att.checkInTime,
+        checkOutTime: att.checkOutTime || null,
+        ...summary,
+      };
+    });
+  return success(res, { person: personInfo(target), retentionDays: RETENTION_DAYS, days: list });
+};
+
+/** One employee's full route for a shift: path, stops, travel legs, signal gaps. */
+exports.getRoute = (req, res) => {
+  const userId = req.query.userId || req.user.id;
+  const target = findById('users', userId);
+  if (!canViewUser(req.user, target)) return error(res, 'You cannot view this route', 403);
+  const date = String(req.query.date || '');
+  const shifts = attendancesOf(target.id);
+  const att = req.query.attendanceId
+    ? shifts.find((a) => a.id === req.query.attendanceId) || null
+    : /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? shifts.find((a) => dayKey(a.checkInTime) === date) || null
+      : currentShift(target.id, Date.now());
+  const report = reportFor(target, att, false);
+  const analysis = analyzeShift(report, att, { minStopMinutes: minStopFrom(req.query) });
+  return success(res, {
+    ...personInfo(target),
+    date: att ? dayKey(att.checkInTime) : date || dayKey(),
+    attendanceId: att?.id || null,
+    totalKm: report?.totalKm || 0,
+    checkInTime: att?.checkInTime || null,
+    checkOutTime: att?.checkOutTime || null,
+    checkIn: att ? { lat: att.checkInLat ?? null, lng: att.checkInLng ?? null } : null,
+    checkOut: att?.checkOutTime ? { lat: att.checkOutLat ?? null, lng: att.checkOutLng ?? null } : null,
+    ...analysis,
+  });
+};
+
+/**
+ * Deletes routes older than the retention window and shrinks finished days.
+ * Returns counts for logging.
+ */
+function runMaintenance(now = Date.now()) {
+  const cutoff = now - RETENTION_DAYS * 86400000;
   const tracking = getCollection('tracking');
-  const report = tracking.find(
-    (t) => t.userId === req.user.id && t.date.startsWith(today)
-  );
-  return success(res, report || { totalKm: 0, routePoints: [] });
+  const kept = tracking.filter((t) => Date.parse(t.startTime || t.date) >= cutoff);
+  const removed = tracking.length - kept.length;
+  if (removed) saveCollection('tracking', kept);
+
+  const live = getCollection('liveLocations');
+  const freshLive = live.filter((l) => Date.parse(l.at || 0) >= now - 2 * 86400000);
+  if (freshLive.length !== live.length) saveCollection('liveLocations', freshLive);
+
+  const attendance = getCollection('attendance');
+  let compacted = 0;
+  for (const t of kept) {
+    if (t.compactedAt || !Array.isArray(t.routePoints) || !t.routePoints.length) continue;
+    const att = t.attendanceId ? attendance.find((a) => a.id === t.attendanceId) : null;
+    const closedAt = att?.checkOutTime
+      ? Date.parse(att.checkOutTime)
+      : Date.parse(t.startTime || t.date) + MAX_SHIFT_MS;
+    if (now - closedAt < 6 * 3600000) continue;
+    compactReport(t);
+    upsert('tracking', t, { single: true });
+    compacted += 1;
+  }
+  return { removed, compacted };
+}
+
+exports.runMaintenance = runMaintenance;
+
+/** Runs maintenance now and every 6 hours. */
+exports.startMaintenance = () => {
+  const run = () => {
+    try {
+      const r = runMaintenance();
+      if (r.removed || r.compacted) {
+        console.log(`Tracking maintenance: removed ${r.removed} old day(s), compacted ${r.compacted}`);
+      }
+    } catch (err) {
+      console.error('Tracking maintenance failed:', err.message);
+    }
+  };
+  setTimeout(run, 60 * 1000).unref?.();
+  setInterval(run, 6 * 3600 * 1000).unref?.();
 };
 
 exports.getHistory = (req, res) => {
@@ -155,8 +394,11 @@ exports.getHistory = (req, res) => {
   if (req.user.role === 'fieldOfficer') {
     tracking = tracking.filter((t) => t.userId === req.user.id);
   } else {
-    tracking = filterByBranchViaUser(tracking, req.user, users);
+    if (!canViewTeam(req.user)) return error(res, 'You do not have access to tracking', 403);
+    tracking = tracking.filter((t) => canViewUser(req.user, users.find((u) => u.id === t.userId)));
   }
-  tracking.sort((a, b) => new Date(b.date) - new Date(a.date));
-  return success(res, tracking);
+  const list = tracking
+    .map((t) => publicReport(t, false))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  return success(res, list);
 };

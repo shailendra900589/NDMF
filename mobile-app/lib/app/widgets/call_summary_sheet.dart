@@ -18,17 +18,16 @@ class CallSummarySheet {
     );
     final formKey = GlobalKey<FormState>();
 
-    return Get.bottomSheet<String>(
+    return Get.dialog<String>(
       PopScope(
         canPop: false,
-        child: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 16,
-              bottom: MediaQuery.of(Get.context!).viewInsets.bottom + 20,
-            ),
+        child: Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 16),
             child: Form(
               key: formKey,
               child: Column(
@@ -36,32 +35,44 @@ class CallSummarySheet {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'Call completed — add summary',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    'Call completed',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1A2E28)),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Add a short summary',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 14),
                   Text(
-                    '$customerLabel • $mobile\nDuration: $durationLabel • Status: ${_statusLabel(callStatus)}',
-                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    customerLabel,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Recording is uploaded automatically. Describe what was discussed.',
-                    style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w500),
+                  Text(
+                    '$mobile  •  $durationLabel  •  ${_statusLabel(callStatus)}',
+                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'The recording uploads with this summary.',
+                    style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 14),
                   TextFormField(
                     controller: controller,
                     maxLines: 4,
                     decoration: const InputDecoration(
-                      labelText: 'Call summary / discussion points',
+                      labelText: 'What was discussed',
                       alignLabelWithHint: true,
+                      filled: true,
+                      fillColor: Color(0xFFF5F7FA),
                       border: OutlineInputBorder(),
                     ),
                     validator: (v) {
                       final t = (v ?? '').trim();
                       if (requireDetailedSummary && t.length < 10) {
-                        return 'Connected call: enter at least 10 characters about the conversation';
+                        return 'Enter at least 10 characters about the conversation';
                       }
                       if (t.isEmpty) return 'Summary required';
                       return null;
@@ -76,9 +87,11 @@ class CallSummarySheet {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Save & sync to dashboard'),
+                    child: const Text('Save & sync to dashboard', style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ],
               ),
@@ -86,9 +99,8 @@ class CallSummarySheet {
           ),
         ),
       ),
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
+      barrierDismissible: false,
+      barrierColor: const Color(0xCC0F172A),
     );
   }
 

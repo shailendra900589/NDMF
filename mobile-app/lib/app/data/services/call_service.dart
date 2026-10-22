@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:io';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/call_log_model.dart';
 import '../models/enums/app_enums.dart';
@@ -33,12 +31,11 @@ class CallService extends GetxService with WidgetsBindingObserver {
 
   bool _sessionActive = false;
   bool _finishing = false;
+  bool _appPaused = false;
   DateTime? _callStartedAt;
   Timer? _callMonitorTimer;
   bool _sawOffhook = false;
   int _idlePollStreak = 0;
-  int _lastCallLogDuration = -1;
-  int _stableLogDurationTicks = 0;
 
   String _pendingName = '';
   String _pendingMobile = '';
@@ -61,17 +58,34 @@ class CallService extends GetxService with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_sessionActive) return;
-    if (state == AppLifecycleState.resumed) {
-      unawaited(_recorder.maintainRecordingDuringCall());
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      _appPaused = true;
+      return;
     }
+    if (state == AppLifecycleState.resumed) {
+      _appPaused = false;
+      unawaited(_recorder.maintainRecordingDuringCall());
+      unawaited(_checkCallEndedAfterReturn());
+    }
+  }
+
+  Future<void> _checkCallEndedAfterReturn() async {
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    if (!_sessionActive || _finishing || _appPaused) return;
+    final state = await TelephonyBridge.getCallState();
+    if (state == 'offhook' || state == 'ringing') {
+      _sawOffhook = true;
+      return;
+    }
+    final elapsed = DateTime.now().difference(_callStartedAt ?? DateTime.now());
+    if (!_sawOffhook && elapsed < const Duration(seconds: 12)) return;
+    await _finishCallSession();
   }
 
   void _startCallMonitor() {
     _stopCallMonitor();
     _sawOffhook = false;
     _idlePollStreak = 0;
-    _lastCallLogDuration = -1;
-    _stableLogDurationTicks = 0;
     _callMonitorTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       unawaited(_tickCallMonitor());
     });
@@ -94,6 +108,7 @@ class CallService extends GetxService with WidgetsBindingObserver {
     }
 
     await _recorder.maintainRecordingDuringCall();
+    if (_appPaused) return;
 
     final state = await TelephonyBridge.getCallState();
     if (state == 'offhook') _sawOffhook = true;
@@ -103,30 +118,13 @@ class CallService extends GetxService with WidgetsBindingObserver {
       _idlePollStreak = 0;
     }
 
-    final peek = await TelephonyCallReader.peekOutgoing(
-      mobile: _pendingMobile,
-      placedAt: placedAt,
-    );
-    if (peek.verified && peek.durationSeconds > 0) {
-      if (peek.durationSeconds == _lastCallLogDuration) {
-        _stableLogDurationTicks++;
-      } else {
-        _lastCallLogDuration = peek.durationSeconds;
-        _stableLogDurationTicks = 0;
-      }
-    }
+    if (elapsed < const Duration(seconds: 8)) return;
 
-    if (elapsed < const Duration(seconds: 6)) return;
-
-    if (_sawOffhook && _idlePollStreak >= 3) {
+    if (_sawOffhook && state == 'idle' && _idlePollStreak >= 4) {
       await _finishCallSession();
       return;
     }
-    if (_stableLogDurationTicks >= 2 && _lastCallLogDuration > 0) {
-      await _finishCallSession();
-      return;
-    }
-    if (!_sawOffhook && _idlePollStreak >= 5 && elapsed > const Duration(seconds: 20)) {
+    if (!_sawOffhook && state == 'idle' && _idlePollStreak >= 8 && elapsed > const Duration(seconds: 45)) {
       await _finishCallSession();
     }
   }
@@ -148,6 +146,27 @@ class CallService extends GetxService with WidgetsBindingObserver {
 
   Future<bool> ensureRecordingReady() async => _ensurePermissions();
 
+  Future<void> _cancelFailedStart() async {
+    _sessionActive = false;
+    _finishing = false;
+    _appPaused = false;
+    _stopCallMonitor();
+    isCallActive.value = false;
+    isRecording.value = false;
+    await _recorder.cancelRecording();
+    _pendingName = '';
+    _pendingMobile = '';
+    _pendingLeadId = null;
+    _callStartedAt = null;
+  }
+
+  Future<void> endActiveCall() async {
+    await TelephonyBridge.hangUp();
+    if (_sessionActive) {
+      await _finishCallSession();
+    }
+  }
+
   Future<void> placeCustomerCall({
     required String mobile,
     required String customerName,
@@ -166,40 +185,100 @@ class CallService extends GetxService with WidgetsBindingObserver {
       return;
     }
 
-    if (recordingMandatory) {
+    final digits = mobile.replaceAll(RegExp(r'\D'), '');
+    final number = digits.length >= 10 ? digits.substring(digits.length - 10) : digits;
+
+    final alreadyDialer = await TelephonyBridge.isDefaultDialer();
+    if (!alreadyDialer) {
+      final proceed = await _confirmInAppPhoneRole();
+      if (!proceed) return;
+    }
+
+    if (alreadyDialer && recordingMandatory) {
       final started = await _recorder.startRecording();
       if (!started) {
-        Get.snackbar(
-          'Cannot call',
-          'Call recording failed to start. Customer calls are blocked until recording works.',
-        );
+        Get.snackbar('Cannot call', 'Microphone did not start. Allow it and try again.');
+        return;
+      }
+      isRecording.value = true;
+    }
+
+    final status = await TelephonyBridge.placeInApp(number);
+    if (status != 'placed') {
+      if (isRecording.value) await _cancelFailedStart();
+      await _showInAppSetup();
+      return;
+    }
+
+    if (!isRecording.value && recordingMandatory) {
+      final started = await _recorder.startRecording();
+      if (!started) {
+        await TelephonyBridge.hangUp();
+        Get.snackbar('Cannot call', 'Recording did not start, so the call was ended.');
         return;
       }
       isRecording.value = true;
     }
 
     _pendingName = customerName;
-    final digits = mobile.replaceAll(RegExp(r'\D'), '');
-    _pendingMobile = digits.length >= 10 ? digits.substring(digits.length - 10) : digits;
+    _pendingMobile = number;
     _pendingLeadId = leadId;
     _callStartedAt = DateTime.now();
     _sessionActive = true;
     _finishing = false;
+    _appPaused = false;
+    _sawOffhook = false;
     isCallActive.value = true;
     _startCallMonitor();
+  }
 
-    Get.snackbar(
-      'NDFA customer call',
-      'Recording ON • stays active up to 15 min',
-      duration: const Duration(seconds: 3),
+  Future<bool> _confirmInAppPhoneRole() async {
+    final allow = await Get.dialog<bool>(
+      AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('Keep this call in Nirmaldhara'),
+        content: const Text(
+          'A mobile call stays inside this app only when Nirmaldhara is the Phone app. Android asks this once.\n\n'
+          'If a message says access was denied, tap Close. Then use Open settings, tap the ⋮ menu, and choose Allow restricted settings. Call again and select Nirmaldhara.\n\n'
+          'The other Phone app is not opened.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('Not now')),
+          ElevatedButton(onPressed: () => Get.back(result: true), child: const Text('Continue')),
+        ],
+      ),
+      barrierDismissible: false,
     );
+    return allow == true;
+  }
 
-    try {
-      await FlutterPhoneDirectCaller.callNumber(_pendingMobile);
-    } catch (_) {
-      await _finishCallSession();
-      Get.snackbar('Call Failed', 'Could not place call');
-    }
+  Future<void> _showInAppSetup() async {
+    await Get.dialog<void>(
+      AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('One-time Phone setup'),
+        content: const Text(
+          'Android blocked the in-app call because this app was installed from a file.\n\n'
+          '1. Tap Open settings\n'
+          '2. Tap the ⋮ menu at the top\n'
+          '3. Tap Allow restricted settings\n'
+          '4. Come back and tap Call\n'
+          '5. Choose Nirmaldhara\n\n'
+          'After that, the call and recording stay on this screen.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('Close')),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              TelephonyBridge.openAppSettings();
+            },
+            child: const Text('Open settings'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
   }
 
   @Deprecated('Use placeCustomerCall')
@@ -237,12 +316,12 @@ class CallService extends GetxService with WidgetsBindingObserver {
     if (rawRecordingPath != null && rawRecordingPath.isNotEmpty) {
       recordingSeconds = await _recorder.estimateSecondsFromFile(rawRecordingPath, recordingSeconds);
     }
-    recordingSeconds = recordingSeconds.clamp(0, 15 * 60);
+    recordingSeconds = recordingSeconds.clamp(0, 60 * 60);
 
     Duration talkDuration;
     int talkSeconds;
     String callStatus;
-    if (telephony.verified) {
+    if (telephony.verified && telephony.durationSeconds > recordingSeconds) {
       talkSeconds = telephony.durationSeconds;
       talkDuration = Duration(seconds: talkSeconds);
       callStatus = telephony.callStatus;
@@ -254,17 +333,8 @@ class CallService extends GetxService with WidgetsBindingObserver {
 
     String? serverRecordingUrl;
     String? localRecordingPath;
-
     if (rawRecordingPath != null && rawRecordingPath.isNotEmpty) {
-      if (ApiConstants.useRemoteApi) {
-        serverRecordingUrl = await _upload.uploadVoiceFileWithRetry(rawRecordingPath);
-        if (serverRecordingUrl != null && serverRecordingUrl.contains('/uploads/')) {
-          localRecordingPath = null;
-        } else {
-          localRecordingPath = rawRecordingPath;
-          serverRecordingUrl = null;
-        }
-      } else if (await File(rawRecordingPath).exists()) {
+      if (await _recorder.isValidRecordingFile(rawRecordingPath)) {
         localRecordingPath = rawRecordingPath;
       }
     }
@@ -312,6 +382,15 @@ class CallService extends GetxService with WidgetsBindingObserver {
       synced: false,
     );
 
+    final recordingPathForUpload = localRecordingPath;
+    if (recordingPathForUpload != null && ApiConstants.useRemoteApi) {
+      serverRecordingUrl = await _upload.uploadVoiceFileWithRetry(recordingPathForUpload);
+      if (serverRecordingUrl != null && serverRecordingUrl.contains('/uploads/')) {
+        log = log.copyWith(recordingUrl: serverRecordingUrl, localRecordingPath: null);
+        localRecordingPath = null;
+      }
+    }
+
     _storage.appendToList(ApiConstants.callLogsKey, log.toJson());
 
     if (ApiConstants.useRemoteApi) {
@@ -321,6 +400,14 @@ class CallService extends GetxService with WidgetsBindingObserver {
         _updateStoredLog(log);
       } else if (Get.isRegistered<SyncService>()) {
         await Get.find<SyncService>().queuePendingCallLog(log);
+        unawaited(Get.find<SyncService>().syncPendingRecords(silent: true));
+      }
+      if (!log.hasOnlineRecording && log.localRecordingPath != null) {
+        Get.snackbar(
+          'Recording pending',
+          'Call saved — recording will upload when network is stable',
+          duration: const Duration(seconds: 4),
+        );
       }
     } else {
       log = log.copyWith(synced: true);
@@ -351,7 +438,7 @@ class CallService extends GetxService with WidgetsBindingObserver {
       try {
         final url = await _upload.uploadVoiceFileWithRetry(log.localRecordingPath!);
         if (url != null && url.contains('/uploads/')) {
-          payload = log.copyWith(recordingUrl: url, localRecordingPath: null);
+          payload = log.copyWith(recordingUrl: UploadService.normalizeUploadPath(url), localRecordingPath: null);
         } else {
           return false;
         }

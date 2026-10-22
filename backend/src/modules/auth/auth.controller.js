@@ -11,6 +11,7 @@ const { jwtSecret } = require('../../config/env');
 const { success, error } = require('../../lib/response');
 const { effectivePermissions } = require('../../lib/rbac');
 const { settingsForClient } = require('../../lib/appSettings');
+const { stripFaceSecrets } = require('../../lib/faceMatch');
 
 const DEMO_OTP = '123456';
 
@@ -19,11 +20,9 @@ function generateToken(user) {
 }
 
 function sanitizeUser(user) {
-  const { password, faceEnrollmentUrls, ...safe } = user;
+  const { password, ...rest } = user;
+  const safe = stripFaceSecrets(rest);
   safe.permissions = effectivePermissions(user);
-  const count = Array.isArray(faceEnrollmentUrls) ? faceEnrollmentUrls.length : 0;
-  safe.faceEnrollmentComplete = count >= 3;
-  safe.faceEnrollmentCount = count;
   return { ...safe, ...settingsForClient() };
 }
 

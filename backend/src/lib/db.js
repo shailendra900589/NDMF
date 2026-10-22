@@ -18,6 +18,7 @@ const COLLECTIONS = [
   'customerListings',
   'attendance',
   'tracking',
+  'liveLocations',
   'callLogs',
   'leads',
   'loans',
@@ -34,6 +35,7 @@ const defaultDb = () => ({
   customerListings: [],
   attendance: [],
   tracking: [],
+  liveLocations: [],
   callLogs: [],
   leads: [],
   loans: [],
@@ -96,11 +98,54 @@ async function persistCollection(name) {
   }
 }
 
-function queuePersist(name) {
+function queueTask(label, task) {
   writeChain = writeChain
-    .then(() => persistCollection(name))
-    .catch((err) => console.error(`PG persist [${name}] failed:`, err.message));
+    .then(task)
+    .catch((err) => console.error(`PG persist [${label}] failed:`, err.message));
   return writeChain;
+}
+
+function queuePersist(name) {
+  return queueTask(name, () => persistCollection(name));
+}
+
+async function persistItem(name, id) {
+  const item = (cache[name] || []).find((i) => i.id === id);
+  if (!item) return;
+  await query(
+    `INSERT INTO ndfa_docs (collection, id, data, updated_at)
+     VALUES ($1, $2, $3::jsonb, NOW())
+     ON CONFLICT (collection, id)
+     DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+    [name, String(id), JSON.stringify(item)]
+  );
+}
+
+/** Pending delayed writes, keyed by "collection:id". */
+const deferredWrites = new Map();
+
+function cancelDeferred(key) {
+  const timer = deferredWrites.get(key);
+  if (timer) {
+    clearTimeout(timer);
+    deferredWrites.delete(key);
+  }
+}
+
+function queuePersistItem(name, id, deferMs = 0) {
+  const key = `${name}:${id}`;
+  if (deferMs > 0) {
+    if (deferredWrites.has(key)) return writeChain;
+    const timer = setTimeout(() => {
+      deferredWrites.delete(key);
+      queueTask(name, () => persistItem(name, id));
+    }, deferMs);
+    if (timer.unref) timer.unref();
+    deferredWrites.set(key, timer);
+    return writeChain;
+  }
+  cancelDeferred(key);
+  return queueTask(name, () => persistItem(name, id));
 }
 
 async function persistAll() {
@@ -167,23 +212,38 @@ function findById(collection, id) {
   return getCollection(collection).find((item) => item.id === id) || null;
 }
 
-function upsert(collection, item) {
+/**
+ * Saves a document. By default the whole collection is written (old behaviour).
+ * `single` writes only this document; `deferMs` also batches frequent updates
+ * (GPS every 15s) into one write per window. Memory is always up to date.
+ */
+function upsert(collection, item, { single = false, deferMs = 0 } = {}) {
   const items = getCollection(collection);
   const index = items.findIndex((i) => i.id === item.id);
   if (index >= 0) items[index] = item;
   else items.push(item);
   cache[collection] = items;
-  queuePersist(collection);
+  if ((single || deferMs > 0) && item?.id) queuePersistItem(collection, item.id, deferMs);
+  else queuePersist(collection);
   return item;
 }
 
 function removeById(collection, id) {
   const items = getCollection(collection).filter((i) => i.id !== id);
   cache[collection] = items;
+  cancelDeferred(`${collection}:${id}`);
   queuePersist(collection);
 }
 
 function flush() {
+  for (const [key, timer] of deferredWrites) {
+    clearTimeout(timer);
+    const sep = key.indexOf(':');
+    const name = key.slice(0, sep);
+    const id = key.slice(sep + 1);
+    queueTask(name, () => persistItem(name, id));
+  }
+  deferredWrites.clear();
   return writeChain;
 }
 

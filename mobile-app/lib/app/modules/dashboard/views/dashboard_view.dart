@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_tokens.dart';
 import '../../../widgets/home/dashboard_stat_chip.dart';
@@ -13,32 +12,16 @@ import '../../../widgets/today_progress_card.dart';
 import '../controllers/dashboard_controller.dart';
 
 class DashboardView extends GetView<DashboardController> {
-  const DashboardView({
-    super.key,
-    required this.onMenu,
-    required this.onNotifications,
-    required this.onProfile,
-  });
-
-  final VoidCallback onMenu;
-  final VoidCallback onNotifications;
-  final VoidCallback onProfile;
+  const DashboardView({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       if (controller.isLoading.value && controller.stats.value == null) {
-        return Column(
+        return const Column(
           children: [
-            HomePremiumHeader(
-              roleLabel: controller.userRole,
-              branch: controller.userBranch,
-              avatarLetter: controller.avatarLetter,
-              onMenu: onMenu,
-              onNotifications: onNotifications,
-              onProfile: onProfile,
-            ),
-            const Expanded(child: DashboardSkeleton()),
+            HomePremiumHeader(),
+            Expanded(child: DashboardSkeleton()),
           ],
         );
       }
@@ -52,15 +35,8 @@ class DashboardView extends GetView<DashboardController> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverToBoxAdapter(
-              child: HomePremiumHeader(
-                roleLabel: controller.userRole,
-                branch: controller.userBranch,
-                avatarLetter: controller.avatarLetter,
-                onMenu: onMenu,
-                onNotifications: onNotifications,
-                onProfile: onProfile,
-              ),
+            const SliverToBoxAdapter(
+              child: HomePremiumHeader(),
             ),
             SliverToBoxAdapter(
               child: Transform.translate(
@@ -74,44 +50,30 @@ class DashboardView extends GetView<DashboardController> {
                         Expanded(
                           child: DashboardStatChip(
                             index: 0,
-                            icon: Icons.mic_none_rounded,
-                            value: '${stats?.totalCallsWithRecording ?? 0}',
-                            label: 'Recorded calls',
-                            color: const Color(0xFFE57373),
-                            onTap: () => Get.toNamed(AppRoutes.callHistory),
+                            icon: Icons.groups_outlined,
+                            value: '${stats?.totalCustomers ?? 0}',
+                            label: 'Customers',
+                            color: const Color(0xFF66BB6A),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: DashboardStatChip(
                             index: 1,
-                            icon: Icons.groups_outlined,
-                            value: '${stats?.totalCustomers ?? 0}',
-                            label: 'Customers',
-                            color: const Color(0xFF66BB6A),
-                            onTap: () => Get.toNamed(AppRoutes.customers),
+                            icon: Icons.assignment_outlined,
+                            value: '${stats?.pendingCustomerListing ?? stats?.totalListings ?? 0}',
+                            label: 'Listings',
+                            color: const Color(0xFF42A5F5),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: DashboardStatChip(
                             index: 2,
-                            icon: Icons.call_outlined,
-                            value: '${stats?.totalCallsToday ?? 0}',
-                            label: 'Calls today',
-                            color: const Color(0xFF42A5F5),
-                            onTap: () => Get.toNamed(AppRoutes.callHistory),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: DashboardStatChip(
-                            index: 3,
                             icon: Icons.access_time_rounded,
                             value: _shortAttendance(stats?.attendanceStatus ?? '—'),
                             label: 'Attendance',
                             color: const Color(0xFFFFB74D),
-                            onTap: () => Get.toNamed(AppRoutes.attendance),
                           ),
                         ),
                       ],
@@ -130,30 +92,16 @@ class DashboardView extends GetView<DashboardController> {
                 ),
               ),
             ),
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.md, 20, AppSpacing.md, 0),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Quick Actions',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => Get.snackbar('Quick Actions', 'Drag to reorder coming soon'),
-                      icon: const Icon(Icons.tune_rounded, size: 18, color: AppColors.primary),
-                      label: const Text(
-                        'Customize',
-                        style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary),
-                      ),
-                    ),
-                  ],
+                padding: EdgeInsets.fromLTRB(AppSpacing.md, 20, AppSpacing.md, 0),
+                child: Text(
+                  'Quick Actions',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
             ),
@@ -168,11 +116,11 @@ class DashboardView extends GetView<DashboardController> {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.md, 8, AppSpacing.md, 0),
                 sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: MediaQuery.sizeOf(context).width < 340 ? 1 : 2,
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
-                    childAspectRatio: 1.55,
+                    mainAxisExtent: 78,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
@@ -194,35 +142,24 @@ class DashboardView extends GetView<DashboardController> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.md, 24, AppSpacing.md, 32),
                 child: TodayActivityStrip(
-                  onViewAll: () => Get.toNamed(AppRoutes.callHistory),
                   items: [
-                    TodayActivityItem(
-                      icon: Icons.call_rounded,
-                      value: '${stats?.totalCallsToday ?? 0}',
-                      label: 'Calls',
-                      color: const Color(0xFF26A69A),
-                      onTap: () => Get.toNamed(AppRoutes.callHistory),
-                    ),
                     TodayActivityItem(
                       icon: Icons.people_rounded,
                       value: '${stats?.totalCustomers ?? 0}',
                       label: 'Customers',
                       color: const Color(0xFF42A5F5),
-                      onTap: () => Get.toNamed(AppRoutes.customers),
                     ),
                     TodayActivityItem(
                       icon: Icons.assignment_rounded,
                       value: '${stats?.pendingCustomerListing ?? stats?.totalListings ?? 0}',
-                      label: 'Applications',
+                      label: 'Listings',
                       color: const Color(0xFFFFB74D),
-                      onTap: () => Get.toNamed(AppRoutes.customerApplication),
                     ),
                     TodayActivityItem(
                       icon: Icons.route_rounded,
                       value: '${(stats?.distanceCoveredToday ?? 0).toStringAsFixed(1)} km',
                       label: 'Distance',
                       color: const Color(0xFF9575CD),
-                      onTap: () => Get.toNamed(AppRoutes.tracking),
                     ),
                   ],
                 ),

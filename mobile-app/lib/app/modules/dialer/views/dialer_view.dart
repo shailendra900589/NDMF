@@ -16,39 +16,32 @@ class DialerView extends GetView<DialerController> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         title: 'Dialer',
-        subtitle: 'Keypad • outbound calls',
-        actions: [
-          Obx(() => Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.fiber_manual_record,
-                            size: 10,
-                            color: callService.isRecording.value ? Colors.redAccent : Colors.white70),
-                        const SizedBox(width: 6),
-                        Text(
-                          callService.isRecording.value ? 'REC' : 'Auto REC',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              )),
-        ],
+        subtitle: 'Call stays in this app',
       ),
       body: SafeArea(
         child: Column(
           children: [
+            Obx(() => Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        callService.isRecording.value ? 'Recording' : 'Recording starts with the call',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                      ),
+                    ),
+                  ),
+                )),
             Obx(() => NdfaSegmentBar(
                   labels: const ['Keypad', 'Recent'],
                   selectedIndex: controller.topSegment.value,
@@ -56,7 +49,7 @@ class DialerView extends GetView<DialerController> {
                 )),
             const SizedBox(height: 8),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: TextField(
                 controller: controller.searchTextController,
                 onChanged: controller.onSearchChanged,
@@ -71,148 +64,106 @@ class DialerView extends GetView<DialerController> {
                 ),
               ),
             ),
-            Obx(() {
-              if (!controller.isSearching.value || controller.searchResults.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                constraints: const BoxConstraints(maxHeight: 180),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  itemCount: controller.searchResults.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 56),
-                  itemBuilder: (_, i) {
-                    final c = controller.searchResults[i];
-                    return ListTile(
-                      dense: true,
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                        child: Text(
-                          c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
-                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      subtitle: Text(c.mobile, style: const TextStyle(fontSize: 12)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.call, color: AppColors.success),
-                        onPressed: () => controller.callNumber(number: c.mobile, name: c.name),
-                      ),
-                      onTap: () => controller.selectCustomer(c),
-                    );
-                  },
-                ),
-              );
-            }),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Obx(() {
-                      final customer = controller.matchedCustomer.value;
-                      final number = controller.dialedNumber.value;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            customer?.name ?? (number.isEmpty ? 'Enter customer number' : number),
-                            style: TextStyle(
-                              fontSize: customer != null ? 20 : (number.isEmpty ? 16 : 28),
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryDark,
-                              letterSpacing: customer == null && number.isNotEmpty ? 2 : 0,
-                            ),
-                          ),
-                          if (customer != null)
-                            Text(customer.mobile, style: const TextStyle(color: AppColors.textSecondary)),
-                          if (number.isNotEmpty && customer == null)
-                            const Text(
-                              'New / unregistered number — call allowed with recording',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                            ),
-                        ],
-                      );
-                    }),
-                  ),
-                  Obx(() => IconButton(
-                        tooltip: controller.keypadVisible.value ? 'Hide keypad' : 'Show keypad',
-                        onPressed: controller.toggleKeypad,
-                        icon: AnimatedRotation(
-                          turns: controller.keypadVisible.value ? 0 : 0.5,
-                          duration: const Duration(milliseconds: 200),
-                          child: const Icon(Icons.dialpad, color: AppColors.primary, size: 28),
-                        ),
-                      )),
-                ],
-              ),
-            ),
             Expanded(
               child: Obx(() {
-                return Column(
-                  children: [
-                    AnimatedCrossFade(
-                      firstCurve: Curves.easeOutCubic,
-                      secondCurve: Curves.easeInCubic,
-                      crossFadeState: controller.keypadVisible.value
-                          ? CrossFadeState.showFirst
-                          : CrossFadeState.showSecond,
-                      duration: const Duration(milliseconds: 280),
-                      sizeCurve: Curves.easeInOut,
-                      firstChild: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _dialPad(),
-                            const SizedBox(height: 12),
-                            _callActions(callService),
-                          ],
-                        ),
-                      ),
-                      secondChild: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          children: [
-                            Icon(Icons.dialpad_outlined, size: 48, color: Colors.grey.shade400),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Keypad hidden',
-                              style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Tap dialpad icon to show keys',
-                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                            ),
-                            const SizedBox(height: 20),
-                            _callActions(callService),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Expanded(child: _recentCalls(callService)),
-                  ],
-                );
+                if (controller.isSearching.value && controller.searchResults.isNotEmpty) {
+                  return _searchResults();
+                }
+                if (controller.topSegment.value == 1) {
+                  return _recentCalls(callService);
+                }
+                return _keypadPage(callService);
               }),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _searchResults() {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      itemCount: controller.searchResults.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) {
+        final c = controller.searchResults[i];
+        return Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          child: ListTile(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            leading: CircleAvatar(
+              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+              child: Text(
+                c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
+                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+              ),
+            ),
+            title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            subtitle: Text(c.mobile, style: const TextStyle(fontSize: 12)),
+            trailing: IconButton(
+              icon: const Icon(Icons.call, color: AppColors.success),
+              onPressed: () => controller.callNumber(number: c.mobile, name: c.name),
+            ),
+            onTap: () => controller.selectCustomer(c),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _keypadPage(CallService callService) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: Column(
+        children: [
+          _numberHeader(),
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: _dialPad(64),
+            ),
+          ),
+          _callActions(callService),
+        ],
+      ),
+    );
+  }
+
+  Widget _numberHeader() {
+    return Obx(() {
+      final customer = controller.matchedCustomer.value;
+      final number = controller.dialedNumber.value;
+      return SizedBox(
+        height: 70,
+        width: double.infinity,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              customer?.name ?? (number.isEmpty ? 'Enter number' : number),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: customer != null ? 20 : (number.isEmpty ? 16 : 28),
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryDark,
+                letterSpacing: customer == null && number.isNotEmpty ? 1.4 : 0,
+              ),
+            ),
+            if (customer != null)
+              Text(customer.mobile, style: const TextStyle(color: AppColors.textSecondary)),
+            if (number.isNotEmpty && customer == null)
+              const Text(
+                'Unregistered number',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _callActions(CallService callService) {
@@ -267,7 +218,7 @@ class DialerView extends GetView<DialerController> {
     );
   }
 
-  Widget _dialPad() {
+  Widget _dialPad(double keySize) {
     const keys = [
       ['1', '2', '3'],
       ['4', '5', '6'],
@@ -275,26 +226,26 @@ class DialerView extends GetView<DialerController> {
       ['*', '0', '#'],
     ];
     return Column(
-      children: keys.asMap().entries.map((rowEntry) {
+      children: keys.map((row) {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: rowEntry.value.map((k) => _dialKey(k)).toList(),
+            children: row.map((k) => _dialKey(k, keySize)).toList(),
           ),
         );
       }).toList(),
     );
   }
 
-  Widget _dialKey(String key) {
+  Widget _dialKey(String key, double size) {
     return PressScale(
       onTap: () {
         if (RegExp(r'^\d$').hasMatch(key)) controller.appendDigit(key);
       },
       child: Container(
-        width: 64,
-        height: 64,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,
@@ -314,8 +265,12 @@ class DialerView extends GetView<DialerController> {
 
   Widget _recentCalls(CallService callService) {
     return Obx(() {
-      if (callService.recentLogs.isEmpty) return const SizedBox.shrink();
-      final logs = callService.recentLogs.take(4).toList();
+      if (callService.recentLogs.isEmpty) {
+        return const Center(
+          child: Text('No recent calls yet', style: TextStyle(color: AppColors.textSecondary)),
+        );
+      }
+      final logs = callService.recentLogs.take(20).toList();
       return ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         children: [

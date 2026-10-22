@@ -4,6 +4,7 @@ import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/services/data_refresh_service.dart';
 import '../../../routes/app_routes.dart';
+import '../../../utils/access_control.dart';
 
 class AuthController extends GetxController {
   NdfaApiService get _api => Get.find<NdfaApiService>();
@@ -54,6 +55,7 @@ class AuthController extends GetxController {
       if (u != null && !u.faceAttendanceRequired) {
         _storage.setFaceEnrollmentSkipped(false);
       }
+      if (AccessControl.leaveUnlessFieldAppUser()) return;
       _navigateAfterLogin();
     } catch (e) {
       Get.snackbar('Login Failed', e.toString().replaceFirst('Exception: ', ''));
@@ -113,6 +115,7 @@ class AuthController extends GetxController {
                 if (Get.isRegistered<DataRefreshService>()) {
                   Get.find<DataRefreshService>().refreshAll(silent: true);
                 }
+                if (AccessControl.leaveUnlessFieldAppUser()) return;
                 _navigateAfterLogin();
               } catch (e) {
                 Get.snackbar('OTP Failed', e.toString().replaceFirst('Exception: ', ''));

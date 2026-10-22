@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../../data/models/customer_listing_model.dart';
-import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_tokens.dart';
 import '../../../utils/view_load_state.dart';
@@ -24,12 +23,9 @@ class CustomerApplicationHubView extends GetView<CustomerApplicationHubControlle
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const CustomAppBar(title: 'Applications', subtitle: 'Customer onboarding'),
+      appBar: const CustomAppBar(title: 'Customer Listing', subtitle: 'Branch approval, then admin'),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final ok = await Get.toNamed<bool>(AppRoutes.customerApplicationNew);
-          if (ok == true) controller.refresh();
-        },
+        onPressed: () => controller.openNewApplication(),
         backgroundColor: AppColors.accent,
         child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
@@ -55,7 +51,7 @@ class CustomerApplicationHubView extends GetView<CustomerApplicationHubControlle
               onSelected: controller.setFilterIndex,
             ),
             NdfaSearchField(
-              hint: 'Search application ID, name…',
+              hint: 'Search listing, name or mobile…',
               onChanged: (v) => controller.searchQuery.value = v,
             ),
             Expanded(
@@ -85,12 +81,14 @@ class _ApplicationList extends GetView<CustomerApplicationHubController> {
     if (listings.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 48),
+        children: [
+          const SizedBox(height: 48),
           EmptyState(
-            title: 'No applications',
-            message: 'Tap + to submit a new customer application.',
+            title: 'No customer listings',
+            message: 'Tap + to capture a customer with live photos, shop GPS and neighbor notes.',
             icon: Icons.assignment_outlined,
+            actionLabel: 'New customer listing',
+            onAction: () => controller.openNewApplication(),
           ),
         ],
       );

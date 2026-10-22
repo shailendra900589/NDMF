@@ -27,7 +27,7 @@ class ApprovalTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const steps = ['Lead', 'Verification', 'Branch', 'Admin', 'Disbursement'];
+    const steps = ['Lead', 'Verification', 'Branch', 'Office', 'Disbursement'];
     final current = _currentStep;
     final isRejected = currentStatus == LoanStatus.rejected;
 

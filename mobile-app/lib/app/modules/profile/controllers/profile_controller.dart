@@ -8,6 +8,8 @@ import '../../../data/services/upload_service.dart';
 import '../../../data/models/enums/app_enums.dart';
 import '../../../routes/app_routes.dart';
 import '../../../utils/access_control.dart';
+import '../../../utils/app_logout.dart';
+import '../../../utils/app_permissions.dart';
 
 class ProfileController extends GetxController {
   final StorageService _storage = Get.find<StorageService>();
@@ -55,6 +57,18 @@ class ProfileController extends GetxController {
   String get branch => _storage.getUser()?.branch ?? '';
   String get mobile => _storage.getUser()?.mobile ?? '';
   String get role => _storage.getUser()?.role.label ?? '';
+  String get userId => _storage.getUser()?.id ?? '';
+  bool get faceEnrollmentComplete => _storage.getUser()?.faceEnrollmentComplete ?? false;
+
+  List<String> get enabledModuleLabels {
+    final user = _storage.getUser();
+    if (user == null) return [];
+    if (user.role == UserRole.admin) return ['All modules (Admin)'];
+    return AppPermissions.keys
+        .where((k) => user.permissions[k] == true)
+        .map((k) => AppPermissions.labels[k] ?? k)
+        .toList();
+  }
 
   Future<void> updatePhoto(BuildContext context) async {
     final path = await _camera.showImageSourceDialog(context);
@@ -98,14 +112,10 @@ class ProfileController extends GetxController {
   }
 
   Future<void> logoutAllSessions() async {
-    await _storage.logoutAllSessions();
-    Get.offAllNamed(AppRoutes.login);
+    await AppLogout.run(clearAllLocal: true);
   }
 
-  Future<void> logout() async {
-    await _storage.logoutAllSessions();
-    Get.offAllNamed(AppRoutes.login);
-  }
+  Future<void> logout() async => AppLogout.confirmAndRun();
 
   void navigateToChangePassword() => Get.toNamed(AppRoutes.changePassword);
   void navigateToDeviceInfo() => Get.toNamed(AppRoutes.deviceInfo);

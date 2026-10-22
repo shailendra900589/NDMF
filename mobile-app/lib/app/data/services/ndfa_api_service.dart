@@ -78,16 +78,23 @@ class NdfaApiService extends GetxService {
     String pan = '',
     double? latitude,
     double? longitude,
+    String? branch,
   }) async {
     if (!ApiConstants.useRemoteApi) {
       throw Exception('Create customer requires online API');
     }
+    final user = Get.find<StorageService>().getUser();
+    final userBranch = user?.branch.trim() ?? '';
+    final resolvedBranch = (branch != null && branch.trim().isNotEmpty)
+        ? branch.trim()
+        : (userBranch.isNotEmpty ? userBranch : (address.trim().isNotEmpty ? address.trim() : 'All branches'));
     return Get.find<RemoteApiService>().createCustomer({
       'name': name,
       'mobile': mobile,
       'address': address,
       'aadhaar': aadhaar,
       'pan': pan,
+      'branch': resolvedBranch,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
     });
@@ -123,9 +130,10 @@ class NdfaApiService extends GetxService {
     return Get.find<RemoteApiService>().setFaceAttendanceRequired(enabled);
   }
 
-  Future<Map<String, dynamic>> sendLiveTrackingPing({required double lat, required double lng}) async {
+  /// One GPS fix: lat, lng, accuracy (m), speed (m/s), heading, recordedAt, mocked.
+  Future<Map<String, dynamic>> sendLiveTrackingPing(Map<String, dynamic> fix) async {
     if (!ApiConstants.useRemoteApi) return {'totalKm': 0};
-    return Get.find<RemoteApiService>().sendLiveTrackingPing(lat: lat, lng: lng);
+    return Get.find<RemoteApiService>().sendLiveTrackingPing(fix);
   }
 
   Future<CustomerListingModel> submitCustomerListing(CustomerListingModel listing, {String? branch}) =>
@@ -168,6 +176,21 @@ class NdfaApiService extends GetxService {
   Future<List<Map<String, dynamic>>> getBranches() async {
     if (!ApiConstants.useRemoteApi) return [];
     return Get.find<RemoteApiService>().getBranches();
+  }
+
+  Future<Map<String, dynamic>> createBranch({
+    required String name,
+    String city = '',
+    String state = '',
+    String address = '',
+  }) async {
+    if (!ApiConstants.useRemoteApi) throw Exception('Create branch requires online API');
+    return Get.find<RemoteApiService>().createBranch({
+      'name': name,
+      'city': city,
+      'state': state,
+      'address': address,
+    });
   }
 
   Future<void> createUser(Map<String, dynamic> payload) async {

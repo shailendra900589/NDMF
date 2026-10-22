@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../theme/app_colors.dart';
+import '../../../widgets/custom_app_bar.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/services/maps_navigation_service.dart';
 import '../../../data/services/tracking_service.dart';
@@ -94,17 +95,9 @@ class _MapViewState extends State<MapView> {
     final mapsNav = Get.find<MapsNavigationService>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.customerName ?? 'Route map'),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.primaryDark, AppColors.primary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
+      appBar: CustomAppBar(
+        title: widget.customerName ?? 'Route map',
+        subtitle: 'Live route',
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

@@ -5,6 +5,7 @@ import '../../../data/services/storage_service.dart';
 import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/api_constants.dart';
 import '../../../routes/app_routes.dart';
+import '../../../utils/access_control.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -54,6 +55,7 @@ class _SplashViewState extends State<SplashView>
           return;
         }
       }
+      if (AccessControl.leaveUnlessFieldAppUser()) return;
       if (storage.hasPin) {
         Get.offAllNamed(AppRoutes.appLock);
       } else {
@@ -112,7 +114,7 @@ class _SplashViewState extends State<SplashView>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Field force · Live sync',
+                    'Branch & Employee',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 14,

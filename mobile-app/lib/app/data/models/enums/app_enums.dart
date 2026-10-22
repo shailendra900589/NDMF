@@ -18,7 +18,7 @@ extension LoanStatusExtension on LoanStatus {
       case LoanStatus.branchPending:
         return 'Branch Pending';
       case LoanStatus.adminPending:
-        return 'Admin Pending';
+        return 'Head office pending';
       case LoanStatus.approved:
         return 'Approved';
       case LoanStatus.rejected:
@@ -41,9 +41,9 @@ extension UserRoleExtension on UserRole {
   String get label {
     switch (this) {
       case UserRole.fieldOfficer:
-        return 'Field Officer';
+        return 'Employee';
       case UserRole.branchManager:
-        return 'Branch Manager';
+        return 'Branch';
       case UserRole.admin:
         return 'Admin';
     }
@@ -122,9 +122,9 @@ extension CustomerListingStatusExtension on CustomerListingStatus {
       case CustomerListingStatus.draft:
         return 'Draft';
       case CustomerListingStatus.branchPending:
-        return 'Branch Approval Pending';
+        return 'Waiting for branch';
       case CustomerListingStatus.adminPending:
-        return 'Admin Approval Pending';
+        return 'Waiting for head office';
       case CustomerListingStatus.listed:
         return 'Customer Listed';
       case CustomerListingStatus.rejected:
@@ -139,7 +139,7 @@ extension CustomerListingStatusExtension on CustomerListingStatus {
       case CustomerListingStatus.branchPending:
         return 'Branch';
       case CustomerListingStatus.adminPending:
-        return 'Admin';
+        return 'Office';
       case CustomerListingStatus.listed:
         return 'Listed';
       case CustomerListingStatus.rejected:

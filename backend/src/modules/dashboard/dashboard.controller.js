@@ -22,7 +22,9 @@ exports.getStats = (req, res) => {
   const todayAttendance = attendance.find(
     (a) => a.userId === req.user.id && a.date.startsWith(today)
   );
-  const todayTracking = tracking.find((t) => t.userId === req.user.id && t.date.startsWith(today));
+  const todayTracking = tracking.filter((t) => String(t.date).startsWith(today));
+  const ownKm = todayTracking.find((t) => t.userId === req.user.id)?.totalKm || 0;
+  const teamKm = todayTracking.reduce((sum, t) => sum + (Number(t.totalKm) || 0), 0);
 
   const callsToday = callLogs.filter((c) => String(c.date).startsWith(today));
   const callsWithRecording = callLogs.filter((c) => c.recordingUrl);
@@ -58,7 +60,8 @@ exports.getStats = (req, res) => {
         ? 'Checked Out'
         : 'Checked In'
       : 'Not Checked In',
-    distanceCoveredToday: todayTracking?.totalKm || 0,
+    distanceCoveredToday:
+      req.user.role === 'fieldOfficer' ? ownKm : Math.round(teamKm * 100) / 100,
     totalCallsToday: callsToday.length,
     totalCallsWithRecording: callsWithRecording.length,
     recentCallRecordings,

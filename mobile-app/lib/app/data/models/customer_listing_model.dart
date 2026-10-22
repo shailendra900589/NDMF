@@ -169,8 +169,24 @@ class CustomerListingModel {
       };
 
   factory CustomerListingModel.fromJson(Map<String, dynamic> json) {
-    GpsPhotoCapture? photo(Map<String, dynamic>? m) =>
-        m != null ? GpsPhotoCapture.fromJson(m) : null;
+    GpsPhotoCapture? photo(dynamic raw) {
+      if (raw == null) return null;
+      if (raw is String && raw.trim().isNotEmpty) {
+        return GpsPhotoCapture(
+          filePath: raw.trim(),
+          latitude: 0,
+          longitude: 0,
+          capturedAt: DateTime.now(),
+        );
+      }
+      if (raw is Map) {
+        return GpsPhotoCapture.fromJson(Map<String, dynamic>.from(raw));
+      }
+      return null;
+    }
+
+    final statusRaw = json['status']?.toString() ?? 'draft';
+    final statusNorm = statusRaw == 'submitted' ? 'branchPending' : statusRaw;
 
     return CustomerListingModel(
       id: json['id']?.toString() ?? '',
@@ -194,7 +210,7 @@ class CustomerListingModel {
               .toList() ??
           [],
       status: CustomerListingStatus.values.firstWhere(
-        (e) => e.name == json['status'],
+        (e) => e.name == statusNorm,
         orElse: () => CustomerListingStatus.draft,
       ),
       createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),

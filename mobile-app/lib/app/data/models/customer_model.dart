@@ -37,8 +37,8 @@ class CustomerModel {
       address: json['address'] ?? '',
       aadhaar: json['aadhaar'] ?? '',
       pan: json['pan'] ?? '',
-      latitude: json['latitude']?.toDouble(),
-      longitude: json['longitude']?.toDouble(),
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       listingId: json['listingId'],
       documentPaths: List<String>.from(json['documentPaths'] ?? []),
       loanHistory: (json['loanHistory'] as List<dynamic>?)

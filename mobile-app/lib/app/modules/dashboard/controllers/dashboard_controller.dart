@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../../../data/models/dashboard_stats.dart';
 import '../../../data/models/enums/app_enums.dart';
+import '../../../data/services/api_constants.dart';
 import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/services/tracking_service.dart';
@@ -41,7 +42,14 @@ class DashboardController extends GetxController {
   }
 
   @override
-  Future<void> refresh() async => loadStats();
+  Future<void> refresh() async {
+    if (ApiConstants.useRemoteApi) {
+      try {
+        await _api.syncSession();
+      } catch (_) {}
+    }
+    await loadStats();
+  }
 
   String get userName => _storage.getUser()?.name ?? 'User';
   String get userRole => _storage.getUser()?.role.label ?? '';

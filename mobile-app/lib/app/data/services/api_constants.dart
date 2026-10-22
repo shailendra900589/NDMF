@@ -39,7 +39,7 @@ class ApiConstants {
   static const Duration connectTimeout = Duration(seconds: 12);
   static const Duration receiveTimeout = Duration(seconds: 20);
   /// Long call recordings (up to 15 min).
-  static const Duration uploadTimeout = Duration(minutes: 8);
+  static const Duration uploadTimeout = Duration(minutes: 15);
 
   static const String login = '/auth/login';
   static const String logout = '/auth/logout';

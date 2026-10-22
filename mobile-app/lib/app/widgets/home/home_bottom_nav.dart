@@ -6,25 +6,18 @@ class HomeBottomNav extends StatelessWidget {
     super.key,
     required this.currentIndex,
     required this.onTap,
-    this.showDialer = true,
-    this.showCustomers = true,
     this.showApplications = true,
   });
 
   final int currentIndex;
   final ValueChanged<int> onTap;
-  final bool showDialer;
-  final bool showCustomers;
   final bool showApplications;
 
   @override
   Widget build(BuildContext context) {
     final items = <_NavDef>[
       const _NavDef(0, 'Home', Icons.home_rounded),
-      if (showDialer) const _NavDef(1, 'Dialer', Icons.dialpad_rounded),
-      if (showCustomers) const _NavDef(2, 'Customers', Icons.people_outline_rounded),
-      if (showApplications) const _NavDef(3, 'Applications', Icons.assignment_outlined),
-      const _NavDef(4, 'More', Icons.grid_view_rounded),
+      if (showApplications) const _NavDef(2, 'Listing', Icons.assignment_outlined),
     ];
     return Container(
       decoration: BoxDecoration(
@@ -100,6 +93,9 @@ class _NavItem extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,

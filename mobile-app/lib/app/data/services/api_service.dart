@@ -115,14 +115,19 @@ class ApiService extends GetxService {
   }
 
   Future<Response> upload(String path, FormData formData) async {
-    return _dio.post(
-      path,
-      data: formData,
-      options: Options(
-        contentType: 'multipart/form-data',
-        sendTimeout: ApiConstants.uploadTimeout,
-        receiveTimeout: ApiConstants.uploadTimeout,
-      ),
-    );
+    try {
+      return await _dio.post(
+        path,
+        data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+          sendTimeout: ApiConstants.uploadTimeout,
+          receiveTimeout: ApiConstants.uploadTimeout,
+        ),
+      );
+    } on DioException catch (e) {
+      _handleError(e);
+      throw Exception(apiErrorMessage(e));
+    }
   }
 }

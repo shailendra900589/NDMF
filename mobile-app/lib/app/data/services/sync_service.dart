@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import '../models/call_log_model.dart';
 import 'storage_service.dart';
@@ -20,6 +22,9 @@ class SyncService extends GetxService {
     ever(_connectivity.isOnline, (online) {
       if (online) syncPendingRecords();
     });
+    if (_connectivity.isOnline.value) {
+      unawaited(syncPendingRecords(silent: true));
+    }
     return this;
   }
 
@@ -83,10 +88,14 @@ class SyncService extends GetxService {
     var updated = log;
     if (!log.hasOnlineRecording && log.localRecordingPath != null) {
       try {
-        final url = await _upload.uploadVoiceFile(log.localRecordingPath!);
-        if (url.contains('/uploads/')) {
-          updated = log.copyWith(recordingUrl: url, localRecordingPath: null, synced: true);
-        }
+        final url = await _upload.uploadVoiceFileWithRetry(log.localRecordingPath!);
+        if (url == null || !url.contains('/uploads/')) return false;
+        updated = log.copyWith(
+          recordingUrl: UploadService.normalizeUploadPath(url),
+          synced: false,
+        );
+        await queuePendingCallLog(updated);
+        _patchLocalCallLog(updated);
       } catch (_) {
         return false;
       }

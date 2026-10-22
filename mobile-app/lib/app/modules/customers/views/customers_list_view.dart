@@ -43,33 +43,9 @@ class CustomersListView extends GetView<CustomersController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         title: 'Customers',
         subtitle: 'Master list',
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_alt_1_rounded),
-            tooltip: 'Add customer',
-            onPressed: () {
-              controller.resetAddCustomerForm();
-              Get.toNamed(AppRoutes.customerAdd);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.history_rounded),
-            onPressed: () => Get.toNamed(AppRoutes.callHistory),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          controller.resetAddCustomerForm();
-          Get.toNamed(AppRoutes.customerAdd);
-        },
-        backgroundColor: AppColors.accent,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add customer', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: Column(
         children: [
@@ -123,22 +99,13 @@ class CustomersListView extends GetView<CustomersController> {
                       ),
                       title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.w800)),
                       subtitle: Text('${customer.mobile} • ${customer.address.isNotEmpty ? customer.address.split(',').first : '—'}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.warning.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text('Lead', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.accentDark)),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.phone_rounded, color: AppColors.success),
-                            onPressed: () => controller.callCustomer(customer.name, customer.mobile),
-                          ),
-                        ],
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text('Lead', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.accentDark)),
                       ),
                       onTap: () => controller.viewCustomer(customer),
                     ),

@@ -16,10 +16,10 @@ class TrackingView extends GetView<TrackingController> {
       length: 2,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: CustomAppBar(
+        appBar: const CustomAppBar(
           title: 'GPS Duty',
           subtitle: 'Live tracking • route history',
-          bottom: const TabBar(
+          bottom: TabBar(
             indicatorColor: Colors.white,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { dashboardApi, trackingApi } from '../api/api';
+import { Link } from 'react-router-dom';
+import { dashboardApi } from '../api/api';
 import RecordingPlayer from '../components/RecordingPlayer';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import LiveTeamMap from '../components/LiveTeamMap';
+import useLiveTeam from '../hooks/useLiveTeam';
 import { displayLocation } from '../utils/displayLabels';
+import { canAccess } from '../utils/permissions';
 
 const STAT_META = {
   'Team members': { tone: 'teal', abbr: 'TM' },
@@ -18,22 +21,16 @@ const STAT_META = {
 export default function Dashboard() {
   const user = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
   const [stats, setStats] = useState(null);
-  const [liveTeam, setLiveTeam] = useState([]);
   const [loading, setLoading] = useState(true);
+  const showMap = user.role === 'admin' || canAccess(user, 'tracking');
+  const live = useLiveTeam(15000, showMap);
 
   useEffect(() => {
-    Promise.all([dashboardApi.getStats(), trackingApi.getLive()])
-      .then(([dash, live]) => {
-        setStats(dash.data);
-        setLiveTeam(live.data || []);
-      })
+    dashboardApi
+      .getStats()
+      .then((dash) => setStats(dash.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-
-    const t = setInterval(() => {
-      trackingApi.getLive().then((res) => setLiveTeam(res.data || [])).catch(() => {});
-    }, 30000);
-    return () => clearInterval(t);
   }, []);
 
   if (loading) return <PageLoader label="Loading dashboard..." />;
@@ -88,13 +85,19 @@ export default function Dashboard() {
         })}
       </div>
 
-      <section className="card card--section card--compact">
-        <div className="card__header">
-          <h2 className="card__title">Live field map</h2>
-          <span className="card__subtitle">Refreshes every 30s · from mobile GPS duty</span>
-        </div>
-        <LiveTeamMap team={liveTeam} />
-      </section>
+      {showMap && (
+        <section className="card card--section card--compact">
+          <div className="card__header">
+            <h2 className="card__title">Live field map</h2>
+            <span className="card__subtitle">
+              Updates every 15s while staff are checked in ·{' '}
+              {live.team.filter((e) => e.status === 'live').length} live now ·{' '}
+              <Link to="/tracking">Open full tracking</Link>
+            </span>
+          </div>
+          {live.error ? <p className="muted">{live.error}</p> : <LiveTeamMap team={live.team} height={340} />}
+        </section>
+      )}
 
       <section className="card card--section card--compact">
         <div className="card__header">

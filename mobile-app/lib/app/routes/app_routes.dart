@@ -16,6 +16,7 @@ class AppRoutes {
   static const String deviceInfo = '/profile/device-info';
   static const String mapView = '/map';
   static const String dialer = '/dialer';
+  static const String branches = '/branches';
   static const String team = '/team';
   static const String teamCreate = '/team/create';
   static const String teamAssign = '/team/assign';
@@ -23,5 +24,6 @@ class AppRoutes {
   static const String payslipForm = '/payslips/form';
   static const String faceEnrollment = '/face-enrollment';
   static const String customerApplication = '/customer-application';
-  static const String customerApplicationNew = '/customer-application/new';
+  /// Standalone path (not under `/customer-application`) so GetX routing stays reliable.
+  static const String customerApplicationNew = '/customer-listing/new';
 }

@@ -39,6 +39,12 @@ class RemoteApiService extends GetxService {
     throw e is Exception ? e : Exception(e.toString());
   }
 
+  Future<void> logout() async {
+    try {
+      await _http.post(ApiConstants.logout);
+    } catch (_) {}
+  }
+
   dynamic _unwrap(Response res) {
     final body = res.data;
     if (body is Map<String, dynamic>) {
@@ -227,11 +233,8 @@ class RemoteApiService extends GetxService {
     return data['faceAttendanceRequired'] != false;
   }
 
-  Future<Map<String, dynamic>> sendLiveTrackingPing({
-    required double lat,
-    required double lng,
-  }) async {
-    final res = await _http.post(ApiConstants.trackingLivePing, data: {'lat': lat, 'lng': lng});
+  Future<Map<String, dynamic>> sendLiveTrackingPing(Map<String, dynamic> fix) async {
+    final res = await _http.post(ApiConstants.trackingLivePing, data: fix);
     return _unwrapMap(res);
   }
 
@@ -252,6 +255,7 @@ class RemoteApiService extends GetxService {
     String? branch,
   }) async {
     final data = listing.toJson();
+    data.remove('status');
     if (branch != null && branch.isNotEmpty) data['branch'] = branch;
     final res = await _http.post(ApiConstants.customerListings, data: data);
     return CustomerListingModel.fromJson(_unwrapMap(res));
@@ -317,6 +321,11 @@ class RemoteApiService extends GetxService {
   Future<List<Map<String, dynamic>>> getBranches() async {
     final res = await _http.get(ApiConstants.branches);
     return _unwrapList(res);
+  }
+
+  Future<Map<String, dynamic>> createBranch(Map<String, dynamic> payload) async {
+    final res = await _http.post(ApiConstants.branches, data: payload);
+    return _unwrapMap(res);
   }
 
   Future<Map<String, dynamic>> createUser(Map<String, dynamic> payload) async {

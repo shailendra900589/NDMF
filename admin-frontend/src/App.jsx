@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import CustomerListings from './pages/CustomerListings';
 import Customers from './pages/Customers';
 import Tracking from './pages/Tracking';
+import EmployeeTracking from './pages/EmployeeTracking';
 import CallLogs from './pages/CallLogs';
 import Attendance from './pages/Attendance';
 import Users from './pages/Users';
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="customers" element={<PermissionRoute permission="customers"><Customers /></PermissionRoute>} />
         <Route path="attendance" element={<PermissionRoute permission="attendance"><Attendance /></PermissionRoute>} />
         <Route path="tracking" element={<PermissionRoute permission="tracking"><Tracking /></PermissionRoute>} />
+        <Route path="tracking/employee" element={<PermissionRoute permission="tracking"><EmployeeTracking /></PermissionRoute>} />
         <Route path="call-logs" element={<PermissionRoute permission="callLogs"><CallLogs /></PermissionRoute>} />
         <Route path="users" element={<PermissionRoute permission="users"><Users /></PermissionRoute>} />
         <Route path="branches" element={<PermissionRoute permission="branches"><Branches /></PermissionRoute>} />

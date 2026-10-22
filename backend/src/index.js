@@ -4,6 +4,8 @@
 const app = require('./app');
 const { port } = require('./config/env');
 const { initDb, flush } = require('./lib/db');
+const faceMatch = require('./lib/faceMatch');
+const tracking = require('./modules/tracking/tracking.controller');
 
 async function start() {
   try {
@@ -23,6 +25,8 @@ async function start() {
     console.log('  DB: PostgreSQL (ndfa_docs)');
     console.log('========================================');
     console.log('');
+    faceMatch.warmUp();
+    tracking.startMaintenance();
   });
 
   const shutdown = async () => {

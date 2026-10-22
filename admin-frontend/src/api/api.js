@@ -55,6 +55,7 @@ export const usersApi = {
   getAll: () => api.get('/users'),
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
+  resetFace: (id) => api.delete(`/users/${id}/face-enrollment`),
   getPermissionSchema: () => api.get('/users/permission-schema'),
 };
 
@@ -79,6 +80,9 @@ export const trackingApi = {
   getHistory: () => api.get('/tracking/history'),
   getToday: () => api.get('/tracking/today'),
   getLive: () => api.get('/tracking/live'),
+  getRoute: (params) => api.get('/tracking/route', { params }),
+  getPeople: () => api.get('/tracking/people'),
+  getDays: (params) => api.get('/tracking/days', { params }),
 };
 
 export const callLogsApi = {

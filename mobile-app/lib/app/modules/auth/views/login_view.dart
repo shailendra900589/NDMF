@@ -46,7 +46,7 @@ class LoginView extends GetView<AuthController> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Micro Foundation · Field app',
+                      'Branch & Employee sign in',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,

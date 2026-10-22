@@ -15,7 +15,12 @@ class ProfileView extends GetView<ProfileController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const CustomAppBar(title: 'Profile', subtitle: 'Account & security'),
+      appBar: const CustomAppBar(
+        title: 'Profile',
+        subtitle: 'Account & security',
+        showProfile: false,
+        showLogout: false,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -65,23 +70,17 @@ class ProfileView extends GetView<ProfileController> {
             ),
             const SizedBox(height: 12),
             _tile(Icons.badge, 'Employee ID', controller.employeeId),
-            _tile(Icons.business, 'Branch', controller.branch),
-            _tile(Icons.phone, 'Mobile', controller.mobile),
-            _menuTile(Icons.lock, 'Change Password', controller.navigateToChangePassword),
-            if (AccessControl.isAdmin)
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
-                child: Obx(() => SwitchListTile(
-                      secondary: const Icon(Icons.face_retouching_natural, color: AppColors.primary),
-                      title: const Text('Face attendance policy'),
-                      subtitle: const Text('OFF = GPS-only check-in for FO/BM'),
-                      value: controller.faceAttendanceRequired.value,
-                      onChanged: controller.facePolicySaving.value
-                          ? null
-                          : controller.toggleFaceAttendancePolicy,
-                    )),
+            _tile(Icons.fingerprint, 'User ID', controller.userId.isEmpty ? '—' : controller.userId),
+            _tile(Icons.business, 'Branch', controller.branch.isEmpty ? '—' : controller.branch),
+            _tile(Icons.phone, 'Mobile', controller.mobile.isEmpty ? '—' : controller.mobile),
+            if (AccessControl.isFieldOfficer || AccessControl.isBranchManager)
+              _tile(
+                Icons.face_retouching_natural,
+                'Face enrollment',
+                controller.faceEnrollmentComplete ? 'Completed' : 'Pending',
               ),
+            _permissionsSection(),
+            _menuTile(Icons.lock, 'Change Password', controller.navigateToChangePassword),
             Obx(() {
               if (!(AccessControl.isFieldOfficer || AccessControl.isBranchManager)) {
                 return const SizedBox.shrink();
@@ -119,17 +118,57 @@ class ProfileView extends GetView<ProfileController> {
             }),
             _menuTile(Icons.info_outline, 'App Version', () {}, trailing: Obx(() => Text('v${controller.appVersion.value}'))),
             const SizedBox(height: 24),
-            OutlinedButton.icon(
+            FilledButton.icon(
               onPressed: controller.logout,
-              icon: const Icon(Icons.logout, color: AppColors.error),
-              label: const Text('Logout', style: TextStyle(color: AppColors.error)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.error),
-                minimumSize: const Size(double.infinity, 48),
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text('Logout'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 52),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _permissionsSection() {
+    final labels = controller.enabledModuleLabels;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.verified_user_outlined, color: AppColors.primary, size: 22),
+              SizedBox(width: 8),
+              Text('Module access', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (labels.isEmpty)
+            const Text('No modules assigned', style: TextStyle(color: AppColors.textSecondary))
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: labels
+                  .map(
+                    (l) => Chip(
+                      label: Text(l, style: const TextStyle(fontSize: 12)),
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.2)),
+                    ),
+                  )
+                  .toList(),
+            ),
+        ],
       ),
     );
   }
