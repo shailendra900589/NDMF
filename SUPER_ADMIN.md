@@ -19,9 +19,7 @@ Use the existing database backup procedure before the first upgrade. From the ex
 ```bash
 cd ~/NDMF &&
 git pull --ff-only origin main &&
-(cd backend && npm ci --omit=dev) &&
-(cd admin-frontend && npm ci && npm run build) &&
-pm2 restart ndfa-api
+bash deploy/update-production.sh
 ```
 
 At backend startup an idempotent migration creates the Nirmaldhara company (`CO_NDFA`), assigns existing business records/users to it, migrates attendance settings, and provisions the reserved Super Admin once. No existing employee password is changed. **Do not run `npm run seed` during an upgrade**; it is for an empty development database and now refuses an existing database.

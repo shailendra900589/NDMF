@@ -4,6 +4,16 @@ Domain: **https://ndclients.co.in**
 API: **https://ndclients.co.in/api/v1**  
 Admin: **https://ndclients.co.in**
 
+## Update the existing EC2 deployment
+
+```bash
+cd ~/NDMF &&
+git pull --ff-only origin main &&
+bash deploy/update-production.sh
+```
+
+The update script builds the console, publishes it to Nginx's `/var/www/ndmf` directory, restarts the API and checks that the live login page references the new build. Building `admin-frontend/dist` alone does not update the website served by this host. Existing environment files and company data are preserved. If Nginx uses another document root, set `ADMIN_WEB_ROOT` to that directory when running the script.
+
 ## Pull on server
 
 ```bash
