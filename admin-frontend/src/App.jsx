@@ -16,6 +16,7 @@ import PaySlips from './pages/PaySlips';
 import Profile from './pages/Profile';
 import { canAccess } from './utils/permissions';
 import VerifiedSession, { useSession } from './auth/Session';
+import ConsoleScope from './auth/ConsoleScope';
 
 function PermissionRoute({ permission, children }) {
   const { user } = useSession();
@@ -38,7 +39,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/" element={<VerifiedSession><Layout /></VerifiedSession>}>
+      <Route path="/" element={<VerifiedSession><ConsoleScope><Layout /></ConsoleScope></VerifiedSession>}>
         <Route index element={<HomeRoute />} />
         <Route path="super-admin" element={<SuperAdminRoute />} />
         <Route path="customer-listings" element={<PermissionRoute permission="customerListings"><CustomerListings /></PermissionRoute>} />

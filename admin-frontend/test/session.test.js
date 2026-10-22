@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { createServer } from 'vite';
 
 test('protected console uses verified role and refreshes all consumers together', async () => {
@@ -15,19 +15,22 @@ test('protected console uses verified role and refreshes all consumers together'
     const listeners = new Map();
     globalThis.window = { addEventListener: (k,fn) => listeners.set(k,fn), removeEventListener: k => listeners.delete(k) };
     const { default: VerifiedSession, useSession } = await server.ssrLoadModule('/src/auth/Session.jsx');
+    const { default: ConsoleScope } = await server.ssrLoadModule('/src/auth/ConsoleScope.jsx');
     const { authApi } = await server.ssrLoadModule('/src/api/api.js');
     let resolve;
     authApi.me = () => new Promise(r => { resolve = r; });
-    function Consumer() { const { user } = useSession(); return React.createElement('span', null, user.role); }
+    function Consumer() { const { user } = useSession(); const { pathname } = useLocation(); return React.createElement('span', { 'data-path': pathname }, user.role); }
     await act(async () => { tree = create(React.createElement(MemoryRouter, { future: { v7_startTransition: true, v7_relativeSplatPath: true } },
-      React.createElement(VerifiedSession, null, React.createElement(Consumer), React.createElement(Consumer)))); });
+      React.createElement(VerifiedSession, null, React.createElement(ConsoleScope, null, React.createElement(Consumer), React.createElement(Consumer))))); });
     assert.equal(tree.root.findAllByType('span').length, 0, 'cached data must never open a protected page');
     await act(async () => resolve({ data: { id: 'platform', role: 'superAdmin' } }));
     assert.deepEqual(tree.root.findAllByType('span').map(n => n.children[0]), ['superAdmin', 'superAdmin']);
+    assert.equal(tree.root.findAllByType('span')[0].props['data-path'], '/super-admin');
     assert.equal(JSON.parse(values.get('ndfa_user')).role, 'superAdmin');
     authApi.me = async () => ({ data: { id: 'platform', role: 'admin' } });
     await act(async () => listeners.get('focus')());
     assert.deepEqual(tree.root.findAllByType('span').map(n => n.children[0]), ['admin', 'admin']);
+    assert.equal(tree.root.findAllByType('span')[0].props['data-path'], '/');
     authApi.me = async () => { throw { status: 403, message: 'Account is disabled' }; };
     await act(async () => listeners.get('focus')());
     assert.equal(values.has('ndfa_token'), false);

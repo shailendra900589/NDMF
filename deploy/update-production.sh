@@ -12,6 +12,10 @@ echo 'Installing backend dependencies'
 echo 'Building the staff console'
 (cd admin-frontend && npm ci && npm run build)
 
+echo 'Updating the active Nginx console cache policy (including HTTPS)'
+SITE_HOST=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).hostname)' "$SITE_URL")
+sudo python3 deploy/refresh-console-cache.py "$SITE_HOST" "$WEB_ROOT"
+
 echo "Publishing the console to $WEB_ROOT"
 sudo mkdir -p "$WEB_ROOT"
 # Keep previous hashed assets for browsers that still have an older page open.
@@ -37,6 +41,18 @@ if ! grep -Fq "$ENTRY" <<< "$LIVE_HTML"; then
   exit 1
 fi
 curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL$ENTRY" >/dev/null
+for PAGE in login super-admin; do
+  HEADERS=$(curl -fsSI --connect-timeout 10 --max-time 30 "$SITE_URL/$PAGE")
+  if ! grep -Eiq '^cache-control:.*no-store' <<< "$HEADERS"; then
+    echo "ERROR: /$PAGE is missing the HTML cache policy; check the active proxy/CDN configuration."
+    exit 1
+  fi
+  PAGE_HTML=$(curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/$PAGE")
+  if ! grep -Fq "$ENTRY" <<< "$PAGE_HTML"; then
+    echo "ERROR: /$PAGE is serving a different build."
+    exit 1
+  fi
+done
 echo "Verified release $(git rev-parse --short HEAD): $SITE_URL/login"
 echo 'Sign out, then sign in again. Super Admin opens /super-admin.'
 pm2 status
