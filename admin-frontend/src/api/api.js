@@ -72,6 +72,7 @@ export const customersApi = {
 };
 
 export const attendanceApi = {
+  getEnrollment: userId => api.get(`/attendance/enrollment/${encodeURIComponent(userId)}`),
   getHistory: () => api.get('/attendance/history'),
   getMonthly: (params) => api.get('/attendance/monthly', { params }),
 };

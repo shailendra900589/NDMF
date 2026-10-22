@@ -12,6 +12,20 @@ const {
 } = require('../../lib/faceMatch');
 const { checkAttendancePosition, workTypeOf } = require('../../lib/officeGeofence');
 
+exports.getEnrollmentPhotos = (req, res) => {
+  const target = findById('users', req.params.userId);
+  if (!target) return error(res, 'Employee not found', 404);
+  const own = target.id === req.user.id;
+  const manager = req.user.role === 'branchManager' && sameBranch(req.user, target.branch) && target.role === 'fieldOfficer';
+  if (!own && !isAdmin(req.user) && !manager) return error(res, 'You cannot view this employee’s registration photos', 403);
+  const photos = (Array.isArray(target.faceEnrollmentUrls) ? target.faceEnrollmentUrls : [])
+    .map(p => typeof p === 'string' ? p : p?.filePath)
+    .filter(p => typeof p === 'string' && /^(?:https?:\/\/[^/]+)?\/uploads\/[^\s/?#]+(?:[?#].*)?$/.test(p)).slice(0, 5);
+  res.setHeader('Cache-Control', 'private, no-store');
+  return success(res, { userId: target.id, name: target.name, complete: isEnrollmentComplete(target),
+    enrolledAt: target.faceEnrollmentAt || null, photos }, 'Attendance registration photos');
+};
+
 /** A passed face check is good for one check-in within this window. */
 const FACE_PASS_TTL_MS = 10 * 60 * 1000;
 const FACE_FAIL_WINDOW_MS = 15 * 60 * 1000;

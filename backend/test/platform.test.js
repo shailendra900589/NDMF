@@ -120,6 +120,28 @@ test('Super Admin lifecycle, company isolation and live permission enforcement',
     for (const path of ['/users','/users/permission-schema','/payslips']) assert.equal((await call(path, 'GET', undefined, admin)).status, 200, path);
     assert.equal((await call('/dashboard/stats', 'GET', undefined, admin)).data.scope, 'all_branches');
     assert.equal((await call('/dashboard/stats', 'GET', undefined, manager.token)).data.scope, 'branch');
+    const fs = require('node:fs'), path = require('node:path');
+    const photoName = `${co.id}_${require('node:crypto').randomUUID()}.png`;
+    const photoPath = path.join(__dirname, '../uploads', photoName);
+    fs.writeFileSync(photoPath, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRZ0AAAAASUVORK5CYII=', 'base64'));
+    t.after(() => fs.unlinkSync(photoPath));
+    const enrolled = db.findById('users', employee.user.id);
+    db.upsert('users', {...enrolled,faceEnrollmentUrls:Array(3).fill(`/uploads/${photoName}`),faceEnrollmentAt:new Date().toISOString(),faceDescriptors:[[1,2,3]],faceVerification:{secret:'never expose'}}, {single:true});
+    for (const actor of [admin, manager.token, employee.token]) {
+      const photos = await call(`/attendance/enrollment/${employee.user.id}`, 'GET', undefined, actor);
+      assert.equal(photos.status, 200); assert.equal(photos.data.photos.length, 3); assert.equal(photos.data.complete, true);
+      assert.ok(photos.data.photos[0].includes('signature='));
+      assert.ok(!JSON.stringify(photos.data).includes('faceDescriptors'));
+      assert.ok(!JSON.stringify(photos.data).includes('never expose'));
+      const image = await fetch(base.replace('/api/v1','') + photos.data.photos[0]);
+      assert.equal(image.status, 200);
+    }
+    assert.equal((await call(`/attendance/enrollment/${employee.user.id}`, 'GET', undefined, other.token)).status, 403);
+    assert.equal((await call(`/attendance/enrollment/${other.user.id}`, 'GET', undefined, manager.token)).status, 403);
+    assert.equal((await call(`/attendance/enrollment/${employee.user.id}`, 'GET', undefined, old)).status, 404);
+    await call(`/super-admin/companies/${co.id}`, 'PUT', {modules:{attendance:false}}, sa);
+    assert.equal((await call(`/attendance/enrollment/${employee.user.id}`, 'GET', undefined, admin)).status, 403);
+    await call(`/super-admin/companies/${co.id}`, 'PUT', {modules:{attendance:true}}, sa);
     const log = await call('/call-logs', 'POST', { mobile:'8000000000', callSummary:'South private call' }, other.token);
     assert.equal(log.status, 201);
     assert.equal((await call(`/call-logs/${log.data.id}`, 'PUT', {callSummary:'Hijacked'}, manager.token)).status, 403);

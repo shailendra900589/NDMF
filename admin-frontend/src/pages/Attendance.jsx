@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { displayLocation, displayRole, displayRoleShort } from '../utils/displayLabels';
 import { downloadExcel } from '../utils/exportExcel';
+import EnrollmentPhotos from '../components/EnrollmentPhotos';
 
 function fmtTime(iso) {
   if (!iso) return '—';
@@ -368,6 +369,7 @@ export default function Attendance() {
         </aside>
 
         <div className="att-main">
+          {selected && <EnrollmentPhotos key={selected.id} userId={selected.id} name={selected.name} />}
           {selected && (
             <section className="card att-calendar-card">
               <div className="att-calendar-card__head">

@@ -62,7 +62,18 @@ export default function Dashboard() {
       <PageHeader
         title="Dashboard"
         description="Live overview of listings, customers, field activity, and call recordings."
-      />
+      >
+        <button type="button" className="btn btn-outline" onClick={load}>Refresh overview</button>
+      </PageHeader>
+      <section className="dashboard-welcome">
+        <div><span className="section-kicker">{user.company?.name || 'YOUR WORKSPACE'}</span><h2>Operations at a glance</h2><p>Review applications, team attendance and field activity from one workspace.</p></div>
+        <div className="dashboard-shortcuts">{[
+          ['customerListings', '/customer-listings', 'Review applications'],
+          ['attendance', '/attendance', 'Team attendance'],
+          ['tracking', '/tracking', 'Track an employee'],
+          ['users', '/users', 'Manage team'],
+        ].filter(([permission]) => canAccess(user, permission)).map(([permission, to, label]) => <Link className="workspace-shortcut" to={to} key={permission}>{label}<span aria-hidden>↗</span></Link>)}</div>
+      </section>
 
       <div className={`scope-banner scope-banner--compact${isAllBranches ? ' scope-banner--admin' : ''}`}>
         <div className="scope-banner__icon">{isAllBranches ? 'ALL' : 'LOC'}</div>

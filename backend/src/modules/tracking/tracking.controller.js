@@ -268,6 +268,8 @@ function personInfo(u) {
     userId: u.id,
     name: u.name,
     employeeId: u.employeeId,
+    mobile: u.mobile || '',
+    email: u.email || '',
     branch: u.branch,
     role: u.role,
     workType: workTypeOf(u),

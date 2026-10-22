@@ -80,7 +80,7 @@ function ActivityStrip({ days, selected, onPick, retentionDays }) {
   );
 }
 
-export default function EmployeeTracking() {
+export default function EmployeeTracking({ embedded = false }) {
   const [params, setParams] = useSearchParams();
   const userId = params.get('userId') || '';
   const date = params.get('date') || todayKey();
@@ -88,6 +88,8 @@ export default function EmployeeTracking() {
   const [people, setPeople] = useState([]);
   const [retentionDays, setRetentionDays] = useState(90);
   const [days, setDays] = useState([]);
+  const [daysLoading, setDaysLoading] = useState(false);
+  const [daysError, setDaysError] = useState('');
   const [route, setRoute] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -119,15 +121,23 @@ export default function EmployeeTracking() {
 
   useEffect(() => {
     if (!userId) return;
-    trackingApi
-      .getDays({ userId, minStop })
-      .then((res) => setDays(res.data?.days || []))
-      .catch(() => setDays([]));
+    let active = true;
+    setDays([]);
+    setDaysLoading(true);
+    setDaysError('');
+    trackingApi.getDays({ userId, minStop })
+      .then(res => active && setDays(res.data?.days || []))
+      .catch(e => active && setDaysError(e.message || 'Unable to load duty history'))
+      .finally(() => active && setDaysLoading(false));
+    return () => { active = false; };
   }, [userId, minStop]);
 
   useEffect(() => {
     if (!userId) return undefined;
     let alive = true;
+    setRoute(null);
+    setFocus(null);
+    setError('');
     const load = (quiet) => {
       if (!quiet) setLoading(true);
       trackingApi
@@ -137,7 +147,7 @@ export default function EmployeeTracking() {
           setRoute(res.data);
           setError('');
         })
-        .catch((err) => alive && setError(err.message || 'Could not load route'))
+        .catch((err) => { if (alive) { setRoute(null); setError(err.message || 'Could not load route'); } })
         .finally(() => alive && setLoading(false));
     };
     load(false);
@@ -215,17 +225,17 @@ export default function EmployeeTracking() {
 
   return (
     <div className="rt-page">
-      <PageHeader
+      {!embedded && <PageHeader
         title="Employee route history"
         description={`Complete GPS path, stops and travel for every employee — kept for ${retentionDays} days.`}
       >
         <Link to="/tracking" className="btn btn-outline">← Live map</Link>
-      </PageHeader>
+      </PageHeader>}
 
       <div className="card rt-toolbar">
-        <div className="form-group">
-          <label>Employee</label>
-          <select value={userId} onChange={(e) => update({ userId: e.target.value })}>
+        {!embedded && <div className="form-group">
+          <label htmlFor="route-employee">Employee</label>
+          <select id="route-employee" value={userId} onChange={(e) => update({ userId: e.target.value, date: null })}>
             {!userId && <option value="">Select employee</option>}
             {grouped.map(([branch, list]) => (
               <optgroup key={branch} label={branch}>
@@ -237,10 +247,11 @@ export default function EmployeeTracking() {
               </optgroup>
             ))}
           </select>
-        </div>
+        </div>}
         <div className="form-group">
-          <label>Date</label>
+          <label htmlFor="route-date">Date</label>
           <input
+            id="route-date"
             type="date"
             value={date}
             max={todayKey()}
@@ -250,8 +261,8 @@ export default function EmployeeTracking() {
         </div>
         {isField && (
           <div className="form-group">
-            <label>Count a stop after</label>
-            <select value={minStop} onChange={(e) => setMinStop(Number(e.target.value))}>
+            <label htmlFor="route-stop">Count a stop after</label>
+            <select id="route-stop" value={minStop} onChange={(e) => setMinStop(Number(e.target.value))}>
               {STOP_FILTERS.map((m) => (
                 <option key={m} value={m}>{m} minutes</option>
               ))}
@@ -276,10 +287,22 @@ export default function EmployeeTracking() {
               {person.employeeId} · {displayLocation(person.branch)} ·{' '}
               <span className={`rt-badge rt-badge--${isField ? 'field' : 'office'}`}>{isField ? 'Field staff' : 'Office staff'}</span>
             </span>
+            <p className="employee-contact">{person.mobile || 'No mobile on file'}{person.email ? ` · ${person.email}` : ''} · {person.role === 'branchManager' ? 'Manager' : 'Employee'}</p>
           </div>
           <ActivityStrip days={days} selected={date} onPick={(d) => update({ date: d })} retentionDays={retentionDays} />
         </div>
       )}
+
+      <details className="card duty-history">
+        <summary>Duty history · {days.length} recorded shifts <span>View dates, attendance and distance</span></summary>
+        {daysLoading ? <p role="status">Loading duty history…</p> : daysError ? <p className="error-msg" role="alert">{daysError}</p> : days.length ? <div className="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Check-in</th><th>Check-out</th><th>Duty time</th><th>Distance</th><th>Stops</th><th>Details</th></tr></thead>
+          <tbody>{days.map(d => <tr key={d.attendanceId || d.date} className={d.date === date ? 'is-selected' : ''}>
+            <td>{fmtDay(d.date)}</td><td>{fmtTime(d.checkInTime)}</td><td>{d.checkOutTime ? fmtTime(d.checkOutTime) : 'Open shift'}</td>
+            <td>{fmtDuration(d.dutyMinutes)}</td><td>{Number(d.totalKm || 0).toFixed(2)} km</td><td>{d.stopCount || 0}</td>
+            <td><button type="button" className="btn btn-outline btn-sm" onClick={() => update({date:d.date})}>{d.date === date ? 'Selected day' : 'View day'}</button></td>
+          </tr>)}</tbody></table></div> : <p className="muted">No recorded duty in this history period.</p>}
+      </details>
 
       {loading && !route ? (
         <div className="card"><p className="muted">Loading route…</p></div>

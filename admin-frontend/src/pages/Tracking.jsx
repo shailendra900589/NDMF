@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+const EmployeeTracking = lazy(() => import('./EmployeeTracking'));
 import { trackingApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
@@ -7,59 +8,66 @@ import LiveTeamMap from '../components/LiveTeamMap';
 import useLiveTeam, { STATUS_LABELS, timeAgo, useNow } from '../hooks/useLiveTeam';
 import { displayLocation } from '../utils/displayLabels';
 
-const ROUTE_REFRESH_MS = 15000;
 
 export default function Tracking() {
   const live = useLiveTeam(15000);
   const now = useNow();
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState(null);
-  const [route, setRoute] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const selectedId = params.get('userId') || '';
+  const [people, setPeople] = useState([]);
+  const [peopleError, setPeopleError] = useState('');
+  const [historyError, setHistoryError] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setPeopleError('');
+    trackingApi.getPeople().then(res => { if (active) setPeople(res.data?.people || []); })
+      .catch(e => active && setPeopleError(e.message || 'Unable to load employees'));
+    return () => { active = false; };
+  }, [attempt]);
 
   useEffect(() => {
+    let active = true;
+    setHistoryLoading(true);
+    setHistoryError('');
     trackingApi
       .getHistory()
-      .then((res) => setHistory(res.data || []))
-      .catch(console.error)
-      .finally(() => setHistoryLoading(false));
-  }, []);
+      .then((res) => active && setHistory(res.data || []))
+      .catch(e => active && setHistoryError(e.message || 'Unable to load tracking history'))
+      .finally(() => active && setHistoryLoading(false));
+    return () => { active = false; };
+  }, [attempt]);
 
-  const loadRoute = useCallback((userId) => {
-    if (!userId) return;
-    trackingApi
-      .getRoute({ userId })
-      .then((res) => setRoute(res.data || null))
-      .catch(() => setRoute(null));
-  }, []);
-
-  useEffect(() => {
-    if (!selectedId) {
-      setRoute(null);
-      return undefined;
-    }
-    loadRoute(selectedId);
-    const t = setInterval(() => {
-      if (!document.hidden) loadRoute(selectedId);
-    }, ROUTE_REFRESH_MS);
-    return () => clearInterval(t);
-  }, [selectedId, loadRoute]);
-
-  const select = (userId) => setSelectedId((cur) => (cur === userId ? null : userId));
+  const select = userId => setParams(userId ? { userId } : {}, { replace: true });
 
   if (live.loading && historyLoading) return <PageLoader label="Loading tracking..." />;
 
-  const selected = live.team.find((e) => e.userId === selectedId);
 
   return (
     <div>
       <PageHeader
         title="Field tracking"
-        description="Live position of everyone on duty, updated every 15 seconds from the mobile app. Click a person to see today’s route."
+        description="Monitor the team or select an employee to review their profile, duty history and complete daily route."
       >
+        <button type="button" className="btn btn-outline" onClick={() => { setAttempt(n => n + 1); live.refresh(); }}>Refresh team</button>
         <Link to="/tracking/employee" className="btn btn-primary">Employee route history</Link>
       </PageHeader>
 
+      <section className="workspace-toolbar card">
+        <div><label htmlFor="tracking-employee">Employee workspace</label>
+          <select id="tracking-employee" value={selectedId} onChange={e => select(e.target.value)}>
+            <option value="">All employees · live overview</option>
+            {people.map(p => <option key={p.userId} value={p.userId}>{p.name} · {p.employeeId} · {displayLocation(p.branch)}</option>)}
+          </select>
+          <small>Includes employees who are currently off duty. History is available for the configured retention period.</small>
+        </div>
+        <div className="workspace-status"><strong>{live.team.filter(e => e.onDuty).length}</strong><span>On duty</span></div>
+        <div className="workspace-status"><strong>{people.length}</strong><span>Employees</span></div>
+      </section>
+      {peopleError && <p className="error-msg" role="alert">{peopleError}</p>}
+      {selectedId ? <Suspense fallback={<PageLoader label="Loading employee workspace…" />}><EmployeeTracking key={`${selectedId}-${attempt}`} embedded /></Suspense> : <>
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card__header">
           <h2 className="card__title">Live map</h2>
@@ -67,13 +75,12 @@ export default function Tracking() {
             {live.team.filter((e) => e.status === 'live').length} live ·{' '}
             {live.team.filter((e) => e.onDuty).length} on duty ·{' '}
             last refresh {live.updatedAt ? timeAgo(live.updatedAt.toISOString(), now) : '—'}
-            {selected && route ? ` · ${selected.name}: ${Number(route.totalKm || 0).toFixed(2)} km, ${route.points.length} route points` : ''}
           </span>
         </div>
         {live.error ? (
           <div className="empty-state"><p>{live.error}</p></div>
         ) : (
-          <LiveTeamMap team={live.team} selectedId={selectedId} onSelect={select} route={route} height={480} />
+          <LiveTeamMap team={live.team} selectedId={selectedId} onSelect={select} height={480} />
         )}
       </div>
 
@@ -121,6 +128,7 @@ export default function Tracking() {
       </div>
 
       <div className="card">
+        {historyError && <p className="error-msg" role="alert">{historyError}</p>}
         <h3 style={{ margin: '0 0 12px' }}>Daily distance history</h3>
         <div className="table-wrap">
           <table>
@@ -145,6 +153,7 @@ export default function Tracking() {
         </div>
         {!historyLoading && !history.length && <div className="empty-state"><p>No tracking data yet</p></div>}
       </div>
+      </>}
     </div>
   );
 }

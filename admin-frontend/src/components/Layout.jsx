@@ -1,7 +1,7 @@
 /**
  * App shell — sidebar, topbar, outlet
  */
-import { Component } from 'react';
+import { Component, useEffect, useState } from 'react';
 import { useSession } from '../auth/Session';
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { authApi } from '../api/api';
@@ -93,6 +93,8 @@ class PageErrorBoundary extends Component {
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
   const { user } = useSession();
   const isSuperAdmin = user.role === 'superAdmin';
   const isAdmin = user.role === 'admin';
@@ -110,10 +112,18 @@ export default function Layout() {
   const scopeLabel = isSuperAdmin ? 'All companies' : isAdmin ? (user.company?.name || 'All locations') : displayLocation(user.branch);
   const initials = (user.name || 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   const onProfile = location.pathname === '/profile';
+  const groups = isSuperAdmin ? [['Platform', navItems]] : [
+    ['Overview', navItems.filter(i => i.to === '/')],
+    ['Customers & applications', navItems.filter(i => ['/customer-listings', '/customers'].includes(i.to))],
+    ['Team operations', navItems.filter(i => ['/attendance', '/tracking', '/call-logs'].includes(i.to))],
+    ['Administration', navItems.filter(i => ['/users', '/branches', '/payslips'].includes(i.to))],
+  ];
+  const currentPage = onProfile ? 'My Profile' : location.pathname.startsWith('/tracking/employee') ? 'Employee route history' : navItems.find(i => i.to === location.pathname)?.label || 'Workspace';
 
   return (
-    <div className="layout">
-      <aside className="sidebar">
+    <div className={`layout${menuOpen ? ' layout--menu-open' : ''}`}>
+      {menuOpen && <button className="mobile-menu-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
+      <aside className="sidebar" id="operations-navigation">
         <div className="sidebar__brand">
           <div className="sidebar__logo-mark">N</div>
           <div>
@@ -123,11 +133,13 @@ export default function Layout() {
         </div>
 
         <nav className="sidebar__nav">
-          <span className="sidebar__section">Main menu</span>
-          {navItems.map((item) => (
+          {groups.filter(([, items]) => items.length).map(([title, items]) => <div className="sidebar__group" key={title}>
+          <span className="sidebar__section">{title}</span>
+          {items.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={() => setMenuOpen(false)}
               end={item.end}
               className={({ isActive }) => `nav-link${isActive ? ' nav-link--active' : ''}`}
             >
@@ -135,6 +147,7 @@ export default function Layout() {
               <span className="nav-link__label">{item.label}</span>
             </NavLink>
           ))}
+          </div>)}
         </nav>
 
         <div className="sidebar__footer">
@@ -151,8 +164,10 @@ export default function Layout() {
 
       <div className="main">
         <header className="topbar">
+          <button type="button" className="btn btn-outline mobile-nav-toggle" aria-controls="operations-navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)}>{menuOpen ? 'Close' : 'Menu'}</button>
           <div className="topbar__left">
             <span className="topbar__eyebrow">{isSuperAdmin ? 'Platform administration' : 'Operations console'}</span>
+            <span className="topbar__page">{currentPage}</span>
           </div>
           <div className="topbar__right">
             <div className="user-chip">
