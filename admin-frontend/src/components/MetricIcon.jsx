@@ -1,0 +1,4 @@
+export default function MetricIcon({ type }) {
+  const paths={team:<><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m1-16a3 3 0 0 1 0 6m3 10v-3a6 6 0 0 0-3-5"/></>,listings:<><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 3h6v4H9Zm0 9h6m-6 4h4"/></>,customers:<><circle cx="12" cy="8" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/></>,calls:<path d="m5 3 4 4-2 3a17 17 0 0 0 7 7l3-2 4 4-2 3C10 22 2 14 2 5Z"/>,rec:<><rect x="3" y="4" width="18" height="16" rx="4"/><path d="m10 8 6 4-6 4Z"/></>,km:<><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>};
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[type] || paths.team}</svg>;
+}

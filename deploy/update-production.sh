@@ -3,6 +3,7 @@
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WEB_ROOT="${ADMIN_WEB_ROOT:-/var/www/ndmf}"
+PUBLIC_ROOT="${PUBLIC_WEB_ROOT:-/var/www/ndmf-public}"
 SITE_URL="${SITE_URL:-https://ndclients.co.in}"
 [[ "$WEB_ROOT" = /* && "$WEB_ROOT" != / ]] || { echo 'ADMIN_WEB_ROOT must be an absolute website directory'; exit 1; }
 cd "$REPO_ROOT"
@@ -14,12 +15,15 @@ echo 'Building the staff console'
 (cd admin-frontend && npm ci && npm run build)
 
 echo 'Publishing public website and developer onboarding'
-sudo mkdir -p /var/www/ndmf-public
-sudo rsync -a --exclude=_preview_server.py public-site/ /var/www/ndmf-public/
+[[ "$PUBLIC_ROOT" = /* && "$PUBLIC_ROOT" != / ]] || { echo 'PUBLIC_WEB_ROOT must be an absolute website directory'; exit 1; }
+sudo mkdir -p "$PUBLIC_ROOT"
+sudo rsync -a --exclude=_preview_server.py --exclude=index.html public-site/ "$PUBLIC_ROOT/"
+sudo install -m 644 public-site/index.html "$PUBLIC_ROOT/index.html.next"
+sudo mv "$PUBLIC_ROOT/index.html.next" "$PUBLIC_ROOT/index.html"
 
 echo 'Updating the active Nginx console cache policy (including HTTPS)'
 SITE_HOST=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).hostname)' "$SITE_URL")
-sudo python3 deploy/refresh-console-cache.py "$SITE_HOST" "$WEB_ROOT"
+sudo python3 deploy/refresh-console-cache.py "$SITE_HOST" "$WEB_ROOT" --public-root "$PUBLIC_ROOT"
 
 echo 'Restarting the API'
 pm2 restart ndfa-api
@@ -63,6 +67,20 @@ for PAGE in login super-admin; do
     exit 1
   fi
 done
+echo 'Verifying the public homepage uses the new Smartstaff plus UI'
+HOME_HTML=$(curl -fsS --connect-timeout 10 --max-time 30 -H 'Cache-Control: no-cache' "$SITE_URL/?release=$(git rev-parse --short HEAD)")
+if ! grep -Fq 'data-public-release="smartstaff-ui-20261023"' <<< "$HOME_HTML"; then
+  echo 'ERROR: public homepage is stale or points to the wrong root. Inspect nginx -T and PUBLIC_WEB_ROOT.'
+  exit 1
+fi
+HOME_HEADERS=$(curl -fsSI --connect-timeout 10 --max-time 30 "$SITE_URL/")
+if ! grep -Eiq '^cache-control:.*no-store' <<< "$HOME_HEADERS"; then
+  echo 'ERROR: public homepage cache policy is missing; check the active proxy/CDN.'
+  exit 1
+fi
+curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/brand/site.js?v=2" >/dev/null
+curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/brand/styles.css?v=20261023-2" >/dev/null
+
 echo 'Verifying developer documentation and onboarding API'
 PORTAL_HTML=$(curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/brand/developers.html?release=$(git rev-parse --short HEAD)")
 grep -Fq 'id="onboarding"' <<< "$PORTAL_HTML"

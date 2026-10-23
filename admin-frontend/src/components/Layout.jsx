@@ -1,6 +1,7 @@
 /**
  * App shell — sidebar, topbar, outlet
  */
+import ThemeToggle from './ThemeToggle';
 import { Component, useEffect, useState } from 'react';
 import { useSession } from '../auth/Session';
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
@@ -77,7 +78,7 @@ class PageErrorBoundary extends Component {
       return (
         <div className="card" style={{ padding: 28, maxWidth: 560 }}>
           <h2 style={{ marginTop: 0 }}>This page could not open</h2>
-          <p style={{ color: '#64748b' }}>
+          <p style={{ color: 'var(--color-text-muted)' }}>
             The menu is still available. Open another page, or try this one again.
           </p>
           <button type="button" className="btn btn-primary" onClick={() => this.setState({ error: null })}>
@@ -125,10 +126,10 @@ export default function Layout() {
       {menuOpen && <button className="mobile-menu-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
       <aside className="sidebar" id="operations-navigation">
         <div className="sidebar__brand">
-          <div className="sidebar__logo-mark">S</div>
+          <img className="sidebar__brand-icon" src="/smartstaff-plus-icon.svg" width="40" height="40" alt="" />
           <div>
-            <div className="sidebar__title">{isSuperAdmin ? 'Smartstaff plus' : user.company?.name || 'Smartstaff plus'}</div>
-            <div className="sidebar__subtitle">{isSuperAdmin ? 'Super Admin Console' : 'Operations Console'}</div>
+            <div className="sidebar__title">Smartstaff <span>plus</span></div>
+            <div className="sidebar__subtitle">{isSuperAdmin ? 'Platform administration' : user.company?.name || 'Operations workspace'}</div>
           </div>
         </div>
 
@@ -170,6 +171,7 @@ export default function Layout() {
             <span className="topbar__page">{currentPage}</span>
           </div>
           <div className="topbar__right">
+            <ThemeToggle />
             <div className="user-chip">
               <div className="user-chip__avatar">{initials}</div>
               <div className="user-chip__meta">

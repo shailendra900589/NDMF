@@ -500,7 +500,7 @@ export default function CustomerListings() {
                     style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 8 }}
                   />
                 </a>
-                {photoMeta(p) ? <p style={{ fontSize: 11, color: '#64748b' }}>{photoMeta(p)}</p> : null}
+                {photoMeta(p) ? <p style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{photoMeta(p)}</p> : null}
               </div>
             ))}
           </div>
@@ -522,13 +522,13 @@ export default function CustomerListings() {
           )}
           <div style={{ marginTop: 16 }}>
             <h4 style={{ marginBottom: 8 }}>Calls</h4>
-            {calls.length === 0 && <p style={{ color: '#64748b' }}>No calls saved for this mobile yet.</p>}
+            {calls.length === 0 && <p style={{ color: 'var(--color-text-muted)' }}>No calls saved for this mobile yet.</p>}
             {calls.map((call) => (
               <div key={call.id} className="recording-row">
                 <p>
                   <strong>{call.customerName || selected.name}</strong> · {call.duration || '—'} · {call.callStatus || '—'}
                 </p>
-                <p style={{ fontSize: 12, color: '#64748b' }}>
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                   {call.date ? new Date(call.date).toLocaleString() : ''} {call.callSummary ? `· ${call.callSummary}` : ''}
                 </p>
                 {call.recordingUrl && <RecordingPlayer url={call.recordingUrl} compact />}

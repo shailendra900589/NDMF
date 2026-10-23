@@ -200,7 +200,7 @@ export default function Users() {
           <tbody>
             {users.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ padding: 24, color: '#6b7280' }}>
+                <td colSpan={7} style={{ padding: 24, color: 'var(--color-text-muted)' }}>
                   No employees yet. Use &quot;Add employee&quot; to create an Employee.
                 </td>
               </tr>
@@ -269,7 +269,7 @@ export default function Users() {
             )}
             {editId && (
               <>
-                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
+                <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 8 }}>
                   Mobile: {form.mobile} • ID {form.employeeId}
                 </p>
                 <div className="form-group">
@@ -382,7 +382,7 @@ export default function Users() {
               )}
             </div>
             <h4 style={{ marginTop: 12 }}>Page & function access</h4>
-            <p style={{ color: '#64748b', fontSize: 12 }}>Access policies are managed centrally by Super Admin.</p>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>Access policies are managed centrally by Super Admin.</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {permKeys.map((key) => (
                 <label key={key} style={{ fontSize: 13 }}>

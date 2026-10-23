@@ -1,3 +1,4 @@
+import ThemeToggle from '../components/ThemeToggle';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/api';
@@ -37,6 +38,7 @@ export default function Login() {
 
   return (
     <div className="login-page">
+      <div className="login-theme"><ThemeToggle /></div>
       <div className="login-page__glow login-page__glow--a" aria-hidden />
       <div className="login-page__glow login-page__glow--b" aria-hidden />
       <div className="login-page__grid" aria-hidden />

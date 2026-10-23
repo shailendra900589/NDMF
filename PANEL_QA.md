@@ -53,3 +53,11 @@ Verification: all four frontend tests and the production build pass. Regression 
 - Invalid/out-of-range check-in and check-out coordinates are rejected. Attendance writes persist before success; duplicate submissions are guarded in the phone UI. India business days are used in attendance reports; UTC timestamps are displayed in the phone's local timezone. Active shifts up to 20 hours can be checked out across midnight.
 - Website, console, mobile app labels/icons, developer guide, and default company branding use Smartstaff plus. Existing original-tenant payslips are migrated; unrelated companies and installed Android package identities remain compatible.
 - HTTP tests use an isolated database adapter and deterministic face inference. Physical camera/lighting/recognition accuracy still needs an installed-phone smoke test after deployment; automated tests do not establish real-world biometric accuracy.
+
+## Smartstaff plus visual upgrade — 23 October 2026
+
+The public homepage now presents attendance, field routes, customer workflows, calls, people and developer access, with an interactive perspective product preview. Preview records are explicitly illustrative. The console uses a shared responsive visual system, SVG dashboard metrics and a redesigned welcome area. Public pages, login and all console roles share a persistent light/dark preference. Reduced-motion preferences disable decorative animation; pay slips retain a white print palette.
+
+Local browser verification used isolated fictional records: dashboard in both themes, Super Admin, tracking, attendance, mobile navigation, public preview tabs and developer guide. Homepage widths of 320, 390 and 1440 pixels and mobile developer guide were checked for horizontal overflow. No production users or biometric records were changed.
+
+Deployment now publishes the public homepage atomically and patches the active Nginx homepage/developer guide HTML routes with no-store headers while retaining API, TLS and upload configuration. The homepage release marker is `smartstaff-ui-20261023`. These changes require running the production updater; local screenshots do not confirm a live deployment.

@@ -114,7 +114,7 @@ async function downloadMultiPagePdf(pageEls, filename) {
     const canvas = await html2canvas(pageEls[i], {
       scale: 2,
       useCORS: true,
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--color-surface)',
       logging: false,
     });
     const img = canvas.toDataURL('image/png');
@@ -412,7 +412,7 @@ export default function PaySlips() {
               <tbody>
                 {list.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: '#6b7280' }}>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
                       No pay slips yet. Create the first one.
                     </td>
                   </tr>

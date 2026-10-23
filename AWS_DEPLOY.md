@@ -82,6 +82,8 @@ npm run build
 
 Proxy `/api/` and `/uploads/` to Node `:5000`, serve admin `dist/` on `/`.
 
+The production updater configures the exact `/` route for the public homepage and leaves console routes on the admin SPA. Public assets default to `/var/www/ndmf-public`; set `PUBLIC_WEB_ROOT` when using another absolute path. It validates the Smartstaff homepage release marker, no-store HTML policy and public assets after publishing. Run `bash deploy/update-production.sh` after pulling the new UI; copying only the admin build will not update the public homepage.
+
 ## Login
 
 See **DEMO_LOGINS.md** — Admin `9000000001` / `ndfa1234` @ https://ndclients.co.in

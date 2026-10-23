@@ -73,12 +73,12 @@ export default function CallLogs() {
                 <td>
                   {new Date(l.date).toLocaleDateString('en-IN')}
                   <br />
-                  <span style={{ fontSize: 12, color: '#6b7280' }}>{l.time}</span>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{l.time}</span>
                 </td>
                 <td>
                   {l.duration || '-'}
                   {l.durationSeconds != null && (
-                    <div style={{ fontSize: 11, color: '#6b7280' }}>{l.durationSeconds}s verified</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{l.durationSeconds}s verified</div>
                   )}
                 </td>
                 <td>{statusBadge(l.callStatus, l.telephonyVerified)}</td>

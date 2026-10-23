@@ -10,7 +10,9 @@ TOKEN = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\#[^\n]*|\$\{[^}]*\}|
 HEADER = 'add_header Cache-Control "no-cache, no-store, must-revalidate" always;'
 
 
-def patch(text, hostname, web_root):
+def patch(text, hostname, web_root, public_root='/var/www/ndmf-public'):
+    if not re.fullmatch(r'/[A-Za-z0-9_./-]+', public_root) or public_root == '/':
+        raise ValueError('PUBLIC_WEB_ROOT must be an absolute website directory without spaces')
     tokens = [m for m in TOKEN.finditer(text) if not m.group().startswith('#')]
     stack, blocks = [], []
     start = 0
@@ -47,6 +49,24 @@ def patch(text, hostname, web_root):
         if root[1].strip().strip('\"\'').rstrip('/') != web_root.rstrip('/'):
             raise ValueError(f'Active root differs from {web_root}; set ADMIN_WEB_ROOT to {root[1].strip()}')
         matched += 1
+        # Keep the public website separate from the staff SPA on every active
+        # HTTP/HTTPS vhost, without replacing certificates or API proxy rules.
+        public_locations = [
+            (['location', '=', '/'], f'root {public_root};\n    try_files /index.html =404;\n    {HEADER}'),
+            (['location', '^~', '/brand/'], f'alias {public_root}/brand/;\n    expires 1h;'),
+            (['location', '=', '/brand/developers.html'], f'alias {public_root}/brand/developers.html;\n    {HEADER}'),
+        ]
+        for directive, content in public_locations:
+            existing = [(h, o, c) for h, o, c in nested
+                        if [t.group() for t in tokens[h:o]] == directive or
+                        (directive == ['location', '^~', '/brand/'] and [t.group() for t in tokens[h:o]] == ['location', '/brand/'])]
+            if existing:
+                h, o, c = existing[0]
+                # Replace just the relevant location block, preserving other routes.
+                edits.append((tokens[h].start(), tokens[c].end(), ' '.join(directive) + ' {\n    ' + content + '\n  }'))
+            else:
+                pos = tokens[closing].start()
+                edits.append((pos, pos, '  ' + ' '.join(directive) + ' {\n    ' + content + '\n  }\n'))
         locations = [(h, o, c) for h, o, c in nested
                      if [t.group() for t in tokens[h:o]] == ['location', '=', '/index.html']]
         if locations:
@@ -69,6 +89,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('hostname')
     parser.add_argument('web_root')
+    parser.add_argument('--public-root', default='/var/www/ndmf-public')
     args = parser.parse_args()
     config = subprocess.run(['nginx', '-T'], capture_output=True, text=True, check=True).stdout
     paths = set(re.findall(r'^# configuration file (.+):$', config, re.M))
@@ -78,7 +99,7 @@ def main():
         if path in changes:
             continue
         original = path.read_text()
-        updated, matched = patch(original, args.hostname, args.web_root)
+        updated, matched = patch(original, args.hostname, args.web_root, args.public_root)
         count += matched
         if updated != original:
             changes[path] = (original, updated)

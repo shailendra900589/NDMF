@@ -1,3 +1,4 @@
+import MetricIcon from '../components/MetricIcon';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { dashboardApi } from '../api/api';
@@ -66,7 +67,8 @@ export default function Dashboard() {
         <button type="button" className="btn btn-outline" onClick={load}>Refresh overview</button>
       </PageHeader>
       <section className="dashboard-welcome">
-        <div><span className="section-kicker">{user.company?.name || 'YOUR WORKSPACE'}</span><h2>Operations at a glance</h2><p>Review applications, team attendance and field activity from one workspace.</p></div>
+        <div className="dashboard-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div><span className="section-kicker">{user.company?.name || 'YOUR WORKSPACE'}</span><p className="dashboard-greeting">YOUR WORKDAY, CONNECTED</p><h2>Good to see you, {user.name?.split(' ')[0] || 'there'}.</h2><p>Review applications, team attendance and field activity from one workspace.</p></div>
         <div className="dashboard-shortcuts">{[
           ['customerListings', '/customer-listings', 'Review applications'],
           ['attendance', '/attendance', 'Team attendance'],
@@ -97,7 +99,7 @@ export default function Dashboard() {
           const meta = STAT_META[m.label] || { tone: 'teal', abbr: '—' };
           return (
             <article key={m.key} className={`stat-card stat-card--compact stat-card--${meta.tone}`}>
-              <span className="stat-card__icon" aria-hidden>{meta.abbr}</span>
+              <span className="stat-card__icon" aria-hidden><MetricIcon type={m.key} /></span><span className="stat-card__context">{m.key === 'team' || m.key === 'customers' ? 'Workspace total' : m.key === 'listings' ? 'Awaiting review' : 'Activity overview'}</span>
               <div className="stat-card__value">{m.value}</div>
               <div className="stat-card__label">{m.label}</div>
             </article>
