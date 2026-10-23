@@ -1,5 +1,5 @@
 const { v4: uuid } = require('uuid');
-const { getCollection, findById, upsert } = require('../../lib/db');
+const { getCollection, findById, upsert, removeById, flush } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { isAdmin, sameBranch } = require('../../lib/rbac');
 const { cleanCoord, cleanRadius, MIN_RADIUS_M, MAX_RADIUS_M } = require('../../lib/officeGeofence');
@@ -33,9 +33,9 @@ exports.getAll = (req, res) => {
   return success(res, branches);
 };
 
-exports.create = (req, res) => {
+exports.create = async (req, res) => {
   const { name, code, address, city, state } = req.body;
-  if (!name?.trim()) return error(res, 'Branch name required');
+  if (typeof name !== 'string' || !name.trim() || name.trim().length > 160) return error(res, 'Branch name required (maximum 160 characters)');
   const branches = getCollection('branches');
   if (branches.some((b) => b.name.toLowerCase() === name.trim().toLowerCase())) {
     return error(res, 'Branch already exists');
@@ -57,17 +57,27 @@ exports.create = (req, res) => {
     createdAt: new Date().toISOString(),
   };
   upsert('branches', branch);
+  await flush();
   return success(res, branch, 'Branch created', 201);
 };
 
-exports.update = (req, res) => {
+const LINKED_COLLECTIONS=['users','customers','customerListings','attendance','tracking','liveLocations','callLogs','leads','loans','collections','payslips'];
+const linkedTo=(record,branch)=>record.branchId===branch.id || (typeof record.branch==='string' && record.branch.trim()===branch.name.trim());
+
+exports.update = async (req, res) => {
   const branch = findById('branches', req.params.id);
   if (!branch) return error(res, 'Branch not found', 404);
   const { name, address, city, state, isActive } = req.body;
   const office = officeFields(req.body);
   if (office.error) return error(res, office.error);
-  if (name && name.trim() !== branch.name) {
-    return error(res, 'Location name cannot be changed — employees are linked to it');
+  if (name !== undefined && (typeof name!=='string' || !name.trim() || name.trim().length>160)) return error(res,'Branch name required (maximum 160 characters)');
+  const nextName=name===undefined ? branch.name : name.trim();
+  if(getCollection('branches').some(b=>b.id!==branch.id && b.name.trim().toLowerCase()===nextName.toLowerCase()))return error(res,'Branch already exists',409);
+  if (nextName !== branch.name) {
+    for(const collection of LINKED_COLLECTIONS)for(const record of getCollection(collection).filter(r=>linkedTo(r,branch))){
+      upsert(collection,{...record,branch:nextName},{single:true});
+    }
+    branch.name=nextName;
   }
   if (address !== undefined) branch.address = address;
   if (city !== undefined) branch.city = city;
@@ -79,5 +89,15 @@ exports.update = (req, res) => {
     branch.officeLocationUpdatedBy = req.user.id;
   }
   upsert('branches', branch);
+  await flush();
   return success(res, branch, 'Branch updated');
+};
+
+exports.remove = async (req,res) => {
+  const branch=findById('branches',req.params.id);
+  if(!branch)return error(res,'Branch not found',404);
+  const links=LINKED_COLLECTIONS.filter(collection=>getCollection(collection).some(r=>linkedTo(r,branch)));
+  if(links.length)return error(res,'Cannot delete this branch because it has linked employees, customers or operational records. Existing records must be preserved.',409);
+  removeById('branches',branch.id);await flush();
+  return success(res,{id:branch.id},'Branch deleted');
 };

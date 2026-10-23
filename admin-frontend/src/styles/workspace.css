@@ -78,3 +78,4 @@
 }
 .route-stop-label{white-space:normal;min-width:150px;max-width:230px;line-height:1.5}.route-stop-place{font-size:11px;max-width:210px;overflow-wrap:anywhere}.route-month-report input[type=month]{display:block;width:100%;margin-top:8px;padding:12px;border:1px solid var(--color-border);border-radius:10px;background:var(--color-surface);color:var(--color-text)}.route-month-report h2{margin-top:0}.route-month-report .btn{margin:4px}.route-month-report small{display:block}
 .route-month-fields{display:grid;grid-template-columns:minmax(180px,1fr) minmax(200px,1fr);gap:24px;align-items:center;margin:20px 0}.route-month-fields strong{font-size:26px}.route-month-fields label{font-weight:600}@media(max-width:640px){.route-month-fields{grid-template-columns:minmax(0,1fr);gap:16px}}
+.branch-actions{display:flex;gap:8px;flex-wrap:wrap;min-width:100px}.branch-actions .btn{white-space:nowrap}

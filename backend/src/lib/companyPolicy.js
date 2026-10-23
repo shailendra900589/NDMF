@@ -1,12 +1,12 @@
 const MODULES = {
   dashboard: 'Dashboard', customerListings: 'Customer listings', customers: 'Customers',
   attendance: 'Attendance', tracking: 'GPS tracking', callLogs: 'Call logs',
-  users: 'Users & permissions', branches: 'Locations', payslips: 'Pay slips',
+  users: 'Users & permissions', branches: 'Branch Management', payslips: 'Pay slips',
 };
 const ACTIONS = { create: 'Create / submit', update: 'Edit / update', delete: 'Delete / reset', approve: 'Approve / assign', export: 'Export / download' };
 const MODULE_ACTIONS = { dashboard: [], customerListings: ['create','approve','export'], customers: ['create','export'],
   attendance: ['create','update','export'], tracking: ['create'], callLogs: ['create','update'],
-  users: ['create','update','delete'], branches: ['create','update'], payslips: ['create','update','delete','export'] };
+  users: ['create','update','delete'], branches: ['create','update','delete'], payslips: ['create','update','delete','export'] };
 const allModules = () => Object.fromEntries(Object.keys(MODULES).map(k => [k, true]));
 const allActions = () => Object.fromEntries(Object.keys(MODULES).map(k => [k, Object.fromEntries(Object.keys(ACTIONS).map(a => [a, true]))]));
 function companyFor(user) {

@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { to: '/tracking', label: 'Tracking', permission: 'tracking', icon: 'tracking' },
   { to: '/call-logs', label: 'Call Logs', permission: 'callLogs', icon: 'calls' },
   { to: '/users', label: 'Users & Permissions', permission: 'users', icon: 'users' },
-  { to: '/branches', label: 'Locations', permission: 'branches', adminOnly: true, icon: 'branches' },
+  { to: '/branches', label: 'Branch Management', permission: 'branches', adminOnly: true, icon: 'branches' },
   { to: '/payslips', label: 'Pay Slips', permission: 'payslips', adminOnly: true, icon: 'payslips' },
 ];
 

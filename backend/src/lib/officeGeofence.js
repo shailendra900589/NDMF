@@ -75,7 +75,7 @@ function checkAttendancePosition(user, lat, lng, accuracy) {
       distanceMeters: null,
       radiusMeters: null,
       officeName: branch?.name || user.branch || null,
-      message: `Office location for ${branch?.name || user.branch || 'your branch'} is not set yet. Ask admin to set it under Locations.`,
+      message: `Office location for ${branch?.name || user.branch || 'your branch'} is not set yet. Ask admin to set it under Branch Management.`,
     };
   }
 

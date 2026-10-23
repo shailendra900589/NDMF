@@ -71,3 +71,9 @@ The Monthly travel report provides day-wise kilometres, duty minutes, stop count
 Report dates use India business days, preserving UTC storage and existing internal tracking identifiers. No GPS data is reported explicitly; missing history is not evidence of zero travel. The configured retention window still applies (90 days by default). Distances remain estimates from recorded GPS, not reconstructed road travel.
 
 Verification: 27 backend tests, seven frontend tests and production build passed. Browser verification used an isolated fictional employee on 22 October: 4.25 km, three stops, a successful monthly CSV download and phone layout without document overflow. No production employee records were changed. Physical phone GPS acquisition and actual production history were not verified in this run.
+
+## Branch Management — 24 October 2026
+
+Locations is now Branch Management in navigation, page titles, permission labels and office-GPS guidance. Branch name can be edited alongside its existing address/geofence settings. Renaming preserves the branch ID/code and updates company-scoped employees and operational records that reference the old name. Empty/duplicate names are rejected. The delete action appears beside the branch name on mobile, requires a confirmation dialog and is controlled by the company delete entitlement. Linked employees or historical records block deletion; unused branches can be deleted. Create, edit and delete wait for database persistence before success.
+
+Verification: 28 backend tests pass, including tenant isolation, linked-name propagation, duplicate/empty validation, role/action checks and guarded deletion. The production frontend build passed. Browser verification renamed a fictional branch successfully and checked that Edit/Delete buttons are visible beside its name on a phone layout. Only isolated temporary records were used.

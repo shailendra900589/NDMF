@@ -63,6 +63,7 @@ export const branchesApi = {
   getAll: () => api.get('/branches'),
   create: (data) => api.post('/branches', data),
   update: (id, data) => api.put(`/branches/${id}`, data),
+  remove: (id) => api.delete(`/branches/${id}`),
 };
 
 export const customersApi = {

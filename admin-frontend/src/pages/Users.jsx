@@ -358,7 +358,7 @@ export default function Users() {
                       <p style={{ fontSize: 12, margin: '4px 0 0', color: hasGps ? '#64748b' : '#b45309' }}>
                         {hasGps
                           ? 'Allowed radius in metres for this employee. Leave empty to use the office default.'
-                          : `Office GPS for ${form.branch || 'this location'} is not set yet — this employee cannot check in until admin sets it under Locations.`}
+                          : `Office GPS for ${form.branch || 'this location'} is not set yet — this employee cannot check in until admin sets it under Branch Management.`}
                       </p>
                     </div>
                   );

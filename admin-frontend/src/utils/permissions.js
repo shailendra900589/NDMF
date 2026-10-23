@@ -42,7 +42,7 @@ export const PERMISSION_LABELS = {
   tracking: 'Live GPS tracking (team map)',
   callLogs: 'Call Logs',
   users: 'User management',
-  branches: 'Locations',
+  branches: 'Branch Management',
   payslips: 'Pay Slips',
 };
 

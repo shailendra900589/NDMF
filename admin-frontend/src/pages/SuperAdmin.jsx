@@ -59,7 +59,7 @@ export default function SuperAdmin() {
     <header className="sa-hero"><div><span className="sa-eyebrow">PLATFORM CONTROL</span><h1>Your companies.<br /><span>One command centre.</span></h1><p>Manage organisations, people and access from a single secure workspace.</p></div>
       <button className="btn btn-primary" disabled={busy} onClick={() => { setCreate({ ...emptyCompany }); setMessage(null); }}>+ Add company</button></header>
     {message && <div role={message.error ? 'alert' : 'status'} className={`sa-notice ${message.error ? 'sa-notice--error' : ''}`}>{message.text}</div>}
-    <div className="sa-stats">{[['Companies', counts.companies], ['Active companies', counts.active], ['Team members', counts.employees], ['Locations', counts.branches]].map(([label, number]) => <div key={label}><span>{label}</span><strong>{number}</strong></div>)}</div>
+    <div className="sa-stats">{[['Companies', counts.companies], ['Active companies', counts.active], ['Team members', counts.employees], ['Branches', counts.branches]].map(([label, number]) => <div key={label}><span>{label}</span><strong>{number}</strong></div>)}</div>
     <div className="sa-workspace"><aside className="sa-companies"><div className="sa-panel-heading"><h2>Company portfolio</h2><span>{counts.companies}</span></div>
       <input aria-label="Search companies" placeholder="Search name or code…" value={search} onChange={e => setSearch(e.target.value)} />
       <div className="sa-company-list">{data.companies.filter(c => `${c.name} ${c.code}`.toLowerCase().includes(search.toLowerCase())).map(c => <button disabled={busy} className={`sa-company ${c.id === selectedId ? 'is-selected' : ''}`} key={c.id} onClick={() => choose(c)}>
