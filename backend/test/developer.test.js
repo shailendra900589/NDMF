@@ -26,6 +26,20 @@ test('Developer onboarding, permission boundaries, expiry, rotation and revocati
     return {status:r.status,headers:r.headers,...await r.json()};
   }
   const application={name:'Developer',email:'dev@example.test',organization:'Example',purpose:'Reporting',scopes:['customers:read'],requestedDays:30,consent:true};
+  const direct={name:'Test developer',email:'developer@example.test',organization:'Dummy integration',purpose:'Isolated API verification',companyId:'ONE',scopes:['customers:read'],days:1,requestsPerMinute:10};
+  assert.equal((await call('/developer/manage/grants','POST',direct,staff)).status,403);
+  assert.equal((await call('/developer/manage/grants','POST',{...direct,email:'invalid'},sa)).status,400);
+  assert.equal((await call('/developer/manage/grants','POST',{...direct,days:0},sa)).status,400);
+  const directResult=await call('/developer/manage/grants','POST',direct,sa);
+  assert.equal(directResult.status,201,directResult.message);
+  const testKey=directResult.data.token,testId=directResult.data.grant.id;
+  assert.equal(directResult.data.grant.source,'super_admin');
+  assert.equal((await call('/developer/data/customers','GET',undefined,testKey)).data.total,1);
+  assert.equal((await call('/developer/data/employees','GET',undefined,testKey)).status,403);
+  assert.equal((await call('/developer/manage','GET',undefined,testKey)).status,401);
+  assert.ok(!JSON.stringify(await call('/developer/manage','GET',undefined,sa)).includes(testKey));
+  assert.equal((await call(`/developer/manage/grants/${testId}/revoke`,'POST',{},sa)).status,200);
+  assert.equal((await call('/developer/data/customers','GET',undefined,testKey)).status,401);
   assert.equal((await call('/developer/applications','POST',{...application,consent:false})).status,400);
   assert.equal((await call('/developer/applications','POST',{...application,scopes:['users:write']})).status,400);
   const pending=await call('/developer/applications','POST',application);assert.equal(pending.status,201);

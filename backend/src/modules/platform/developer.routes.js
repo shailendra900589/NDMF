@@ -52,9 +52,9 @@ admin.post('/applications/:id/reject', wrap(async (req,res) => {
   const record = {...a,status:'rejected',reviewedAt:now(),reviewedBy:req.user.id};
   upsert('apiApplications',record,{single:true}); audit(req,'api.application.rejected',record); await flush(); return success(res,record);
 }));
-function issue(req, res, rotate = false) {
+function issue(req, res, rotate = false, directSource = null) {
   return (async () => {
-    const source = findById(rotate ? 'apiGrants' : 'apiApplications',req.params.id);
+    const source = directSource || findById(rotate ? 'apiGrants' : 'apiApplications',req.params.id);
     if (!source || (!rotate && source.status !== 'pending')) return error(res,'Pending application or grant not found',404);
     if (rotate && (source.status !== 'active' || Date.parse(source.expiresAt) <= Date.now())) return error(res,'Expired or revoked grants cannot be rotated',409);
     const companyId = rotate ? source.companyId : req.body.companyId;
@@ -66,14 +66,22 @@ function issue(req, res, rotate = false) {
     const id = rotate ? source.id : `KEY_${randomUUID()}`;
     const token = `ndfa_${randomBytes(32).toString('hex')}`;
     const grant = { ...(rotate ? source : {id,applicationId:source.id,companyId,organization:source.organization,email:source.email,
-      scopes:[...new Set(scopes)],expiresAt:new Date(Date.now()+days*86400000).toISOString(),requestsPerMinute,createdAt:now(),createdBy:req.user.id}),
+      name:source.name,source:directSource ? 'super_admin' : 'onboarding',scopes:[...new Set(scopes)],expiresAt:new Date(Date.now()+days*86400000).toISOString(),requestsPerMinute,createdAt:now(),createdBy:req.user.id}),
       status:'active',tokenHash:hash(token), keyHint:token.slice(-6), rotatedAt:rotate ? now() : null };
     upsert('apiGrants',grant,{single:true});
     if (!rotate) upsert('apiApplications',{...source,status:'approved',reviewedAt:now(),reviewedBy:req.user.id},{single:true});
-    audit(req,rotate ? 'api.key.rotated' : 'api.application.approved',grant); await flush();
+    audit(req,rotate ? 'api.key.rotated' : directSource ? 'api.access.created' : 'api.application.approved',grant); await flush();
     return success(res,{grant:safe(grant),token},'Copy the secret now. It cannot be retrieved again.',201);
   })();
 }
+admin.post('/grants',wrap((req,res) => {
+  const {name,email,organization,purpose}=req.body;
+  if (![name,email,organization,purpose].every(v=>typeof v==='string' && v.trim().length>1)
+    || name.length>120 || email.length>254 || organization.length>160 || purpose.length>2000
+    || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return error(res,'Enter valid developer contact, organization and purpose');
+  return issue(req,res,false,{id:`APP_${randomUUID()}`,name:name.trim(),email:email.trim().toLowerCase(),organization:organization.trim(),purpose:purpose.trim(),
+    scopes:req.body.scopes,requestedDays:req.body.days,status:'pending',source:'super_admin',createdBy:req.user.id,createdAt:now()});
+}));
 admin.post('/applications/:id/approve',wrap((req,res) => issue(req,res)));
 admin.post('/grants/:id/rotate',wrap((req,res) => issue(req,res,true)));
 admin.post('/grants/:id/revoke',wrap(async (req,res) => {

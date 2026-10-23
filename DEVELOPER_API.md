@@ -4,6 +4,12 @@ Public guide and onboarding: **https://ndclients.co.in/brand/developers.html** a
 
 ## Super Admin: kisi developer ko API kaise dein
 
+**Direct creation:** Super Admin → Developer API access → **Create directly**. Developer name, contact email, organization aur purpose enter karein; company, read scopes, expiry aur request limit choose karke **Create access & generate key** click karein. Is route mein public onboarding request zaroori nahi hai. API access record banta hai, staff/Super Admin login account nahi.
+
+**Test preset:** **Fill test account details** se `developer@example.test`, 1 day, 10 requests/minute aur `locations:read` select hota hai. Dummy company select karein; production company ko test ke liye select na karein. Key copy karke `/api/v1/developer/data/locations` call karein; testing ke baad Issued access se revoke karein. Preset khud koi account/key create nahi karta.
+
+**Public onboarding:**
+
 1. Developer ko public guide bhejein. Woh contact, organization, purpose, required resources aur days ke saath onboarding request submit karega.
 2. Super Admin login → **Developer API access** → pending application select karein.
 3. Developer ki identity aur purpose verify karein. Sahi **company**, minimum required **read scopes**, **1–365 days**, aur **1–600 requests/minute** choose karein.
@@ -60,6 +66,7 @@ Base: `/api/v1/developer/manage`. `Authorization: Bearer <verified Super Admin J
 | Method and path | Body / result |
 |---|---|
 | GET `/` | applications, sanitized grants, companies, scopes |
+| POST `/grants` | `{name,email,organization,purpose,companyId,scopes,days,requestsPerMinute}`; direct Super Admin issuance, returns `{grant,token}` once, HTTP 201 |
 | POST `/applications/:id/approve` | `{companyId, scopes, days, requestsPerMinute}`; returns `{grant, token}` once, HTTP 201 |
 | POST `/applications/:id/reject` | `{}`; rejects a pending application |
 | POST `/grants/:id/rotate` | `{}`; returns new `{grant, token}` once, HTTP 201 |
