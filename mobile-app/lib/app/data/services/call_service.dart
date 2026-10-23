@@ -236,10 +236,10 @@ class CallService extends GetxService with WidgetsBindingObserver {
     final allow = await Get.dialog<bool>(
       AlertDialog(
         backgroundColor: Colors.white,
-        title: const Text('Keep this call in Nirmaldhara'),
+        title: const Text('Keep this call in Smartstaff plus'),
         content: const Text(
-          'A mobile call stays inside this app only when Nirmaldhara is the Phone app. Android asks this once.\n\n'
-          'If a message says access was denied, tap Close. Then use Open settings, tap the ⋮ menu, and choose Allow restricted settings. Call again and select Nirmaldhara.\n\n'
+          'A mobile call stays inside this app only when Smartstaff plus is the Phone app. Android asks this once.\n\n'
+          'If a message says access was denied, tap Close. Then use Open settings, tap the ⋮ menu, and choose Allow restricted settings. Call again and select Smartstaff plus.\n\n'
           'The other Phone app is not opened.',
         ),
         actions: [
@@ -263,7 +263,7 @@ class CallService extends GetxService with WidgetsBindingObserver {
           '2. Tap the ⋮ menu at the top\n'
           '3. Tap Allow restricted settings\n'
           '4. Come back and tap Call\n'
-          '5. Choose Nirmaldhara\n\n'
+          '5. Choose Smartstaff plus\n\n'
           'After that, the call and recording stay on this screen.',
         ),
         actions: [

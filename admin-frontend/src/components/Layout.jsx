@@ -125,9 +125,9 @@ export default function Layout() {
       {menuOpen && <button className="mobile-menu-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
       <aside className="sidebar" id="operations-navigation">
         <div className="sidebar__brand">
-          <div className="sidebar__logo-mark">N</div>
+          <div className="sidebar__logo-mark">S</div>
           <div>
-            <div className="sidebar__title">{isSuperAdmin ? 'NDFA Platform' : user.company?.name || 'Nirmaldhara'}</div>
+            <div className="sidebar__title">{isSuperAdmin ? 'Smartstaff plus' : user.company?.name || 'Smartstaff plus'}</div>
             <div className="sidebar__subtitle">{isSuperAdmin ? 'Super Admin Console' : 'Operations Console'}</div>
           </div>
         </div>

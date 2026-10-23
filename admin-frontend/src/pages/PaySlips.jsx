@@ -187,7 +187,7 @@ export default function PaySlips() {
         const am = computeAmounts(monthMap[m]?.earnings, monthMap[m]?.deductions);
         return {
           ...profile,
-          companyName: JSON.parse(localStorage.getItem('ndfa_user') || '{}').company?.name || 'Nirmaldhara Micro Foundation',
+          companyName: JSON.parse(localStorage.getItem('ndfa_user') || '{}').company?.name || 'Smartstaff plus',
           month: m,
           ...am,
         };

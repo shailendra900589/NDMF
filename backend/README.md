@@ -1,6 +1,6 @@
 # Backend - Express API
 
-Nirmaldhara Micro Foundation ka REST API backend.
+Smartstaff plus ka REST API backend.
 
 ## Quick Start
 

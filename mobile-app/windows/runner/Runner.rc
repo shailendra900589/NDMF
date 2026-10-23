@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.nirmaldhara" "\0"
-            VALUE "FileDescription", "nirmaldhara_micro_finance" "\0"
+            VALUE "CompanyName", "Smartstaff plus" "\0"
+            VALUE "FileDescription", "Smartstaff plus" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "nirmaldhara_micro_finance" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.nirmaldhara. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Smartstaff plus. All rights reserved." "\0"
             VALUE "OriginalFilename", "nirmaldhara_micro_finance.exe" "\0"
-            VALUE "ProductName", "nirmaldhara_micro_finance" "\0"
+            VALUE "ProductName", "Smartstaff plus" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

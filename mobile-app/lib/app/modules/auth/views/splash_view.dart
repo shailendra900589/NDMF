@@ -104,7 +104,7 @@ class _SplashViewState extends State<SplashView>
                   ),
                   const SizedBox(height: 22),
                   const Text(
-                    'Nirmaldhara',
+                    'Smartstaff plus',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 28,

@@ -1,6 +1,6 @@
 import { amountInWords, formatAmount, formatMonthLabel } from '../utils/payslip';
 
-const LOGO_SRC = '/nirmaldhara-logo.jpg';
+const LOGO_SRC = '/smartstaff-plus-logo.svg';
 
 /**
  * Print-ready pay slip matching the professional grid template.
@@ -11,7 +11,7 @@ export default function PaySlipDocument({ slip, id, className = '' }) {
   const e = slip.earnings || {};
   const d = slip.deductions || {};
   const monthLabel = formatMonthLabel(slip.month);
-  const company = slip.companyName || 'Nirmaldhara Micro Foundation';
+  const company = slip.companyName || 'Smartstaff plus';
   const address = slip.companyAddress || '';
 
   const earnRows = [
@@ -37,7 +37,7 @@ export default function PaySlipDocument({ slip, id, className = '' }) {
         <tbody>
           <tr>
             <td className="pslip__logo-cell">
-              <img src={LOGO_SRC} alt="Nirmaldhara" className="pslip__logo" />
+              <img src={LOGO_SRC} alt="Smartstaff plus" className="pslip__logo" />
             </td>
             <td className="pslip__company-cell" colSpan={3}>
               <div className="pslip__company-name">{company}</div>

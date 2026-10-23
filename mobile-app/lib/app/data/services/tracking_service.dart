@@ -128,7 +128,7 @@ class TrackingService extends GetxService {
         intervalDuration: _pingInterval,
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: 'On duty — location sharing',
-          notificationText: 'Nirmaldhara shares your location with your branch until you check out.',
+          notificationText: 'Smartstaff plus shares your location with your branch until you check out.',
           notificationChannelName: 'Duty location',
           enableWakeLock: true,
           setOngoing: true,

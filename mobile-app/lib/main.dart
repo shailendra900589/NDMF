@@ -19,7 +19,7 @@ void main() async {
 
   // Critical only — show UI immediately (no network wait).
   await AppInitializer.initCritical();
-  runApp(const NirmaldharaApp());
+  runApp(const SmartstaffPlusApp());
 
   // Sync / tracking / notifications after first frame.
   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -27,13 +27,13 @@ void main() async {
   });
 }
 
-class NirmaldharaApp extends StatelessWidget {
-  const NirmaldharaApp({super.key});
+class SmartstaffPlusApp extends StatelessWidget {
+  const SmartstaffPlusApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'Nirmaldhara',
+      title: 'Smartstaff plus',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialBinding: InitialBinding(),

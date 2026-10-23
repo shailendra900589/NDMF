@@ -44,10 +44,10 @@ export default function Login() {
       <div className="login-shell">
         <header className="login-brand">
           <div className="login-brand__mark" aria-hidden>
-            N
+            S
           </div>
-          <h1 className="login-brand__name">Nirmaldhara</h1>
-          <p className="login-brand__tag">Micro Foundation · Operations console</p>
+          <h1 className="login-brand__name">Smartstaff plus</h1>
+          <p className="login-brand__tag">Workforce operations console</p>
         </header>
 
         <form className="login-form" onSubmit={handleLogin} noValidate>
@@ -107,7 +107,7 @@ export default function Login() {
           Secure access for platform administrators and company teams
         </p>
         <p className="login-foot">
-          <a href="/">Back to Nirmaldhara home</a>
+          <a href="/">Back to Smartstaff plus home</a>
         </p>
       </div>
     </div>

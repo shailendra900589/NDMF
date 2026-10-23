@@ -1,7 +1,7 @@
 name: nirmaldhara_micro_finance
-description: Nirmaldhara Micro Finance - Field Force Microfinance Application
+description: Smartstaff plus - Field Force Microfinance Application
 publish_to: 'none'
-version: 1.2.0+16
+version: 1.2.1+17
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

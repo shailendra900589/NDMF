@@ -205,7 +205,29 @@ function compare(liveDescriptor, enrolledDescriptors) {
 }
 
 function enrollmentUrls(user) {
-  return Array.isArray(user?.faceEnrollmentUrls) ? user.faceEnrollmentUrls : [];
+  if (!Array.isArray(user?.faceEnrollmentUrls)) return [];
+  return user.faceEnrollmentUrls.map(value => {
+    const url = typeof value === 'string' ? value : value?.filePath || value?.fileUrl || value?.url;
+    const normalized = normalizeRecordingUrl(url);
+    return normalized && /^\/uploads\/[^/\\\s]+$/.test(normalized) ? normalized : null;
+  }).filter(Boolean);
+}
+
+function enrollmentRevision(user) {
+  return JSON.stringify([enrollmentUrls(user), user?.faceEnrollmentAt || null, user?.faceEnrollmentRevision || null]);
+}
+
+function validDescriptors(descriptors) {
+  return Array.isArray(descriptors) && descriptors.length >= 3 && descriptors.length <= 5 &&
+    descriptors.every(d => Array.isArray(d) && d.length === 128 && d.every(Number.isFinite));
+}
+
+function enrollmentStatus(user) {
+  const count = enrollmentUrls(user).length;
+  return { complete: isEnrollmentComplete(user), registered: count >= 3, count, required: 3,
+    enrolledAt: user?.faceEnrollmentAt || null,
+    reason: count < 3 ? 'enrollment_required' : user.faceEnrollmentValid === false ? 'enrollment_invalid' : 'ready',
+    problem: user?.faceEnrollmentProblem || null };
 }
 
 /** Enrollment counts only when 3+ photos exist and they were not found unusable. */
@@ -240,10 +262,9 @@ async function ensureEnrolledDescriptors(user, save) {
   const urls = enrollmentUrls(user);
   const key = urls.join('|');
   if (
-    Array.isArray(user.faceDescriptors) &&
-    user.faceDescriptors.length >= 3 &&
+    validDescriptors(user.faceDescriptors) &&
     user.faceDescriptorVersion === DESCRIPTOR_VERSION &&
-    user.faceDescriptorUrls === key
+    enrollmentUrls({ faceEnrollmentUrls: String(user.faceDescriptorUrls || '').split('|') }).join('|') === key
   ) {
     return user.faceDescriptors;
   }
@@ -278,4 +299,8 @@ module.exports = {
   isEnrollmentComplete,
   stripFaceSecrets,
   ensureEnrolledDescriptors,
+  enrollmentUrls,
+  enrollmentStatus,
+  enrollmentRevision,
+  validDescriptors,
 };

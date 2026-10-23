@@ -80,7 +80,8 @@ class RemoteApiService extends GetxService {
       });
       final authData = _unwrapMap(res);
       if (authData['role'] == 'superAdmin') {
-        throw Exception('Super Admin accounts use the website: ndclients.co.in');
+        throw Exception(
+            'Super Admin accounts use the website: ndclients.co.in');
       }
       final user = UserModel.fromJson(authData);
       _storage.saveUser(user);
@@ -127,7 +128,8 @@ class RemoteApiService extends GetxService {
       });
       final authData = _unwrapMap(res);
       if (authData['role'] == 'superAdmin') {
-        throw Exception('Super Admin accounts use the website: ndclients.co.in');
+        throw Exception(
+            'Super Admin accounts use the website: ndclients.co.in');
       }
       final user = UserModel.fromJson(authData);
       _storage.saveUser(user);
@@ -150,7 +152,9 @@ class RemoteApiService extends GetxService {
 
   // Lead/Loan modules removed from product — stubs keep app compiling.
 
-  Future<List<LeadModel>> getLeads({LeadStatus? status, String? search}) async => [];
+  Future<List<LeadModel>> getLeads(
+          {LeadStatus? status, String? search}) async =>
+      [];
 
   Future<LeadModel> acceptLead(String leadId) async {
     throw Exception('Lead module is not available');
@@ -160,17 +164,21 @@ class RemoteApiService extends GetxService {
     throw Exception('Lead module is not available');
   }
 
-  Future<List<LoanModel>> getAllLoans({LoanStatus? status, String? search}) async => [];
+  Future<List<LoanModel>> getAllLoans(
+          {LoanStatus? status, String? search}) async =>
+      [];
 
   Future<LoanModel> submitLoan(LoanModel loan) async {
     throw Exception('Loan module is not available');
   }
 
-  Future<LoanModel> saveVerification(LoanModel loan, {bool submit = false}) async {
+  Future<LoanModel> saveVerification(LoanModel loan,
+      {bool submit = false}) async {
     throw Exception('Loan module is not available');
   }
 
-  Future<LoanModel> processApproval(String loanId, ApprovalAction action) async {
+  Future<LoanModel> processApproval(
+      String loanId, ApprovalAction action) async {
     throw Exception('Loan module is not available');
   }
 
@@ -205,7 +213,9 @@ class RemoteApiService extends GetxService {
     required double lng,
     bool faceVerified = false,
   }) async {
-    final path = isCheckIn ? ApiConstants.attendanceCheckIn : ApiConstants.attendanceCheckOut;
+    final path = isCheckIn
+        ? ApiConstants.attendanceCheckIn
+        : ApiConstants.attendanceCheckOut;
     final res = await _http.post(path, data: {
       'lat': lat,
       'lng': lng,
@@ -216,11 +226,15 @@ class RemoteApiService extends GetxService {
 
   Future<bool> verifyAttendanceFace(String imagePath) async {
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(imagePath, filename: 'live_face.jpg'),
+      'file':
+          await MultipartFile.fromFile(imagePath, filename: 'live_face.jpg'),
     });
     final res = await _http.upload(ApiConstants.attendanceVerifyFace, formData);
-    final body = res.data as Map<String, dynamic>;
-    final data = body['data'] as Map<String, dynamic>? ?? {};
+    final data = _unwrapMap(res);
+    if (data['verified'] != true) {
+      throw Exception(data['message'] ??
+          'Face could not be verified. Take a clear selfie and try again.');
+    }
     return data['verified'] == true;
   }
 
@@ -230,7 +244,15 @@ class RemoteApiService extends GetxService {
   }
 
   Future<void> saveFaceEnrollmentUrls(List<String> urls) async {
-    await _http.put(ApiConstants.faceEnrollment, data: {'urls': urls});
+    final res =
+        await _http.put(ApiConstants.faceEnrollment, data: {'urls': urls});
+    final data = _unwrapMap(res);
+    if (data['faceEnrollmentComplete'] != true) {
+      throw Exception(
+          'Registration was not confirmed by the server. Please try again.');
+    }
+    data['token'] = _storage.getToken() ?? '';
+    _storage.saveUser(UserModel.fromJson(data));
   }
 
   Future<bool> setFaceAttendanceRequired(bool enabled) async {
@@ -241,7 +263,8 @@ class RemoteApiService extends GetxService {
     return data['faceAttendanceRequired'] != false;
   }
 
-  Future<Map<String, dynamic>> sendLiveTrackingPing(Map<String, dynamic> fix) async {
+  Future<Map<String, dynamic>> sendLiveTrackingPing(
+      Map<String, dynamic> fix) async {
     final res = await _http.post(ApiConstants.trackingLivePing, data: fix);
     return _unwrapMap(res);
   }
@@ -273,7 +296,8 @@ class RemoteApiService extends GetxService {
     CustomerListingStatus? status,
     String? search,
   }) async {
-    final res = await _http.get(ApiConstants.customerListings, queryParameters: {
+    final res =
+        await _http.get(ApiConstants.customerListings, queryParameters: {
       if (status != null) 'status': status.name,
       if (search != null && search.isNotEmpty) 'search': search,
     });
@@ -285,14 +309,17 @@ class RemoteApiService extends GetxService {
     return CustomerListingModel.fromJson(_unwrapMap(res));
   }
 
-  Future<List<CustomerListingModel>> getListingsForApproval({CustomerListingStatus? status}) async {
-    final res = await _http.get(ApiConstants.customerListingsApproval, queryParameters: {
+  Future<List<CustomerListingModel>> getListingsForApproval(
+      {CustomerListingStatus? status}) async {
+    final res = await _http
+        .get(ApiConstants.customerListingsApproval, queryParameters: {
       if (status != null) 'status': status.name,
     });
     return _unwrapList(res).map(CustomerListingModel.fromJson).toList();
   }
 
-  Future<CustomerListingModel> processListingApproval(String id, ApprovalAction action) async {
+  Future<CustomerListingModel> processListingApproval(
+      String id, ApprovalAction action) async {
     final res = await _http.post(ApiConstants.approveListing, data: {
       'id': id,
       'action': action.name,
@@ -331,7 +358,8 @@ class RemoteApiService extends GetxService {
     return _unwrapList(res);
   }
 
-  Future<Map<String, dynamic>> createBranch(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> createBranch(
+      Map<String, dynamic> payload) async {
     final res = await _http.post(ApiConstants.branches, data: payload);
     return _unwrapMap(res);
   }
@@ -341,7 +369,8 @@ class RemoteApiService extends GetxService {
     return _unwrapMap(res);
   }
 
-  Future<Map<String, dynamic>> updateUser(String id, Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> updateUser(
+      String id, Map<String, dynamic> payload) async {
     final res = await _http.put('${ApiConstants.users}/$id', data: payload);
     return _unwrapMap(res);
   }
@@ -359,7 +388,8 @@ class RemoteApiService extends GetxService {
     }
   }
 
-  Future<Map<String, dynamic>> createPayslip(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> createPayslip(
+      Map<String, dynamic> payload) async {
     try {
       final res = await _http.post(ApiConstants.payslips, data: payload);
       return _unwrapMap(res);
@@ -368,9 +398,11 @@ class RemoteApiService extends GetxService {
     }
   }
 
-  Future<Map<String, dynamic>> updatePayslip(String id, Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> updatePayslip(
+      String id, Map<String, dynamic> payload) async {
     try {
-      final res = await _http.put('${ApiConstants.payslips}/$id', data: payload);
+      final res =
+          await _http.put('${ApiConstants.payslips}/$id', data: payload);
       return _unwrapMap(res);
     } catch (e) {
       _fail(e);
@@ -387,15 +419,19 @@ class RemoteApiService extends GetxService {
 
   // ─── Tracking ───
 
-  Future<Map<String, dynamic>> syncRoutePoints(List<Map<String, dynamic>> routePoints) async {
-    final res = await _http.post(ApiConstants.trackingRoutePoints, data: {'routePoints': routePoints});
+  Future<Map<String, dynamic>> syncRoutePoints(
+      List<Map<String, dynamic>> routePoints) async {
+    final res = await _http.post(ApiConstants.trackingRoutePoints,
+        data: {'routePoints': routePoints});
     return _unwrapMap(res);
   }
 
   Future<Map<String, dynamic>> getTrackingToday() async {
     final res = await _http.get(ApiConstants.trackingToday);
     final data = _unwrap(res);
-    return data is Map ? Map<String, dynamic>.from(data) : {'totalKm': 0, 'routePoints': []};
+    return data is Map
+        ? Map<String, dynamic>.from(data)
+        : {'totalKm': 0, 'routePoints': []};
   }
 
   Future<List<Map<String, dynamic>>> getTrackingHistory() async {
@@ -436,5 +472,4 @@ class RemoteApiService extends GetxService {
     _storage.saveUser(user);
     return user;
   }
-
 }

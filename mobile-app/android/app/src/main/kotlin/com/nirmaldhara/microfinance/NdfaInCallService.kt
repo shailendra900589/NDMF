@@ -18,7 +18,7 @@ import android.telecom.InCallService
 import android.telecom.VideoProfile
 
 /**
- * Owns the live carrier call after Nirmaldhara is the Phone app.
+ * Owns the live carrier call after Smartstaff plus is the Phone app.
  * The stock Phone app is not started.
  */
 class NdfaInCallService : InCallService() {
@@ -69,7 +69,7 @@ class NdfaInCallService : InCallService() {
             val manager = getSystemService(NotificationManager::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 manager.createNotificationChannel(
-                    NotificationChannel(channelId, "Nirmaldhara call", NotificationManager.IMPORTANCE_HIGH)
+                    NotificationChannel(channelId, "Smartstaff plus call", NotificationManager.IMPORTANCE_HIGH)
                 )
             }
             val open = PendingIntent.getActivity(
@@ -90,8 +90,8 @@ class NdfaInCallService : InCallService() {
             val ringing = call.state == Call.STATE_RINGING
             builder
                 .setSmallIcon(android.R.drawable.sym_call_outgoing)
-                .setContentTitle("Nirmaldhara")
-                .setContentText(if (ringing) "Incoming call" else "Call in Nirmaldhara")
+                .setContentTitle("Smartstaff plus")
+                .setContentText(if (ringing) "Incoming call" else "Call in Smartstaff plus")
                 .setContentIntent(open)
                 .setFullScreenIntent(open, true)
                 .setCategory(Notification.CATEGORY_CALL)

@@ -22,7 +22,7 @@ git pull --ff-only origin main &&
 bash deploy/update-production.sh
 ```
 
-At backend startup an idempotent migration creates the Nirmaldhara company (`CO_NDFA`), assigns existing business records/users to it, migrates attendance settings, and provisions the reserved Super Admin once. No existing employee password is changed. **Do not run `npm run seed` during an upgrade**; it is for an empty development database and now refuses an existing database.
+At backend startup an idempotent migration creates the Smartstaff plus company (`CO_NDFA`), assigns existing business records/users to it, migrates attendance settings, and provisions the reserved Super Admin once. No existing employee password is changed. **Do not run `npm run seed` during an upgrade**; it is for an empty development database and now refuses an existing database.
 
 Ensure Nginx proxies `/uploads/` to the backend, as in the supplied deployment configurations. Photos/documents now use signed links from API responses, valid for 24 hours; reload their source page to refresh an expired link. Unsigned direct file requests are denied. Company suspension or module revocation also invalidates the corresponding file access. Recording streaming checks authentication and company ownership.
 

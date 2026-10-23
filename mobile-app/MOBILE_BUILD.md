@@ -1,4 +1,4 @@
-# Nirmaldhara Field App — Android build
+# Smartstaff plus — Android build
 
 ## Live API
 
@@ -14,11 +14,9 @@ Live sync: every **45s** + on app resume (listings, customers, attendance, pendi
 
 **Recommended (lightweight, most phones):**
 
-`mobile-app/Nirmaldhara-FieldApp-v1.1.6-arm64.apk` (~21 MB)
+`mobile-app/Smartstaff-plus-v1.2.1-arm64.apk` (~21 MB)
 
-Older 32-bit devices:
-
-`mobile-app/Nirmaldhara-FieldApp-v1.1.6-armv7.apk` (~19 MB)
+This release artifact targets ARM64 phones. For older 32-bit devices, build separately with `--target-platform android-arm --split-per-abi`.
 
 Gradle output:
 
@@ -26,13 +24,11 @@ Gradle output:
 
 Phone pe install: transfer file → Allow unknown apps → Install.
 
-## Login (Employee)
+## Login and attendance
 
-| Role | Mobile | Password |
-|------|--------|----------|
-| Employee Delhi | `9000000003` | `ndfa1234` |
-| Employee Mumbai | `9000000005` | `ndfa1234` |
-| OTP demo | any | `123456` |
+Use the employee ID/mobile and password issued for your company. Demo logins and demo OTP are not production credentials.
+
+After deploying the backend, install/update the APK, sign in, and open Profile → Face enrollment. Existing valid registration is retained. If the server reports a saved-photo problem, retake three different reference photos and wait for server confirmation. Attendance still requires a matching live selfie and GPS when policy is enabled.
 
 ## Rebuild
 
@@ -42,7 +38,7 @@ $env:Path = "C:\Users\uuu\flutter\bin;$env:ANDROID_HOME\platform-tools;$env:Path
 cd D:\Laravel\NDFA\mobile-app
 flutter pub get
 flutter build apk --release --split-per-abi
-copy build\app\outputs\flutter-apk\app-arm64-v8a-release.apk Nirmaldhara-FieldApp-v1.1.4-arm64.apk
+copy build\app\outputs\flutter-apk\app-arm64-v8a-release.apk Smartstaff-plus-v1.2.1-arm64.apk
 ```
 
 `--split-per-abi` builds one APK per CPU (smaller than a single fat APK).

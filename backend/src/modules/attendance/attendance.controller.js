@@ -1,5 +1,5 @@
 const { v4: uuid } = require('uuid');
-const { getCollection, findById, upsert } = require('../../lib/db');
+const { getCollection, findById, upsert, flush } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { filterByBranchViaUser, isAdmin, sameBranch } = require('../../lib/rbac');
 const { getAppSettings } = require('../../lib/appSettings');
@@ -9,8 +9,12 @@ const {
   compare,
   isEnrollmentComplete,
   ensureEnrolledDescriptors,
+  enrollmentUrls,
+  enrollmentStatus,
+  enrollmentRevision,
 } = require('../../lib/faceMatch');
 const { checkAttendancePosition, workTypeOf } = require('../../lib/officeGeofence');
+const { attendanceDay: dateKey } = require('../../lib/attendanceDay');
 
 exports.getEnrollmentPhotos = (req, res) => {
   const target = findById('users', req.params.userId);
@@ -18,9 +22,7 @@ exports.getEnrollmentPhotos = (req, res) => {
   const own = target.id === req.user.id;
   const manager = req.user.role === 'branchManager' && sameBranch(req.user, target.branch) && target.role === 'fieldOfficer';
   if (!own && !isAdmin(req.user) && !manager) return error(res, 'You cannot view this employee’s registration photos', 403);
-  const photos = (Array.isArray(target.faceEnrollmentUrls) ? target.faceEnrollmentUrls : [])
-    .map(p => typeof p === 'string' ? p : p?.filePath)
-    .filter(p => typeof p === 'string' && /^(?:https?:\/\/[^/]+)?\/uploads\/[^\s/?#]+(?:[?#].*)?$/.test(p)).slice(0, 5);
+  const photos = enrollmentUrls(target).slice(0, 5);
   res.setHeader('Cache-Control', 'private, no-store');
   return success(res, { userId: target.id, name: target.name, complete: isEnrollmentComplete(target),
     enrolledAt: target.faceEnrollmentAt || null, photos }, 'Attendance registration photos');
@@ -30,11 +32,6 @@ exports.getEnrollmentPhotos = (req, res) => {
 const FACE_PASS_TTL_MS = 10 * 60 * 1000;
 const FACE_FAIL_WINDOW_MS = 15 * 60 * 1000;
 const FACE_FAIL_LIMIT = 5;
-
-function dateKey(iso) {
-  if (!iso) return '';
-  return String(iso).slice(0, 10);
-}
 
 function daysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
@@ -61,19 +58,43 @@ function requiresFaceVerification(user) {
   return user.role === 'fieldOfficer' || user.role === 'branchManager';
 }
 
-exports.checkIn = (req, res) => {
+function enrollmentError(res, user) {
+  const status = enrollmentStatus(user);
+  const message = status.registered
+    ? `Face registration needs attention: ${status.problem || 'saved photos could not be verified'}. Open Profile → Face enrollment to register again.`
+    : 'Complete face enrollment (3 different reference selfies) in Profile before attendance.';
+  return res.status(403).json({ success: false, message, data: status });
+}
+
+function validPosition(lat, lng) {
+  return ['number','string'].includes(typeof lat) && ['number','string'].includes(typeof lng) &&
+    String(lat).trim() !== '' && String(lng).trim() !== '' && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) &&
+    Math.abs(Number(lat)) <= 90 && Math.abs(Number(lng)) <= 180;
+}
+
+function activeShift(record, userId) {
+  const age = Date.now() - Date.parse(record.checkInTime);
+  return record.userId === userId && !record.checkOutTime && age >= 0 && age <= 20 * 60 * 60 * 1000;
+}
+
+exports.checkIn = async (req, res) => {
   const { lat, lng, accuracy } = req.body;
   if (lat == null || lng == null) return error(res, 'GPS location required');
-  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+  if (!validPosition(lat, lng)) {
     return error(res, 'GPS location is not valid');
   }
+  const today = dateKey();
+  const attendance = getCollection('attendance');
+  const existing = attendance.find(a => a.userId === req.user.id && dateKey(a.date) === today);
+  if (existing?.checkInTime) return error(res, 'Already checked in today');
+  if (attendance.some(a => activeShift(a,req.user.id))) return error(res, 'Check out from your current shift before checking in again');
 
   const user = findById('users', req.user.id) || req.user;
   const faceRequired = requiresFaceVerification(user);
   let facePass = null;
   if (faceRequired) {
     if (!isEnrollmentComplete(user)) {
-      return error(res, 'Complete face enrollment (3 photos) before attendance', 403);
+      return enrollmentError(res, user);
     }
     facePass = user.faceVerification;
     const fresh =
@@ -83,16 +104,6 @@ exports.checkIn = (req, res) => {
     if (!fresh) {
       return error(res, 'Live face verification required for check-in', 400);
     }
-  }
-
-  const today = new Date().toISOString().split('T')[0];
-  const attendance = getCollection('attendance');
-  const existing = attendance.find(
-    (a) => a.userId === req.user.id && a.date.startsWith(today)
-  );
-
-  if (existing && existing.checkInTime) {
-    return error(res, 'Already checked in today');
   }
 
   const place = checkAttendancePosition(user, lat, lng, accuracy);
@@ -133,18 +144,20 @@ exports.checkIn = (req, res) => {
   }
 
   upsert('attendance', record);
+  await flush();
   return success(res, record, 'Checked in successfully');
 };
 
-exports.checkOut = (req, res) => {
+exports.checkOut = async (req, res) => {
   const { lat, lng } = req.body;
   if (lat == null || lng == null) return error(res, 'GPS location required');
+  if (!validPosition(lat, lng)) return error(res, 'GPS location is not valid');
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = dateKey();
   const attendance = getCollection('attendance');
-  const record = attendance.find(
-    (a) => a.userId === req.user.id && a.date.startsWith(today)
-  );
+  const record = attendance.filter(a => activeShift(a,req.user.id))
+    .sort((a,b) => Date.parse(b.checkInTime)-Date.parse(a.checkInTime))[0] ||
+    attendance.find(a => a.userId === req.user.id && dateKey(a.date) === today);
 
   if (!record || !record.checkInTime) {
     return error(res, 'Check in first');
@@ -154,10 +167,11 @@ exports.checkOut = (req, res) => {
   }
 
   record.checkOutTime = new Date().toISOString();
-  record.checkOutLat = lat;
-  record.checkOutLng = lng;
+  record.checkOutLat = Number(lat);
+  record.checkOutLng = Number(lng);
 
   upsert('attendance', record);
+  await flush();
   return success(res, record, 'Checked out successfully');
 };
 
@@ -175,21 +189,38 @@ exports.verifyLiveFace = async (req, res) => {
     return success(res, { verified: true, matchScore: 1, skipped: true, message: 'Face not required' });
   }
   if (!req.file) return error(res, 'Live photo required');
-  const user = findById('users', req.user.id);
-  if (!user) return error(res, 'User not found', 404);
+  const storedUser = findById('users', req.user.id);
+  if (!storedUser) return error(res, 'User not found', 404);
+  const user = structuredClone(storedUser);
   if (!isEnrollmentComplete(user)) {
-    return error(res, 'Face enrollment incomplete', 403);
+    return enrollmentError(res, user);
   }
   if (recentFailures(user).length >= FACE_FAIL_LIMIT) {
     return error(res, 'Too many failed face checks — try again in 15 minutes', 429);
   }
 
-  const save = (u) => upsert('users', u);
+  const revision = enrollmentRevision(user);
+  const save = u => {
+    const current = findById('users', user.id);
+    if (!current || current.isActive === false || enrollmentRevision(current) !== revision) {
+      throw new FaceCheckError('Face registration changed. Refresh your profile and verify again.', 'enrollment_changed');
+    }
+    // Preserve profile/permission changes made while face inference was running.
+    const faceFields = ['faceDescriptors','faceDescriptorUrls','faceDescriptorVersion','faceEnrollmentValid',
+      'faceEnrollmentProblem','faceVerification','faceVerifyFailures'];
+    const next = { ...current };
+    for (const key of faceFields) {
+      if (Object.hasOwn(u,key)) next[key] = u[key]; else delete next[key];
+    }
+    upsert('users', next, { single: true });
+  };
   let enrolled;
   try {
     enrolled = await ensureEnrolledDescriptors(user, save);
   } catch (err) {
     if (err instanceof FaceCheckError) {
+      if (err.code === 'enrollment_changed') return error(res, err.message, 409);
+      await flush();
       return error(
         res,
         'Your saved face photos are not clear. Open Profile → Face enrollment and capture 3 new selfies.',
@@ -200,10 +231,11 @@ exports.verifyLiveFace = async (req, res) => {
     return error(res, 'Face check is not available right now — try again in a minute', 503);
   }
 
-  const fail = (message, reason, extra = {}) => {
+  const fail = async (message, reason, extra = {}) => {
     user.faceVerifyFailures = [...recentFailures(user), new Date().toISOString()];
     user.faceVerification = null;
-    save(user);
+    try { save(user); } catch (err) { if (err.code === 'enrollment_changed') return error(res,err.message,409); throw err; }
+    await flush();
     return success(res, { verified: false, matchScore: 0, reason, message, ...extra });
   };
 
@@ -230,7 +262,8 @@ exports.verifyLiveFace = async (req, res) => {
     distance: result.distance,
   };
   user.faceVerifyFailures = [];
-  save(user);
+  try { save(user); } catch (err) { if (err.code === 'enrollment_changed') return error(res,err.message,409); throw err; }
+  await flush();
   return success(res, {
     verified: true,
     matchScore: result.matchScore,

@@ -70,3 +70,5 @@ admin-frontend/dist/
 
 Thumbs.db
 
+# Kotlin compiler cache
+mobile-app/android/.kotlin/

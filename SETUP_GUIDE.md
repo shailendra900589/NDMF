@@ -1,6 +1,6 @@
 # NDFA — Complete Setup Guide (Hindi + English)
 
-> **Nirmaldhara Micro Foundation** — Flutter App + Express Backend + React Admin Panel
+> **Smartstaff plus** — Flutter App + Express Backend + React Admin Panel
 
 ## 🔐 Demo login (sab roles — ek hi password)
 

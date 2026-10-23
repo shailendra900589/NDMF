@@ -23,7 +23,7 @@ class AppLogo extends StatelessWidget {
         if (showTagline) ...[
           const SizedBox(height: 8),
           const Text(
-            'Nirmaldhara Micro Foundation',
+            'Smartstaff plus',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), fontWeight: FontWeight.w500),
           ),

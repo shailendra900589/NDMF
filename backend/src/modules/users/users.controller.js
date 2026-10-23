@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { v4: uuid } = require('uuid');
-const { getCollection, findById, upsert } = require('../../lib/db');
+const { getCollection, findById, upsert, flush } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const {
   isAdmin,
@@ -20,6 +20,10 @@ const {
   isEnrollmentComplete,
   stripFaceSecrets,
   DESCRIPTOR_VERSION,
+  enrollmentUrls,
+  enrollmentStatus,
+  enrollmentRevision,
+  validDescriptors,
 } = require('../../lib/faceMatch');
 const { workTypeOf, cleanRadius, MIN_RADIUS_M, MAX_RADIUS_M } = require('../../lib/officeGeofence');
 
@@ -50,14 +54,8 @@ function attendanceSettings(body) {
 exports.getFaceEnrollment = (req, res) => {
   const user = findById('users', req.user.id);
   if (!user) return error(res, 'User not found', 404);
-  const urls = user.faceEnrollmentUrls || [];
-  return success(res, {
-    complete: isEnrollmentComplete(user),
-    count: urls.length,
-    required: 3,
-    enrolledAt: user.faceEnrollmentAt || null,
-    problem: user.faceEnrollmentValid === false ? user.faceEnrollmentProblem || null : null,
-  });
+  res.set('Cache-Control', 'private, no-store');
+  return success(res, enrollmentStatus(user));
 };
 
 exports.saveFaceEnrollment = async (req, res) => {
@@ -65,12 +63,20 @@ exports.saveFaceEnrollment = async (req, res) => {
   if (!Array.isArray(urls) || urls.length < 3) {
     return error(res, 'Upload at least 3 face reference photos');
   }
-  const user = findById('users', req.user.id);
+  let user = findById('users', req.user.id);
   if (!user) return error(res, 'User not found', 404);
-  if (isEnrollmentComplete(user) && Array.isArray(user.faceDescriptors)) {
+  const cleanUrls = enrollmentUrls({ faceEnrollmentUrls: urls.slice(0, 5) });
+  if (cleanUrls.length < 3 || cleanUrls.length !== Math.min(urls.length, 5) || new Set(cleanUrls).size !== cleanUrls.length) {
+    return error(res, 'Upload 3–5 different reference photos from this account');
+  }
+  if (isEnrollmentComplete(user) && validDescriptors(user.faceDescriptors)) {
+    if (enrollmentUrls(user).join('|') === cleanUrls.join('|')) {
+      await flush();
+      return success(res, sanitizeUser(user), 'Face enrollment already saved');
+    }
     return error(res, 'Face is already registered. Ask your branch or admin to reset it.', 403);
   }
-  const cleanUrls = urls.slice(0, 5).map((u) => String(u).trim());
+  const revision = enrollmentRevision(user);
   let descriptors;
   try {
     descriptors = await buildEnrollment(cleanUrls);
@@ -79,8 +85,13 @@ exports.saveFaceEnrollment = async (req, res) => {
     console.error('Face enrollment check failed:', err);
     return error(res, 'Face check is not available right now — try again in a minute', 503);
   }
+  // Inference can take seconds; do not overwrite profile edits or a concurrent reset.
+  user = findById('users', req.user.id);
+  if (!user || user.isActive === false || enrollmentRevision(user) !== revision) return error(res, 'Face registration changed while saving. Refresh and try again.', 409);
+  user = { ...user };
   user.faceEnrollmentUrls = cleanUrls;
   user.faceEnrollmentAt = new Date().toISOString();
+  user.faceEnrollmentRevision = uuid();
   user.faceDescriptors = descriptors;
   user.faceDescriptorUrls = cleanUrls.join('|');
   user.faceDescriptorVersion = DESCRIPTOR_VERSION;
@@ -88,17 +99,19 @@ exports.saveFaceEnrollment = async (req, res) => {
   delete user.faceEnrollmentProblem;
   delete user.faceVerification;
   delete user.faceVerifyFailures;
-  upsert('users', user);
+  upsert('users', user, { single: true });
+  await flush();
   return success(res, sanitizeUser(user), 'Face enrollment saved');
 };
 
 /** Admin or the employee's branch clears a registered face so it can be captured again. */
-exports.resetFaceEnrollment = (req, res) => {
+exports.resetFaceEnrollment = async (req, res) => {
   const target = findById('users', req.params.id);
   if (!target) return error(res, 'User not found', 404);
   if (!canManageUser(req.user, target)) {
     return error(res, 'You cannot reset this employee', 403);
   }
+  target.faceEnrollmentRevision = uuid();
   delete target.faceEnrollmentUrls;
   delete target.faceEnrollmentAt;
   delete target.faceDescriptors;
@@ -108,7 +121,8 @@ exports.resetFaceEnrollment = (req, res) => {
   delete target.faceEnrollmentProblem;
   delete target.faceVerification;
   delete target.faceVerifyFailures;
-  upsert('users', target);
+  upsert('users', target, { single: true });
+  await flush();
   return success(res, sanitizeUser(target), 'Face reset — employee must register again');
 };
 

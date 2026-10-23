@@ -12,11 +12,12 @@ class FaceEnrollmentView extends GetView<FaceEnrollmentController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Face enrollment', subtitle: '3 reference photos'),
+      appBar: const CustomAppBar(
+          title: 'Face enrollment', subtitle: '3 reference photos'),
       body: GetBuilder<FaceEnrollmentController>(
         builder: (c) {
           final count = c.capturedCount;
-          final saving = c.isSaving;
+          final saving = c.isSaving || c.isCapturing;
           return Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
@@ -28,11 +29,13 @@ class FaceEnrollmentView extends GetView<FaceEnrollmentController> {
                   child: kIsWeb
                       ? const Text(
                           'Camera enrollment works best on Android. You may skip and continue testing.',
-                          style: TextStyle(color: AppColors.textSecondary, height: 1.45),
+                          style: TextStyle(
+                              color: AppColors.textSecondary, height: 1.45),
                         )
                       : const Text(
-                          'Pehli baar: 3 selfies capture karein. Daily check-in par face verify hota hai jab admin ne policy ON rakhi ho.',
-                          style: TextStyle(color: AppColors.textSecondary, height: 1.45),
+                          '3 clear selfies capture karein, phir Save face registration dabayein. Photos upload hona aur registration save hona alag steps hain. Attendance ke liye server confirmation zaroori hai.',
+                          style: TextStyle(
+                              color: AppColors.textSecondary, height: 1.45),
                         ),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -53,13 +56,15 @@ class FaceEnrollmentView extends GetView<FaceEnrollmentController> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  '$count / 3 complete',
-                  style: AppTextStyles.titleMedium.copyWith(color: AppColors.primaryDark),
+                  '$count / 3 reference photos uploaded',
+                  style: AppTextStyles.titleMedium
+                      .copyWith(color: AppColors.primaryDark),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Expanded(
                   child: GridView.builder(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
@@ -74,7 +79,8 @@ class FaceEnrollmentView extends GetView<FaceEnrollmentController> {
                               : AppColors.divider.withValues(alpha: 0.4),
                           borderRadius: AppRadii.card,
                           border: Border.all(
-                            color: filled ? AppColors.primary : AppColors.divider,
+                            color:
+                                filled ? AppColors.primary : AppColors.divider,
                             width: filled ? 2 : 1,
                           ),
                         ),
@@ -82,9 +88,13 @@ class FaceEnrollmentView extends GetView<FaceEnrollmentController> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              filled ? Icons.check_circle_rounded : Icons.face_rounded,
+                              filled
+                                  ? Icons.check_circle_rounded
+                                  : Icons.face_rounded,
                               size: 36,
-                              color: filled ? AppColors.success : AppColors.textSecondary,
+                              color: filled
+                                  ? AppColors.success
+                                  : AppColors.textSecondary,
                             ),
                             const SizedBox(height: 4),
                             Text('${i + 1}', style: AppTextStyles.bodyMedium),
@@ -98,6 +108,11 @@ class FaceEnrollmentView extends GetView<FaceEnrollmentController> {
                   onPressed: saving ? null : c.skipEnrollment,
                   child: const Text('Skip for now'),
                 ),
+                if (count > 0)
+                  TextButton(
+                    onPressed: saving ? null : c.retakePhotos,
+                    child: const Text('Retake reference photos'),
+                  ),
                 const SizedBox(height: AppSpacing.sm),
                 FilledButton.icon(
                   onPressed: saving
@@ -105,8 +120,16 @@ class FaceEnrollmentView extends GetView<FaceEnrollmentController> {
                       : (count >= 3
                           ? c.saveAndContinue
                           : (kIsWeb ? null : c.captureReferencePhoto)),
-                  icon: Icon(count >= 3 ? Icons.check_rounded : Icons.camera_front_rounded),
-                  label: Text(count >= 3 ? 'Save & continue' : 'Capture selfie'),
+                  icon: Icon(count >= 3
+                      ? Icons.check_rounded
+                      : Icons.camera_front_rounded),
+                  label: Text(c.isCapturing
+                      ? 'Uploading photo…'
+                      : c.isSaving
+                          ? 'Confirming registration…'
+                          : count >= 3
+                              ? 'Save face registration'
+                              : 'Capture selfie'),
                 ),
               ],
             ),

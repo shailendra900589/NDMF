@@ -35,15 +35,19 @@ class UploadService extends GetxService {
     return '$_serverOrigin$path';
   }
 
-  Future<String> uploadGpsPhoto(GpsPhotoCapture photo, {String type = 'photo'}) async {
-    if (photo.filePath.startsWith('http') || photo.filePath.startsWith('/uploads')) {
+  Future<String> uploadGpsPhoto(GpsPhotoCapture photo,
+      {String type = 'photo'}) async {
+    if (photo.filePath.startsWith('http') ||
+        photo.filePath.startsWith('/uploads')) {
       return fullUrl(photo.filePath);
     }
     final file = File(photo.filePath);
-    if (!await file.exists()) throw Exception('File not found: ${photo.filePath}');
+    if (!await file.exists())
+      throw Exception('File not found: ${photo.filePath}');
 
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(photo.filePath, filename: 'photo.jpg'),
+      'file':
+          await MultipartFile.fromFile(photo.filePath, filename: 'photo.jpg'),
       'latitude': photo.latitude,
       'longitude': photo.longitude,
       'capturedAt': photo.capturedAt.toIso8601String(),
@@ -52,13 +56,15 @@ class UploadService extends GetxService {
 
     final res = await _http.upload(ApiConstants.uploadSingle, formData);
     final body = res.data as Map<String, dynamic>;
-    if (body['success'] != true) throw Exception(body['message'] ?? 'Upload failed');
+    if (body['success'] != true)
+      throw Exception(body['message'] ?? 'Upload failed');
     final data = body['data'] as Map<String, dynamic>;
     return fullUrl(data['fileUrl'] as String);
   }
 
   /// Returns relative `/uploads/...` path for DB storage; stream via [fullUrl].
-  Future<String?> uploadVoiceFileWithRetry(String localPath, {int attempts = 3}) async {
+  Future<String?> uploadVoiceFileWithRetry(String localPath,
+      {int attempts = 3}) async {
     for (var i = 0; i < attempts; i++) {
       try {
         return await uploadVoiceFile(localPath);
@@ -89,7 +95,8 @@ class UploadService extends GetxService {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(
         localPath,
-        filename: 'call_${DateTime.now().millisecondsSinceEpoch}.${isWav ? 'wav' : 'm4a'}',
+        filename:
+            'call_${DateTime.now().millisecondsSinceEpoch}.${isWav ? 'wav' : 'm4a'}',
         contentType: MediaType('audio', isWav ? 'wav' : 'mp4'),
       ),
       'type': 'voice',
@@ -97,7 +104,8 @@ class UploadService extends GetxService {
 
     final res = await _http.upload(ApiConstants.uploadSingle, formData);
     final body = res.data as Map<String, dynamic>;
-    if (body['success'] != true) throw Exception(body['message'] ?? 'Upload failed');
+    if (body['success'] != true)
+      throw Exception(body['message'] ?? 'Upload failed');
     final data = body['data'] as Map<String, dynamic>;
     final url = data['fileUrl']?.toString() ?? '';
     if (!url.contains('/uploads/')) {
@@ -108,7 +116,8 @@ class UploadService extends GetxService {
 
   Future<String?> uploadPlainFile(String? path, {String type = 'photo'}) async {
     if (path == null || path.isEmpty) return null;
-    if (path.startsWith('http') || path.startsWith('/uploads')) return fullUrl(path);
+    if (path.startsWith('http') || path.startsWith('/uploads'))
+      return fullUrl(path);
 
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(path),
@@ -116,8 +125,13 @@ class UploadService extends GetxService {
     });
     final res = await _http.upload(ApiConstants.uploadSingle, formData);
     final body = res.data as Map<String, dynamic>;
-    if (body['success'] != true) return path;
+    if (body['success'] != true) {
+      throw Exception(body['message'] ?? 'Photo upload failed');
+    }
     final data = body['data'] as Map<String, dynamic>;
-    return fullUrl(data['fileUrl'] as String);
+    final url = data['fileUrl']?.toString() ?? '';
+    if (!url.contains('/uploads/'))
+      throw Exception('Server did not confirm the photo upload');
+    return fullUrl(url);
   }
 }
