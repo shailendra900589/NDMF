@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import { lazy, Suspense } from 'react';
+const DeveloperAccess = lazy(() => import('./pages/DeveloperAccess'));
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -31,9 +32,9 @@ function HomeRoute() {
   if (user.role === 'superAdmin') return <Navigate to="/super-admin" replace />;
   return canAccess(user, 'dashboard') ? <Dashboard /> : <Navigate to="/profile" replace />;
 }
-function SuperAdminRoute() {
+function SuperAdminRoute({ apiAccess = false }) {
   const { user } = useSession();
-  return user.role === 'superAdmin' ? <Suspense fallback={<div>Loading company console…</div>}><SuperAdmin /></Suspense> : <Navigate to="/" replace />;
+  return user.role === 'superAdmin' ? <Suspense fallback={<div>Loading company console…</div>}><>{apiAccess ? <DeveloperAccess /> : <SuperAdmin />}</></Suspense> : <Navigate to="/" replace />;
 }
 export default function App() {
   return (
@@ -41,6 +42,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<VerifiedSession><ConsoleScope><Layout /></ConsoleScope></VerifiedSession>}>
         <Route index element={<HomeRoute />} />
+        <Route path="super-admin/api" element={<SuperAdminRoute apiAccess />} />
         <Route path="super-admin" element={<SuperAdminRoute />} />
         <Route path="customer-listings" element={<PermissionRoute permission="customerListings"><CustomerListings /></PermissionRoute>} />
         <Route path="customers" element={<PermissionRoute permission="customers"><Customers /></PermissionRoute>} />

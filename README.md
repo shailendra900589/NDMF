@@ -36,3 +36,7 @@ Then configure `.env` from `.env.example` (JWT + ndclients.co.in already filled)
 ## Logins
 
 [DEMO_LOGINS.md](DEMO_LOGINS.md) — Admin `9000000001` / `ndfa1234`
+
+## Developer API
+
+See [DEVELOPER_API.md](DEVELOPER_API.md) for onboarding, Super Admin approvals, scoped expiring keys, integration examples and deployment. Public guide: `/brand/developers.html`. Super Admin console: `/super-admin/api`.

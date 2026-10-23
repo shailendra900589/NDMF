@@ -5,10 +5,10 @@ import { useSession } from './Session';
 export default function ConsoleScope({ children }) {
   const { user } = useSession();
   const { pathname } = useLocation();
-  if (user.role === 'superAdmin' && pathname !== '/super-admin' && pathname !== '/profile') {
+  if (user.role === 'superAdmin' && pathname !== '/super-admin' && pathname !== '/super-admin/api' && pathname !== '/profile') {
     return <Navigate to="/super-admin" replace />;
   }
-  if (user.role !== 'superAdmin' && pathname === '/super-admin') {
+  if (user.role !== 'superAdmin' && pathname.startsWith('/super-admin')) {
     return <Navigate to="/" replace />;
   }
   return children;

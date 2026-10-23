@@ -8,7 +8,7 @@ const modulePaths = { dashboard: 'dashboard', customers: 'customers', 'customer-
 function enforceCompanyAccess(req, res, next) {
   const route = (req.originalUrl || '').split('?')[0].replace(/^\/api\/v1\//, '');
   if (req.user.role === 'superAdmin') {
-    if (!/^(super-admin|auth)(\/|$)/.test(route)) return error(res, 'Use the Super Admin company console', 403);
+    if (!/^(super-admin|auth)(\/|$)/.test(route) && !/^developer\/manage(\/|$)/.test(route)) return error(res, 'Use the Super Admin company console', 403);
     return next();
   }
   if (/^super-admin(\/|$)/.test(route)) return error(res, 'Super Admin access required', 403);

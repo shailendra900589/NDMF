@@ -129,3 +129,5 @@ export const platformApi = {
 };
 
 export default api;
+
+export const developerApi = { overview: () => api.get("/developer/manage"), action: (path, data = {}) => api.post(`/developer/manage/${path}`, data) };

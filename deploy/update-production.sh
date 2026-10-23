@@ -13,6 +13,10 @@ echo 'Installing backend dependencies'
 echo 'Building the staff console'
 (cd admin-frontend && npm ci && npm run build)
 
+echo 'Publishing public website and developer onboarding'
+sudo mkdir -p /var/www/ndmf-public
+sudo rsync -a --exclude=_preview_server.py public-site/ /var/www/ndmf-public/
+
 echo 'Updating the active Nginx console cache policy (including HTTPS)'
 SITE_HOST=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).hostname)' "$SITE_URL")
 sudo python3 deploy/refresh-console-cache.py "$SITE_HOST" "$WEB_ROOT"
@@ -59,6 +63,12 @@ for PAGE in login super-admin; do
     exit 1
   fi
 done
+echo 'Verifying developer documentation and onboarding API'
+PORTAL_HTML=$(curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/brand/developers.html?release=$(git rev-parse --short HEAD)")
+grep -Fq 'id="onboarding"' <<< "$PORTAL_HTML"
+CATALOG=$(curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/api/v1/developer/catalog")
+grep -Fq 'customers:read' <<< "$CATALOG"
+
 echo "Verified release $(git rev-parse --short HEAD): $SITE_URL/login"
 echo 'Sign out, then sign in again. Super Admin opens /super-admin.'
 pm2 status
