@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { callLogsApi, listingsApi, uploadMedia } from '../api/api';
@@ -294,7 +295,7 @@ export default function CustomerListings() {
           </div>
           <div className="form-group">
             <label htmlFor="list-status">Status</label>
-            <select
+            <SearchableSelect
               id="list-status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -305,7 +306,7 @@ export default function CustomerListings() {
                   {label}
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
           <div className="form-group">
             <label>&nbsp;</label>

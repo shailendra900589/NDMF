@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { canPerformStored } from '../utils/permissions';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -244,7 +245,7 @@ export default function Users() {
                 </div>
                 <div className="form-group">
                   <label>Role</label>
-                  <select
+                  <SearchableSelect
                     value={form.role}
                     onChange={(e) => {
                       const role = e.target.value;
@@ -258,7 +259,7 @@ export default function Users() {
                     {roleOptionsForForm.map((r) => (
                       <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>
                     ))}
-                  </select>
+                  </SearchableSelect>
                 </div>
                 <div className="form-group">
                   <label>Initial password</label>
@@ -273,7 +274,7 @@ export default function Users() {
                 </p>
                 <div className="form-group">
                   <label>Assign role</label>
-                  <select
+                  <SearchableSelect
                     value={form.role}
                     onChange={(e) => {
                       const role = e.target.value;
@@ -287,7 +288,7 @@ export default function Users() {
                     {roleOptionsForForm.map((r) => (
                       <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>
                     ))}
-                  </select>
+                  </SearchableSelect>
                 </div>
                 <div className="form-group">
                   <label>Attendance face</label>
@@ -306,7 +307,7 @@ export default function Users() {
             )}
             <div className="form-group">
               <label>Location</label>
-              <select
+              <SearchableSelect
                 value={form.branch || ''}
                 disabled={!isAdmin}
                 onChange={(e) => setForm({ ...form, branch: e.target.value })}
@@ -315,7 +316,7 @@ export default function Users() {
                 {branches.map((b) => (
                   <option key={b.id || b.name} value={b.name}>{b.name}</option>
                 ))}
-              </select>
+              </SearchableSelect>
             </div>
             {form.role !== 'admin' && (
               <div className="form-group">

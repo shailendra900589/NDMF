@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { attendanceApi } from '../api/api';
@@ -257,7 +258,7 @@ export default function Attendance() {
           </div>
           <div className="form-group">
             <label htmlFor="att-emp">Employee</label>
-            <select
+            <SearchableSelect
               id="att-emp"
               value={filterEmployee}
               onChange={(e) => setFilterEmployee(e.target.value)}
@@ -268,11 +269,11 @@ export default function Attendance() {
                   {e.name} ({e.employeeId})
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
           <div className="form-group">
             <label htmlFor="att-status">Status filter</label>
-            <select
+            <SearchableSelect
               id="att-status"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -281,7 +282,7 @@ export default function Attendance() {
               <option value="present_today">Present today</option>
               <option value="has_absent">Has absent days</option>
               <option value="full_present">Full present (so far)</option>
-            </select>
+            </SearchableSelect>
           </div>
           <div className="att-filters__actions">
             <button

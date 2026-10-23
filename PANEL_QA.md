@@ -36,3 +36,11 @@ bash deploy/update-production.sh
 - Photo access: an authenticated attendance endpoint returns signed local-upload links without face descriptors or verification secrets. Administrators can view company employees; managers can view their branch employees; staff can view themselves. Cross-company and unauthorized branch requests are rejected. Attendance entitlement is required.
 
 Browser checks passed for the dashboard, tracking employee selection (including an off-duty user), attendance photo loading and enlarge/close, customer listings, customers, call logs, users, locations and pay slips. Mobile tracking was checked at 390px, including drawer navigation and document overflow. Preview images use fictional staff and a synthetic registration reference, never production face photos. Temporary preview data and image files are removed when the preview server is stopped.
+
+## Searchable dropdowns — 23 October 2026
+
+All 14 existing dropdowns across Tracking, Employee Tracking, Attendance, Customers, Customer Listings, Users and Super Admin now share a searchable combobox. Queries match option text and location groups, support multiple words and ignore case/accents. Typing never changes the applied filter until an option is selected. Existing values, numeric stop thresholds, disabled fields/options, location groups and required form validation are preserved.
+
+The popup supports Arrow Up/Down, Home/End, Enter, Escape, Tab, outside dismissal and an explicit toggle. It opens above or below the field as space allows, resizes with the viewport and renders outside scroll-clipped cards/modals. There are selected-state indicators, result counts, no-results messaging and mobile touch-sized options. No additional dependency or backend permission change was needed.
+
+Verification: all four frontend tests and the production build pass. Regression coverage includes committing numeric values, multi-word/group filtering, no-results protection, preserving selection on cancel/reopen, disabled-option keyboard skipping and viewport resize handling. Real browser checks additionally confirmed native required validation, successful form submission, mouse selection, long-list keyboard navigation, toggle behavior and popup boundaries at 390px. Browser fixtures used dummy records only and were removed after verification.

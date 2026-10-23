@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { useEffect, useState } from 'react';
 import { platformApi } from '../api/api';
 import './SuperAdmin.css';
@@ -86,8 +87,8 @@ export default function SuperAdmin() {
       <div className="sa-panel-heading"><div><span className="sa-eyebrow">{draft?.name}</span><h2>{employee.id ? 'Manage user access' : 'Add company user'}</h2></div><button type="button" disabled={busy} onClick={() => setEmployee(null)} aria-label="Close user form">×</button></div>
       <div className="sa-form-grid"><label>Full name<input required value={employee.name} onChange={e => setEmployee({ ...employee, name:e.target.value })} /></label><label>Login ID<input required disabled={!!employee.id} value={employee.employeeId} onChange={e => setEmployee({ ...employee, employeeId:e.target.value })} /></label>
         {!employee.id && <><label>Email (optional)<input type="email" value={employee.email} onChange={e => setEmployee({ ...employee, email:e.target.value })} /></label><label>Mobile (optional)<input value={employee.mobile} onChange={e => setEmployee({ ...employee, mobile:e.target.value })} /></label></>}
-        <label>Role<select value={employee.role} onChange={e => setEmployee({ ...employee, role:e.target.value, permissions:data.roleDefaults[e.target.value] })}>{Object.entries(roleLabels).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-        <label>Location<select required={employee.role !== 'admin'} value={employee.branch || ''} onChange={e => setEmployee({ ...employee, branch:e.target.value })}><option value="">All locations (administrator)</option>{detail.branches.map(b => <option key={b.id}>{b.name}</option>)}</select></label>
+        <label>Role<SearchableSelect value={employee.role} onChange={e => setEmployee({ ...employee, role:e.target.value, permissions:data.roleDefaults[e.target.value] })}>{Object.entries(roleLabels).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</SearchableSelect></label>
+        <label>Location<SearchableSelect required={employee.role !== 'admin'} value={employee.branch || ''} onChange={e => setEmployee({ ...employee, branch:e.target.value })}><option value="">All locations (administrator)</option>{detail.branches.map(b => <option key={b.id}>{b.name}</option>)}</SearchableSelect></label>
         <label>{employee.id ? 'New password (leave blank to keep)' : 'Password'}<input type="password" required={!employee.id} minLength={8} autoComplete="new-password" value={employee.password} onChange={e => setEmployee({ ...employee, password:e.target.value })} /></label>
         <label className="sa-check"><input type="checkbox" checked={employee.isActive} onChange={e => setEmployee({ ...employee, isActive:e.target.checked })} /> Account is active</label></div>
       <p className="sa-muted">{employee.role !== 'admin' && !detail.branches.length ? 'Create a company location in the company administrator console before adding managers or employees. ' : ''}Company policy is the maximum available access. Disabled company functions cannot be enabled for an individual.</p>

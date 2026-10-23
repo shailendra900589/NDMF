@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { customersApi, branchesApi } from '../api/api';
@@ -136,7 +137,7 @@ export default function Customers() {
           </div>
           <div className="form-group">
             <label htmlFor="cust-loc">Location</label>
-            <select
+            <SearchableSelect
               id="cust-loc"
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
@@ -147,11 +148,11 @@ export default function Customers() {
                   {displayLocation(name)}
                 </option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
           <div className="form-group">
             <label htmlFor="cust-docs">Documents</label>
-            <select
+            <SearchableSelect
               id="cust-docs"
               value={docsFilter}
               onChange={(e) => setDocsFilter(e.target.value)}
@@ -159,7 +160,7 @@ export default function Customers() {
               <option value="all">All</option>
               <option value="yes">With documents</option>
               <option value="no">Without documents</option>
-            </select>
+            </SearchableSelect>
           </div>
           <div className="att-filters__actions">
             <button
@@ -274,7 +275,7 @@ export default function Customers() {
               {isAdmin && (
                 <div className="form-group">
                   <label>Location</label>
-                  <select
+                  <SearchableSelect
                     required
                     value={form.branch}
                     onChange={(e) => setForm({ ...form, branch: e.target.value })}
@@ -285,7 +286,7 @@ export default function Customers() {
                         {displayLocation(name)}
                       </option>
                     ))}
-                  </select>
+                  </SearchableSelect>
                 </div>
               )}
               {!isAdmin && (

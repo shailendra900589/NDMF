@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { trackingApi } from '../api/api';
@@ -235,7 +236,7 @@ export default function EmployeeTracking({ embedded = false }) {
       <div className="card rt-toolbar">
         {!embedded && <div className="form-group">
           <label htmlFor="route-employee">Employee</label>
-          <select id="route-employee" value={userId} onChange={(e) => update({ userId: e.target.value, date: null })}>
+          <SearchableSelect id="route-employee" value={userId} onChange={(e) => update({ userId: e.target.value, date: null })}>
             {!userId && <option value="">Select employee</option>}
             {grouped.map(([branch, list]) => (
               <optgroup key={branch} label={branch}>
@@ -246,7 +247,7 @@ export default function EmployeeTracking({ embedded = false }) {
                 ))}
               </optgroup>
             ))}
-          </select>
+          </SearchableSelect>
         </div>}
         <div className="form-group">
           <label htmlFor="route-date">Date</label>
@@ -262,11 +263,11 @@ export default function EmployeeTracking({ embedded = false }) {
         {isField && (
           <div className="form-group">
             <label htmlFor="route-stop">Count a stop after</label>
-            <select id="route-stop" value={minStop} onChange={(e) => setMinStop(Number(e.target.value))}>
+            <SearchableSelect id="route-stop" value={minStop} onChange={(e) => setMinStop(Number(e.target.value))}>
               {STOP_FILTERS.map((m) => (
                 <option key={m} value={m}>{m} minutes</option>
               ))}
-            </select>
+            </SearchableSelect>
           </div>
         )}
         <div className="rt-toolbar__actions">

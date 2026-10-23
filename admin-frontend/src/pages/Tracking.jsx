@@ -1,3 +1,4 @@
+import SearchableSelect from '../components/SearchableSelect';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 const EmployeeTracking = lazy(() => import('./EmployeeTracking'));
@@ -57,10 +58,10 @@ export default function Tracking() {
 
       <section className="workspace-toolbar card">
         <div><label htmlFor="tracking-employee">Employee workspace</label>
-          <select id="tracking-employee" value={selectedId} onChange={e => select(e.target.value)}>
+          <SearchableSelect id="tracking-employee" value={selectedId} onChange={e => select(e.target.value)}>
             <option value="">All employees · live overview</option>
             {people.map(p => <option key={p.userId} value={p.userId}>{p.name} · {p.employeeId} · {displayLocation(p.branch)}</option>)}
-          </select>
+          </SearchableSelect>
           <small>Includes employees who are currently off duty. History is available for the configured retention period.</small>
         </div>
         <div className="workspace-status"><strong>{live.team.filter(e => e.onDuty).length}</strong><span>On duty</span></div>
