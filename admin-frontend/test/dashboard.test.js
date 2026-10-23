@@ -2,12 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
-import { MemoryRouter } from 'react-router-dom';
 import { createServer } from 'vite';
 
 test('admin dashboard respects disabled tracking and displays API failures with retry', async () => {
   const server = await createServer({
-    configFile: false, esbuild: { jsx: 'automatic' }, server: { middlewareMode: true, hmr: false }, appType: 'custom',
+    ssr: { noExternal: ['react-router-dom', 'react-router'], resolve: { conditions: ['module', 'import'] } }, configFile: false, esbuild: { jsx: 'automatic' }, server: { middlewareMode: true, hmr: false }, appType: 'custom',
     optimizeDeps: { noDiscovery: true, include: [], entries: [] },
     plugins: [{ name: 'test-map', enforce: 'pre', load(id) {
       if (id.replaceAll('\\', '/').endsWith('/components/LiveTeamMap.jsx')) return 'export default function TestMap() { return null; }';
@@ -16,6 +15,7 @@ test('admin dashboard respects disabled tracking and displays API failures with 
   const previous = { localStorage: globalThis.localStorage, window: globalThis.window };
   let tree;
   try {
+    const { MemoryRouter, useLocation } = await server.ssrLoadModule('react-router-dom');
     const values = new Map([['ndfa_token', 'test-token']]);
     globalThis.localStorage = { getItem: k => values.get(k) ?? null, setItem: (k,v) => values.set(k,v), removeItem: k => values.delete(k) };
     globalThis.window = { addEventListener() {}, removeEventListener() {} };

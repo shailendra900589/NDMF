@@ -2,14 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
-import { MemoryRouter, useLocation } from 'react-router-dom';
 import { createServer } from 'vite';
 
 test('protected console uses verified role and refreshes all consumers together', async () => {
-  const server = await createServer({ configFile: false, esbuild: { jsx: 'automatic' }, server: { middlewareMode: true, hmr: false }, appType: 'custom', optimizeDeps: { noDiscovery: true, include: [], entries: [] } });
+  const server = await createServer({ ssr: { noExternal: ['react-router-dom', 'react-router'], resolve: { conditions: ['module', 'import'] } }, configFile: false, esbuild: { jsx: 'automatic' }, server: { middlewareMode: true, hmr: false }, appType: 'custom', optimizeDeps: { noDiscovery: true, include: [], entries: [] } });
   const previous = { localStorage: globalThis.localStorage, window: globalThis.window };
   let tree;
   try {
+    const { MemoryRouter, useLocation } = await server.ssrLoadModule('react-router-dom');
     const values = new Map([['ndfa_token', 'test-token'], ['ndfa_user', '{invalid cached data']]);
     globalThis.localStorage = { getItem: k => values.get(k) ?? null, setItem: (k,v) => values.set(k,v), removeItem: k => values.delete(k) };
     const listeners = new Map();

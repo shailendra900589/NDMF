@@ -6,6 +6,7 @@ WEB_ROOT="${ADMIN_WEB_ROOT:-/var/www/ndmf}"
 SITE_URL="${SITE_URL:-https://ndclients.co.in}"
 [[ "$WEB_ROOT" = /* && "$WEB_ROOT" != / ]] || { echo 'ADMIN_WEB_ROOT must be an absolute website directory'; exit 1; }
 cd "$REPO_ROOT"
+node -e 'if (Number(process.versions.node.split(".")[0]) < 20) { console.error("Node.js 20 or newer is required"); process.exit(1); }'
 
 echo 'Installing backend dependencies'
 (cd backend && npm ci --omit=dev)
@@ -16,21 +17,26 @@ echo 'Updating the active Nginx console cache policy (including HTTPS)'
 SITE_HOST=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).hostname)' "$SITE_URL")
 sudo python3 deploy/refresh-console-cache.py "$SITE_HOST" "$WEB_ROOT"
 
+echo 'Restarting the API'
+pm2 restart ndfa-api
+if ! python3 deploy/wait-for-api.py http://127.0.0.1:5000/api/v1/health; then
+  pm2 status
+  echo 'Inspect startup errors with: pm2 logs ndfa-api --nostream --lines 50'
+  echo 'Also check PostgreSQL and the PORT / DATABASE_URL settings in backend/.env.'
+  exit 1
+fi
+echo 'Verifying the API through the public HTTPS proxy'
+if ! python3 deploy/wait-for-api.py "$SITE_URL/api/v1/health" --attempts 6; then
+  echo 'Local API is healthy but public API verification failed. Check Nginx /api/ proxy and TLS.'
+  exit 1
+fi
+
 echo "Publishing the console to $WEB_ROOT"
 sudo mkdir -p "$WEB_ROOT"
-# Keep previous hashed assets for browsers that still have an older page open.
-# Publish the entry document last, after every new asset is available.
+# Keep old assets for open browser tabs; publish HTML after assets and API are ready.
 sudo rsync -a --exclude=index.html admin-frontend/dist/ "$WEB_ROOT/"
 sudo install -m 644 admin-frontend/dist/index.html "$WEB_ROOT/index.html.next"
 sudo mv "$WEB_ROOT/index.html.next" "$WEB_ROOT/index.html"
-
-echo 'Restarting the API'
-pm2 restart ndfa-api
-for attempt in {1..15}; do
-  if curl -fsS --connect-timeout 3 --max-time 5 http://127.0.0.1:5000/api/v1/health >/dev/null; then break; fi
-  if [[ "$attempt" = 15 ]]; then echo 'API did not become healthy; inspect pm2 logs ndfa-api'; exit 1; fi
-  sleep 2
-done
 
 echo 'Verifying the live console matches this build'
 ENTRY=$(python3 -c 'import re,pathlib; print(re.search(r"src=\"(/assets/index-[^\"]+\.js)\"", pathlib.Path("admin-frontend/dist/index.html").read_text()).group(1))')
