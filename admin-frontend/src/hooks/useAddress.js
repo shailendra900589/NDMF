@@ -15,10 +15,15 @@ function keyOf(lat, lng) {
 }
 
 /** Looks up a short place name (OpenStreetMap), at most one request per second. */
-function lookup(lat, lng) {
+export function cachedAddress(lat, lng) {
+  return lat != null && lng != null ? cache[keyOf(lat,lng)] || '' : '';
+}
+
+export function lookup(lat, lng) {
+  if (lat == null || lng == null || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return Promise.resolve('');
   const key = keyOf(lat, lng);
   if (cache[key]) return Promise.resolve(cache[key]);
-  chain = chain
+  chain = chain.catch(() => '')
     .then(() => new Promise((r) => setTimeout(r, 1100)))
     .then(async () => {
       if (cache[key]) return cache[key];
@@ -47,6 +52,7 @@ function lookup(lat, lng) {
 export default function useAddress(lat, lng) {
   const [name, setName] = useState(() => (lat != null ? cache[keyOf(lat, lng)] || '' : ''));
   useEffect(() => {
+    setName('');
     if (lat == null || lng == null) return undefined;
     let alive = true;
     const hit = cache[keyOf(lat, lng)];

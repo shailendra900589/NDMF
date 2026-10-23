@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { lookup, cachedAddress } from '../hooks/useAddress';
 
 const DEFAULT_CENTER = [28.6139, 77.209];
 
@@ -9,7 +10,7 @@ function pin(html, size = 30) {
 }
 
 function fmtTime(iso) {
-  return iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
+  return iso ? new Date(iso).toLocaleTimeString('en-IN', { timeZone:'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }) : '';
 }
 
 function fmtDuration(mins) {
@@ -75,12 +76,18 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
     if (showStops) {
       (route.stops || []).forEach((s) => {
         const icon = pin(`<div class="route-pin route-pin--stop">${s.number}</div>`, 28);
+        const label = document.createElement('div');
+        const duration = document.createElement('strong');duration.textContent=`Stop ${s.number} · ${fmtDuration(s.minutes)}`;
+        const times = document.createElement('div');times.textContent=`${fmtTime(s.arrivedAt)} – ${s.ongoing ? 'latest fix' : fmtTime(s.leftAt)}`;
+        const place = document.createElement('div');place.className='route-stop-place';place.textContent=cachedAddress(s.lat,s.lng) || `${Number(s.lat).toFixed(5)}, ${Number(s.lng).toFixed(5)}`;
+        label.append(duration,times,place);
+        lookup(s.lat,s.lng).then(name=>{if(name) place.textContent=name;}).catch(()=>{});
         L.marker([s.lat, s.lng], { icon, zIndexOffset: 700 })
-          .bindTooltip(fmtDuration(s.minutes), { permanent: true, direction: 'right', className: 'route-stop-label', offset: [12, 0] })
+          .bindTooltip(label, { permanent: true, direction: 'auto', className: 'route-stop-label', offset: [12, 0] })
           .bindPopup(
             `<div class="live-pop"><strong>Stop ${s.number}${s.isStart ? ' · start' : ''}</strong>` +
-              `<span>${fmtTime(s.arrivedAt)} – ${s.ongoing ? 'now' : fmtTime(s.leftAt)}</span>` +
-              `<span><b>${fmtDuration(s.minutes)}</b>${s.ongoing ? ' (still here)' : ''}</span>` +
+              `<span>${fmtTime(s.arrivedAt)} – ${fmtTime(s.leftAt)} IST</span>` +
+              `<span><b>${fmtDuration(s.minutes)}</b>${s.ongoing ? ' (through latest GPS fix)' : ''}</span>` +
               `<a href="https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}" target="_blank" rel="noreferrer">Open in Google Maps</a></div>`
           )
           .addTo(g);

@@ -2,7 +2,8 @@
 export function downloadExcel(filename, sheets) {
   const { headers, rows } = sheets;
   const escape = (v) => {
-    const s = v == null ? '' : String(v);
+    const raw = v == null ? '' : String(v);
+    const s = typeof v === 'string' && /^[\s]*[=+@-]/.test(raw) ? `'${raw}` : raw;
     return `"${s.replace(/"/g, '""')}"`;
   };
   const lines = [headers.map(escape).join(',')];

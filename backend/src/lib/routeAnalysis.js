@@ -75,7 +75,7 @@ function analyzeShift(report, att, { minStopMinutes = DEFAULT_MIN_STOP_MIN, now 
       if (toIndex <= fromIndex) return;
       const meters = pathMeters(points, fromIndex, toIndex);
       if (meters < 30) return;
-      legs.push({ startAt: fromAt, endAt: toAt, km: Math.round(meters / 10) / 100, minutes: minutes(toAt - fromAt) });
+      legs.push({ startAt: fromAt, endAt: toAt, from: {lat:points[fromIndex].lat,lng:points[fromIndex].lng}, to:{lat:points[toIndex].lat,lng:points[toIndex].lng}, km: Math.round(meters / 10) / 100, minutes: minutes(toAt - fromAt) });
     };
     for (const s of stops) {
       if (s.isStart) continue;
@@ -112,7 +112,7 @@ function analyzeShift(report, att, { minStopMinutes = DEFAULT_MIN_STOP_MIN, now 
       isStart: s.isStart,
     })
   );
-  legs.forEach((l) => timeline.push({ type: 'travel', at: iso(l.startAt), until: iso(l.endAt), km: l.km, minutes: l.minutes }));
+  legs.forEach((l) => timeline.push({ type: 'travel', at: iso(l.startAt), until: iso(l.endAt), from:l.from, to:l.to, km: l.km, minutes: l.minutes }));
   gaps.forEach((g) => timeline.push({ type: 'gap', at: iso(g.from), until: iso(g.to), minutes: g.minutes }));
   if (checkOut) {
     timeline.push({ type: 'checkout', at: iso(checkOut), lat: att?.checkOutLat ?? null, lng: att?.checkOutLng ?? null });

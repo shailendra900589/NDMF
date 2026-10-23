@@ -61,3 +61,13 @@ The public homepage now presents attendance, field routes, customer workflows, c
 Local browser verification used isolated fictional records: dashboard in both themes, Super Admin, tracking, attendance, mobile navigation, public preview tabs and developer guide. Homepage widths of 320, 390 and 1440 pixels and mobile developer guide were checked for horizontal overflow. No production users or biometric records were changed.
 
 Deployment now publishes the public homepage atomically and patches the active Nginx homepage/developer guide HTML routes with no-store headers while retaining API, TLS and upload configuration. The homepage release marker is `smartstaff-ui-20261023`. These changes require running the production updater; local screenshots do not confirm a live deployment.
+
+## Stop labels and monthly route reports — 24 October 2026
+
+Tracking → select an employee → choose a date (for example 22 October) for the route map and day report. Permanent stop labels show stop number, duration, arrival/departure times and a cached/resolved place name, falling back to coordinates. Labels automatically choose a side on narrow maps. Travel timeline entries include both endpoints. An open shift's last observed stop is explicitly limited to its latest GPS fix.
+
+The Monthly travel report provides day-wise kilometres, duty minutes, stop counts and links to every shift. CSV downloads include daily totals, individual shift summaries, travel endpoints, stops, minutes, timestamps in IST and GPS-gap events. Multiple shifts on the same business date are included in day downloads as well. Monthly exports fetch retained shifts through the existing authorized route endpoint, abort on errors and ignore stale completions after employee/month/filter changes. Names are included when cached; coordinates remain available without geocoding. CSV string cells are protected against spreadsheet formula execution.
+
+Report dates use India business days, preserving UTC storage and existing internal tracking identifiers. No GPS data is reported explicitly; missing history is not evidence of zero travel. The configured retention window still applies (90 days by default). Distances remain estimates from recorded GPS, not reconstructed road travel.
+
+Verification: 27 backend tests, seven frontend tests and production build passed. Browser verification used an isolated fictional employee on 22 October: 4.25 km, three stops, a successful monthly CSV download and phone layout without document overflow. No production employee records were changed. Physical phone GPS acquisition and actual production history were not verified in this run.

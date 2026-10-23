@@ -4,18 +4,19 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { trackingApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
 import RouteMap from '../components/RouteMap';
-import useAddress from '../hooks/useAddress';
+import useAddress, { cachedAddress } from '../hooks/useAddress';
+import { routeReport, groupRouteDays } from '../utils/routeReport';
 import { displayLocation } from '../utils/displayLabels';
 import { downloadExcel } from '../utils/exportExcel';
 
 const STOP_FILTERS = [2, 5, 10, 15, 30];
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 }
 
 function fmtTime(iso) {
-  return iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
+  return iso ? new Date(iso).toLocaleTimeString('en-IN', { timeZone:'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }) : '—';
 }
 
 function fmtDuration(mins) {
@@ -85,6 +86,10 @@ export default function EmployeeTracking({ embedded = false }) {
   const [params, setParams] = useSearchParams();
   const userId = params.get('userId') || '';
   const date = params.get('date') || todayKey();
+  const attendanceId=params.get('attendanceId') || '';
+  const [month,setMonth]=useState(date.slice(0,7));
+  const [exporting,setExporting]=useState(false),[reportError,setReportError]=useState('');
+  const reportRun=useRef(0);
   const [minStop, setMinStop] = useState(5);
   const [people, setPeople] = useState([]);
   const [retentionDays, setRetentionDays] = useState(90);
@@ -98,9 +103,11 @@ export default function EmployeeTracking({ embedded = false }) {
   const [replay, setReplay] = useState(null);
   const [playing, setPlaying] = useState(false);
   const timer = useRef(null);
+  useEffect(()=>{reportRun.current+=1;setExporting(false);setReportError('');return()=>{reportRun.current+=1;};},[userId,month,minStop]);
 
   const update = (next) => {
     const p = new URLSearchParams(params);
+    if (('date' in next || 'userId' in next) && !('attendanceId' in next)) p.delete('attendanceId');
     Object.entries(next).forEach(([k, v]) => (v ? p.set(k, v) : p.delete(k)));
     setParams(p, { replace: true });
   };
@@ -142,7 +149,7 @@ export default function EmployeeTracking({ embedded = false }) {
     const load = (quiet) => {
       if (!quiet) setLoading(true);
       trackingApi
-        .getRoute({ userId, date, minStop })
+        .getRoute({ userId, date, minStop, ...(attendanceId ? {attendanceId} : {}) })
         .then((res) => {
           if (!alive) return;
           setRoute(res.data);
@@ -159,7 +166,7 @@ export default function EmployeeTracking({ embedded = false }) {
       alive = false;
       if (live) clearInterval(live);
     };
-  }, [userId, date, minStop]);
+  }, [userId, date, minStop, attendanceId]);
 
   useEffect(() => {
     if (!playing || !route?.points?.length) return undefined;
@@ -193,19 +200,26 @@ export default function EmployeeTracking({ embedded = false }) {
 
   const exportDay = () => {
     if (!route) return;
-    const rows = timeline.map((e) => [
-      e.type === 'stop' ? `Stop ${e.number}` : e.type === 'travel' ? 'Travel' : e.type === 'gap' ? 'No GPS signal' : e.type === 'checkin' ? 'Check in' : 'Check out',
-      fmtTime(e.at),
-      e.until ? fmtTime(e.until) : '',
-      e.minutes ?? '',
-      e.km ?? '',
-      e.lat != null ? `${e.lat}, ${e.lng}` : '',
-    ]);
-    downloadExcel(`route-${route.employeeId || route.userId}-${route.date}.xls`, {
-      headers: ['Event', 'From', 'To', 'Minutes', 'KM', 'Location'],
-      rows,
-    });
+    const shifts=days.filter(d=>d.date===route.date);
+    if(shifts.length>1){exportShifts(shifts,`routes-${userId}-${route.date}.csv`);return;}
+    downloadExcel(`route-${route.employeeId || route.userId}-${route.date}.csv`, routeReport([route],cachedAddress));
   };
+  const monthDays=useMemo(()=>groupRouteDays(days,month),[days,month]);
+  const exportMonth=()=>exportShifts(monthDays.flatMap(d=>d.shifts),`routes-${userId}-${month}.csv`);
+  async function exportShifts(shifts,filename) {
+    const run=++reportRun.current;setExporting(true);setReportError('');
+    try {
+      const reports=[];
+      for (const shift of shifts) {
+        const res=await trackingApi.getRoute({userId,date:shift.date,attendanceId:shift.attendanceId,minStop});
+        if(run!==reportRun.current)return;
+        if(!res.data?.attendanceId)throw new Error('A shift is no longer available. Refresh history before downloading.');
+        reports.push(res.data);
+      }
+      downloadExcel(filename,routeReport(reports,cachedAddress));
+    } catch(e){if(run===reportRun.current)setReportError(e.response?.data?.message || e.message || 'Unable to download report. Please retry.');}
+    finally{if(run===reportRun.current)setExporting(false);}
+  }
 
   const stats = s
     ? [
@@ -257,7 +271,7 @@ export default function EmployeeTracking({ embedded = false }) {
             value={date}
             max={todayKey()}
             min={new Date(Date.now() - (retentionDays - 1) * 86400000).toISOString().slice(0, 10)}
-            onChange={(e) => update({ date: e.target.value })}
+            onChange={(e) => update({ date: e.target.value, attendanceId:null })}
           />
         </div>
         {isField && (
@@ -271,11 +285,19 @@ export default function EmployeeTracking({ embedded = false }) {
           </div>
         )}
         <div className="rt-toolbar__actions">
-          <button type="button" className="btn btn-outline" onClick={exportDay} disabled={!hasDuty}>
+          <button type="button" className="btn btn-outline" onClick={exportDay} disabled={!hasDuty || loading || exporting || daysLoading || !!daysError}>
             Download day report
           </button>
         </div>
       </div>
+
+      <section className="card route-month-report">
+        <h2>Monthly travel report</h2><p className="muted">Choose a month for day-wise kilometres and every recorded shift, journey and stop. Times use India Standard Time.</p>
+        <div className="route-month-fields"><label htmlFor="route-month">Report month<input id="route-month" type="month" value={month} max={todayKey().slice(0,7)} onChange={e=>{if(e.target.value)setMonth(e.target.value);}}/></label><div><strong>{monthDays.reduce((sum,d)=>sum+d.totalKm,0).toFixed(2)} km</strong><p>{monthDays.length} recorded days · {monthDays.reduce((sum,d)=>sum+d.stopCount,0)} stops</p><button className="btn btn-primary" disabled={!monthDays.length || daysLoading || !!daysError || exporting} onClick={exportMonth}>{exporting ? 'Preparing report…' : 'Download monthly details (CSV)'}</button></div></div>
+        <p className="muted">Includes retained GPS data only ({retentionDays} days). Missing dates mean no recorded duty, not zero travel. Place names appear when available; coordinates are always included. GPS gaps are not confirmed stops.</p>
+        {reportError && <p role="alert" className="error-msg">{reportError}</p>}
+        {daysLoading ? <p role="status">Loading history…</p> : daysError ? <p role="alert" className="error-msg">{daysError}</p> : monthDays.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Distance</th><th>Duty time</th><th>Stops</th><th>Route details</th></tr></thead><tbody>{monthDays.map(d=><tr key={d.date}><td>{fmtDay(d.date)}</td><td>{d.totalKm.toFixed(2)} km{!d.pointCount && <small> · No GPS route</small>}</td><td>{fmtDuration(d.dutyMinutes)}</td><td>{d.stopCount}</td><td>{d.shifts.map((shift,i)=><button key={shift.attendanceId} type="button" className="btn btn-outline btn-sm" onClick={()=>update({date:d.date,attendanceId:shift.attendanceId})}>View {d.shifts.length>1?`shift ${i+1}`:'day'}</button>)}</td></tr>)}</tbody></table></div> : <p>No retained shifts for this month.</p>}
+      </section>
 
       {error && <div className="card"><p style={{ color: '#b91c1c', margin: 0 }}>{error}</p></div>}
 
@@ -301,7 +323,7 @@ export default function EmployeeTracking({ embedded = false }) {
           <tbody>{days.map(d => <tr key={d.attendanceId || d.date} className={d.date === date ? 'is-selected' : ''}>
             <td>{fmtDay(d.date)}</td><td>{fmtTime(d.checkInTime)}</td><td>{d.checkOutTime ? fmtTime(d.checkOutTime) : 'Open shift'}</td>
             <td>{fmtDuration(d.dutyMinutes)}</td><td>{Number(d.totalKm || 0).toFixed(2)} km</td><td>{d.stopCount || 0}</td>
-            <td><button type="button" className="btn btn-outline btn-sm" onClick={() => update({date:d.date})}>{d.date === date ? 'Selected day' : 'View day'}</button></td>
+            <td><button type="button" className="btn btn-outline btn-sm" onClick={() => update({date:d.date,attendanceId:d.attendanceId})}>{d.date === date && (!attendanceId || attendanceId===d.attendanceId) ? 'Selected day' : 'View day'}</button></td>
           </tr>)}</tbody></table></div> : <p className="muted">No recorded duty in this history period.</p>}
       </details>
 
@@ -385,6 +407,7 @@ export default function EmployeeTracking({ embedded = false }) {
                         <>
                           <strong>Travelled {Number(e.km).toFixed(2)} km</strong>
                           <span>{fmtTime(e.at)} – {fmtTime(e.until)} · {fmtDuration(e.minutes)}</span>
+                          {e.from && <span>From <StopPlace lat={e.from.lat} lng={e.from.lng}/></span>}{e.to && <span>To <StopPlace lat={e.to.lat} lng={e.to.lng}/></span>}
                         </>
                       )}
                       {e.type === 'gap' && (
@@ -396,9 +419,9 @@ export default function EmployeeTracking({ embedded = false }) {
                       {e.type === 'stop' && (
                         <>
                           <strong>
-                            {e.ongoing ? 'Staying here now' : e.isStart ? 'Stayed at start' : 'Stopped'} · {fmtDuration(e.minutes)}
+                            {e.ongoing ? 'Stopped through latest GPS fix' : e.isStart ? 'Stayed at start' : 'Stopped'} · {fmtDuration(e.minutes)}
                           </strong>
-                          <span>{fmtTime(e.at)} – {e.ongoing ? 'now' : fmtTime(e.until)}</span>
+                          <span>{fmtTime(e.at)} – {fmtTime(e.until)} (IST)</span>
                           <StopPlace lat={e.lat} lng={e.lng} />
                           <span className="rt-ev__links">
                             <button type="button" className="rt-link" onClick={() => setFocus({ lat: e.lat, lng: e.lng, t: Date.now() })}>

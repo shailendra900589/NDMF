@@ -5,6 +5,7 @@ const { isAdmin, hasPermission, sameBranch } = require('../../lib/rbac');
 const { normalizePoint, ingest, reportPoints, compactReport } = require('../../lib/gpsTrack');
 const { analyzeShift } = require('../../lib/routeAnalysis');
 const { workTypeOf } = require('../../lib/officeGeofence');
+const { attendanceDay } = require('../../lib/attendanceDay');
 
 /** Route history is kept for this many days. */
 const RETENTION_DAYS = Math.max(1, parseInt(process.env.TRACKING_RETENTION_DAYS || '90', 10));
@@ -304,7 +305,7 @@ exports.getDays = (req, res) => {
       const report = reportFor(target, att, false);
       const { summary } = analyzeShift(report, att, { minStopMinutes, now });
       return {
-        date: dayKey(att.checkInTime),
+        date: attendanceDay(att.checkInTime),
         attendanceId: att.id,
         checkInTime: att.checkInTime,
         checkOutTime: att.checkOutTime || null,
@@ -324,13 +325,13 @@ exports.getRoute = (req, res) => {
   const att = req.query.attendanceId
     ? shifts.find((a) => a.id === req.query.attendanceId) || null
     : /^\d{4}-\d{2}-\d{2}$/.test(date)
-      ? shifts.find((a) => dayKey(a.checkInTime) === date) || null
+      ? shifts.find((a) => attendanceDay(a.checkInTime) === date) || null
       : currentShift(target.id, Date.now());
   const report = reportFor(target, att, false);
   const analysis = analyzeShift(report, att, { minStopMinutes: minStopFrom(req.query) });
   return success(res, {
     ...personInfo(target),
-    date: att ? dayKey(att.checkInTime) : date || dayKey(),
+    date: att ? attendanceDay(att.checkInTime) : date || attendanceDay(),
     attendanceId: att?.id || null,
     totalKm: report?.totalKm || 0,
     checkInTime: att?.checkInTime || null,
