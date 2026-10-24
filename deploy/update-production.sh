@@ -68,7 +68,7 @@ for PAGE in login super-admin; do
     exit 1
   fi
 done
-echo 'Verifying the public homepage uses the new Smartstaff plus UI'
+echo 'Verifying the public homepage uses the MyStaff Smart UI'
 HOME_HTML=$(curl -fsS --connect-timeout 10 --max-time 30 -H 'Cache-Control: no-cache' "$SITE_URL/?release=$(git rev-parse --short HEAD)")
 if ! grep -Fq 'data-public-release="smartstaff-ui-20261023"' <<< "$HOME_HTML"; then
   echo 'ERROR: public homepage is stale or points to the wrong root. Inspect nginx -T and PUBLIC_WEB_ROOT.'
