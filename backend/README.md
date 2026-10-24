@@ -1,6 +1,6 @@
 # Backend - Express API
 
-Smartstaff plus ka REST API backend.
+MyStaff Smart ka REST API backend.
 
 ## Quick Start
 

@@ -142,7 +142,7 @@ class TrackingService extends GetxService {
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: 'On duty — location sharing',
           notificationText:
-              'Smartstaff plus shares your location with your branch until you check out.',
+              'MyStaff Smart shares your location with your branch until you check out.',
           notificationChannelName: 'Duty location',
           enableWakeLock: true,
           setOngoing: true,

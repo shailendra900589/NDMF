@@ -374,7 +374,7 @@ Query: `search`, `employeeNo`, `month` (`YYYY-MM`).
   "data": [
     {
       "id": "PS_1727180000_abc12",
-      "companyName": "Smartstaff plus",
+      "companyName": "MyStaff Smart",
       "employeeName": "Raj Kumar",
       "employeeNo": "EMP001",
       "designation": "Field Officer",

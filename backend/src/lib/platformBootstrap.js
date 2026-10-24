@@ -6,14 +6,14 @@ const { allModules, allActions } = require('./companyPolicy');
 const INITIAL_PASSWORD_HASH = '$2a$12$YJ8tWSKliLGTqrRRyezrNepKS6ZnNCI9NZ6zxk0d5oG8U1tZsBxOi';
 async function bootstrapPlatform() {
   const now = new Date().toISOString();
-  const oldBrand = value => ['nirmaldhara micro foundation', 'nirmaldhara micro finance', 'nirmaldhara']
+  const oldBrand = value => ['nirmaldhara micro foundation', 'nirmaldhara micro finance', 'nirmaldhara', 'smartstaff plus']
     .includes(String(value || '').trim().toLowerCase());
   const existingCompany = getCollection('companies').find(c => c.id === DEFAULT_COMPANY_ID);
   if (existingCompany && oldBrand(existingCompany.name)) {
-    upsert('companies', { ...existingCompany, name: 'Smartstaff plus', updatedAt: now }, { single: true });
+    upsert('companies', { ...existingCompany, name: 'MyStaff Smart', updatedAt: now }, { single: true });
   }
   if (!getCollection('companies').some(c => c.id === DEFAULT_COMPANY_ID)) {
-    upsert('companies', { id: DEFAULT_COMPANY_ID, name: 'Smartstaff plus', code: 'NDFA',
+    upsert('companies', { id: DEFAULT_COMPANY_ID, name: 'MyStaff Smart', code: 'NDFA',
       email: '', isActive: true, modules: allModules(), actions: allActions(), createdAt: now }, { single: true });
   }
   for (const name of COLLECTIONS.filter(n => !GLOBAL_COLLECTIONS.has(n))) {
@@ -29,7 +29,7 @@ async function bootstrapPlatform() {
   }
   for (const slip of getCollection('payslips')) {
     if (slip.companyId === DEFAULT_COMPANY_ID && oldBrand(slip.companyName)) {
-      upsert('payslips', { ...slip, companyName: 'Smartstaff plus' }, { single: true });
+      upsert('payslips', { ...slip, companyName: 'MyStaff Smart' }, { single: true });
     }
   }
   const login = 'ajitndfa@ndclients.co.in';

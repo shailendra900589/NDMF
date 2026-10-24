@@ -93,7 +93,7 @@ class CallRecordService : Service() {
         }
         val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, channelId)
-                .setContentTitle("Smartstaff plus")
+                .setContentTitle("MyStaff Smart")
                 .setContentText("Recording customer call")
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .setOngoing(true)
@@ -101,7 +101,7 @@ class CallRecordService : Service() {
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
-                .setContentTitle("Smartstaff plus")
+                .setContentTitle("MyStaff Smart")
                 .setContentText("Recording customer call")
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .setOngoing(true)

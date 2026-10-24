@@ -126,9 +126,9 @@ export default function Layout() {
       {menuOpen && <button className="mobile-menu-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
       <aside className="sidebar" id="operations-navigation">
         <div className="sidebar__brand">
-          <img className="sidebar__brand-icon" src="/smartstaff-plus-icon.svg" width="40" height="40" alt="" />
+          <img className="sidebar__brand-icon" src="/mystaff-smart-icon.svg" width="40" height="40" alt="" />
           <div>
-            <div className="sidebar__title">Smartstaff <span>plus</span></div>
+            <div className="sidebar__title">MyStaff <span>Smart</span></div>
             <div className="sidebar__subtitle">{isSuperAdmin ? 'Platform administration' : user.company?.name || 'Operations workspace'}</div>
           </div>
         </div>

@@ -14,7 +14,7 @@ class AppLogo extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Image.asset(
-            'assets/images/logo.png',
+            'assets/images/mystaff-smart-logo.png',
             height: height,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Icon(Icons.account_balance, size: height * 0.7, color: const Color(0xFF00897B)),
@@ -23,7 +23,7 @@ class AppLogo extends StatelessWidget {
         if (showTagline) ...[
           const SizedBox(height: 8),
           const Text(
-            'Smartstaff plus',
+            'MyStaff Smart',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), fontWeight: FontWeight.w500),
           ),

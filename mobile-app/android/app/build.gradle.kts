@@ -21,7 +21,10 @@ android {
 
     defaultConfig {
         applicationId = "com.nirmaldhara.microfinance"
-        minSdk = 24
+        // Flutter's current engine baseline is Android 7.0/API 24. Keeping
+        // that supported minimum avoids unsafe runtime downgrades; target SDK
+        // remains current for security.
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

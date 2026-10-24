@@ -9,31 +9,62 @@ import 'app/routes/app_pages.dart';
 import 'app/theme/app_colors.dart';
 import 'app/theme/app_theme.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await GetStorage.init();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-
-  // Critical only — show UI immediately (no network wait).
-  await AppInitializer.initCritical();
-  runApp(const SmartstaffPlusApp());
-
-  // Sync / tracking / notifications after first frame.
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(AppInitializer.initDeferred());
+void main() {
+  runZonedGuarded(_startApp, (error, stackTrace) {
+    // A native plugin or persisted-state issue must never cause an Android
+    // launch loop. The app still opens and deferred services can retry later.
+    debugPrint('Unhandled startup error: $error\n$stackTrace');
   });
 }
 
-class SmartstaffPlusApp extends StatelessWidget {
-  const SmartstaffPlusApp({super.key});
+Future<void> _startApp() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await GetStorage.init();
+  } catch (error, stackTrace) {
+    debugPrint('Local storage initialization failed: $error\n$stackTrace');
+  }
+
+  try {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  } catch (error, stackTrace) {
+    debugPrint('Orientation setup failed: $error\n$stackTrace');
+  }
+
+  // Keep platform initialization fail-safe. A slow or unsupported device must
+  // reach the sign-in screen even when an optional native service is unavailable.
+  try {
+    await AppInitializer.initCritical();
+  } catch (error, stackTrace) {
+    debugPrint('Critical service initialization failed: $error\n$stackTrace');
+  }
+
+  runApp(const MyStaffSmartApp());
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_startDeferredServices());
+  });
+}
+
+Future<void> _startDeferredServices() async {
+  try {
+    await AppInitializer.initDeferred();
+  } catch (error, stackTrace) {
+    debugPrint('Deferred service initialization failed: $error\n$stackTrace');
+  }
+}
+
+class MyStaffSmartApp extends StatelessWidget {
+  const MyStaffSmartApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'Smartstaff plus',
+      title: 'MyStaff Smart',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialBinding: InitialBinding(),

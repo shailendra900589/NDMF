@@ -35,7 +35,7 @@ class LoginView extends GetView<AuthController> {
                     const AppLogo(height: 96, showTagline: false),
                     const SizedBox(height: 16),
                     const Text(
-                      'Smartstaff plus',
+                      'MyStaff Smart',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 30,

@@ -209,7 +209,7 @@ export default function PaySlips() {
         const am = computeAmounts(monthMap[m]?.earnings, monthMap[m]?.deductions);
         return {
           ...profile,
-          companyName: JSON.parse(localStorage.getItem('ndfa_user') || '{}').company?.name || 'Smartstaff plus',
+          companyName: JSON.parse(localStorage.getItem('ndfa_user') || '{}').company?.name || 'MyStaff Smart',
           month: m,
           attendance:monthMap[m]?.attendance || null,
           payroll:monthMap[m]?.payroll || null,

@@ -41,7 +41,7 @@ class HomePremiumHeader extends StatelessWidget {
                 children: [
                   const Expanded(
                     child: Text(
-                      'Smartstaff plus',
+                      'MyStaff Smart',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

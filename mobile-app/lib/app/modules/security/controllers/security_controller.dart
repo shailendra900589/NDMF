@@ -92,7 +92,7 @@ class SecurityController extends GetxController {
     }
     try {
       final authenticated = await _localAuth.authenticate(
-        localizedReason: 'Unlock Smartstaff plus',
+        localizedReason: 'Unlock MyStaff Smart',
         options: const AuthenticationOptions(
           biometricOnly: true,
           stickyAuth: true,

@@ -37,7 +37,7 @@ router.use('/payslips', payslipsRoutes);
 router.get('/health', (_, res) => {
   res.json({
     success: true,
-    message: 'NDFA API is running',
+    message: 'MyStaff Smart API is running',
     data: {
       version: '2.2.0',
       modules: 'rbac,branches,users,customers,listing,calls,attendance,tracking,payslips,settings',

@@ -16,9 +16,9 @@ require.cache[require.resolve('../src/lib/pg')]={exports:{query,getPool:()=>({co
 test('branding migration updates the original tenant and legacy payslips once',async()=>{
   const db=require('../src/lib/db');const {bootstrapPlatform}=require('../src/lib/platformBootstrap');
   await db.initDb();await bootstrapPlatform();
-  assert.equal(db.findById('companies','CO_NDFA').name,'Smartstaff plus');
+  assert.equal(db.findById('companies','CO_NDFA').name,'MyStaff Smart');
   assert.equal(db.findById('payslips','OLD').companyId,'CO_NDFA');
-  assert.equal(db.findById('payslips','OLD').companyName,'Smartstaff plus');
+  assert.equal(db.findById('payslips','OLD').companyName,'MyStaff Smart');
   assert.equal(db.findById('companies','OTHER').name,'Other business');
   assert.equal(db.findById('payslips','OTHER').companyName,'Other business');
   const changed=db.findById('companies','CO_NDFA').updatedAt;await bootstrapPlatform();

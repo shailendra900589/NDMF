@@ -48,7 +48,7 @@ export default function Login() {
           <div className="login-brand__mark" aria-hidden>
             S
           </div>
-          <h1 className="login-brand__name">Smartstaff plus</h1>
+          <h1 className="login-brand__name">MyStaff Smart</h1>
           <p className="login-brand__tag">Workforce operations console</p>
         </header>
 
@@ -109,7 +109,7 @@ export default function Login() {
           Secure access for platform administrators and company teams
         </p>
         <p className="login-foot">
-          <a href="/">Back to Smartstaff plus home</a>
+          <a href="/">Back to MyStaff Smart home</a>
         </p>
       </div>
     </div>

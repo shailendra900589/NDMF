@@ -1,4 +1,4 @@
-# Smartstaff plus — Ek hi UI design prompt (copy-paste)
+# MyStaff Smart — Ek hi UI design prompt (copy-paste)
 
 Neeche poora block copy karo aur apne UI/AI design tool (Figma AI, v0, Stitch, etc.) me paste karo. Ye **production API** ke saath match karta hai: `https://ndclients.co.in/api/v1`
 
@@ -6,7 +6,7 @@ Neeche poora block copy karo aur apne UI/AI design tool (Figma AI, v0, Stitch, e
 
 ## COPY FROM HERE ↓
 
-**Project:** Smartstaff plus (NDFA) — **Android field staff mobile app** (Flutter/GetX already wired to API). Redesign all screens with a **modern, trustworthy fintech/MFI** look: teal primary `#00897B`, orange accent `#FF9800`, light gray background `#F5F7FA`, white cards, rounded 12–16px, clear hierarchy, large touch targets (min 48dp), Hindi-friendly labels optional secondary line in English.
+**Project:** MyStaff Smart (NDFA) — **Android field staff mobile app** (Flutter/GetX already wired to API). Redesign all screens with a **modern, trustworthy fintech/MFI** look: teal primary `#00897B`, orange accent `#FF9800`, light gray background `#F5F7FA`, white cards, rounded 12–16px, clear hierarchy, large touch targets (min 48dp), Hindi-friendly labels optional secondary line in English.
 
 **Users & RBAC:** Login returns `role` (`fieldOfficer`, `branchManager`, `admin`) and `permissions` map (boolean keys). Home **Quick Actions** only show tiles where permission is `true`. Profile is **app bar avatar only** (not a Quick Action tile).
 
@@ -138,7 +138,7 @@ Neeche poora block copy karo aur apne UI/AI design tool (Figma AI, v0, Stitch, e
 4. **Component library** — app bar, quick action tile, list card, approval actions, dial pad, attendance face modal.
 5. Keep **Profile** and **Dialer** in app bar on home; **no** Profile or full “Customer Listing” tile on Quick Actions grid (applications tile only).
 
-**Brand:** Smartstaff plus — professional, rural-friendly, clear icons, not cluttered.
+**Brand:** MyStaff Smart — professional, rural-friendly, clear icons, not cluttered.
 
 ## COPY UNTIL HERE ↑
 

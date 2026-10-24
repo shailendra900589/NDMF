@@ -23,7 +23,7 @@ class NotificationService extends GetxService {
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         'nirmaldhara_channel',
-        'Smartstaff plus Notifications',
+        'MyStaff Smart notifications',
         channelDescription: 'Field force notifications',
         importance: Importance.high,
         priority: Priority.high,
