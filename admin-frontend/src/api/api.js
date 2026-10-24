@@ -115,6 +115,7 @@ export const listingsApi = {
 
 export const payslipsApi = {
   calculation:params=>api.get('/payslips/calculation',{params}),
+  runPayroll: data => api.post('/payslips/run', data),
   getAll: (params) => api.get('/payslips', { params }),
   getById: (id) => api.get(`/payslips/${id}`),
   create: (data) => api.post('/payslips', data),

@@ -255,6 +255,58 @@ exports.remove = async (req, res) => {
 };
 
 /**
+ * Issue attendance-based payroll for one employee, one branch, or the whole company.
+ * Existing slips for the month are refreshed so payroll can be safely re-run after a correction.
+ */
+exports.runPayroll = async (req, res) => {
+  const month = normalizeMonth(req.body.month);
+  const scope = String(req.body.scope || 'employee');
+  if (!month) return error(res, 'Select a valid payroll month');
+  if (!['employee', 'branch', 'company'].includes(scope)) return error(res, 'Choose employee, branch or company payroll');
+
+  const people = getCollection('users').filter((user) => user.isActive !== false && !user.isDeleted && user.role !== 'superAdmin' && user.role !== 'admin');
+  let targets = people;
+  if (scope === 'employee') targets = people.filter((user) => user.id === req.body.employeeId);
+  if (scope === 'branch') targets = people.filter((user) => user.branch === String(req.body.branch || '').trim());
+  if (!targets.length) return error(res, scope === 'employee' ? 'Select an active employee' : 'No active employees match this payroll selection');
+
+  const all = getCollection('payslips');
+  const issued = [];
+  const skipped = [];
+  for (const employee of targets) {
+    const existing = all.find((slip) => String(slip.employeeNo).toLowerCase() === String(employee.employeeId).toLowerCase() && slip.month === month);
+    if (!actionAllowed(req.user, 'payslips', existing ? 'update' : 'create')) {
+      skipped.push({ employeeId: employee.id, employeeName: employee.name, reason: `No permission to ${existing ? 'refresh' : 'issue'} payroll` });
+      continue;
+    }
+    const built = buildRecord(
+      existing?.id || `PS_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      {
+        employeeName: employee.name,
+        employeeNo: employee.employeeId,
+        designation: employee.role === 'branchManager' ? 'Branch Manager' : 'Employee',
+        department: employee.branch || '',
+        bankName: employee.bankName || '',
+        accountNo: employee.accountNo || '',
+        month,
+        autoPayroll: true,
+        deductions: existing?.deductions || {},
+      },
+      req.user,
+      existing || null
+    );
+    if (built.error) {
+      skipped.push({ employeeId: employee.id, employeeName: employee.name, reason: built.error });
+      continue;
+    }
+    upsert('payslips', built.record);
+    issued.push({ id: built.record.id, employeeId: employee.id, employeeName: employee.name, status: existing ? 'refreshed' : 'issued' });
+  }
+  await flush();
+  return success(res, { month, scope, issued, skipped, total: targets.length }, `${issued.length} salary slip(s) issued`);
+};
+
+/**
  * Bulk upsert many months for one employee.
  * Body: { employee..., months: [{ month, earnings, deductions }] }
  */

@@ -133,6 +133,10 @@ export default function PaySlips() {
   const [list, setList] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [payrollScope, setPayrollScope] = useState('employee');
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [runBusy, setRunBusy] = useState(false);
+  const [runSummary, setRunSummary] = useState(null);
   const [salaryAmount, setSalaryAmount] = useState('');
   const [salaryReason, setSalaryReason] = useState('Initial monthly salary');
   const [salarySaving, setSalarySaving] = useState(false);
@@ -230,6 +234,7 @@ export default function PaySlips() {
   };
 
   const selectedEmployee = employees.find((employee) => employee.id === selectedEmployeeId) || null;
+  const branches = useMemo(() => [...new Set(employees.map((employee) => employee.branch).filter(Boolean))].sort(), [employees]);
 
   const calculatePayroll = async (employeeNo = profile.employeeNo, month = activeMonth) => {
     const scope = `${employeeNo}|${month}`;
@@ -277,6 +282,28 @@ export default function PaySlips() {
     setSalaryAmount(selectedEmployee.monthlySalary || '');
     setMode('edit');
     await calculatePayroll(selectedEmployee.employeeId, month);
+  };
+
+  const issueSelectedPayroll = async () => {
+    if (payrollScope === 'employee' && !selectedEmployeeId) return setError('Select an employee for individual payroll.');
+    if (payrollScope === 'branch' && !selectedBranch) return setError('Select a branch for branch-wise payroll.');
+    setRunBusy(true);
+    setError('');
+    setRunSummary(null);
+    try {
+      const response = await payslipsApi.runPayroll({
+        month: startMonth,
+        scope: payrollScope,
+        employeeId: payrollScope === 'employee' ? selectedEmployeeId : undefined,
+        branch: payrollScope === 'branch' ? selectedBranch : undefined,
+      });
+      setRunSummary(response.data);
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Could not issue payroll');
+    } finally {
+      setRunBusy(false);
+    }
   };
 
   const saveSalaryAndCalculate = async () => {
@@ -486,20 +513,36 @@ export default function PaySlips() {
         <section className="card payroll-launch">
           <div>
             <span className="eyebrow">MONTHLY PAYROLL</span>
-            <h3>Prepare attendance-based payroll</h3>
-            <p>Select an employee and month. Payroll uses their saved salary, attendance, four paid Sundays and approved paid leave. Issuing payroll creates the employee’s salary slip.</p>
+            <h3>Create payroll your way</h3>
+            <p>Run a reviewed payroll for one employee, issue the entire branch at once, or create payroll for every eligible employee in the company. Existing slips for the month are refreshed after attendance changes.</p>
           </div>
           <div className="payroll-launch__controls">
-            <label>Employee
+            <div className="payroll-launch__scope" role="group" aria-label="Payroll scope">
+              <button type="button" className={`btn btn-sm ${payrollScope === 'employee' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setPayrollScope('employee')}>Single employee</button>
+              <button type="button" className={`btn btn-sm ${payrollScope === 'branch' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setPayrollScope('branch')}>Branch-wise</button>
+              <button type="button" className={`btn btn-sm ${payrollScope === 'company' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setPayrollScope('company')}>Overall company</button>
+            </div>
+            {payrollScope === 'employee' && <label>Employee
               <SearchableSelect value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)} required>
                 <option value="">Select employee</option>
                 {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name} · {employee.employeeId} · {employee.branch || 'No branch'}</option>)}
               </SearchableSelect>
-            </label>
+            </label>}
+            {payrollScope === 'branch' && <label>Branch
+              <SearchableSelect value={selectedBranch} onChange={(event) => setSelectedBranch(event.target.value)} required>
+                <option value="">Select branch</option>
+                {branches.map((branch) => <option key={branch} value={branch}>{branch}</option>)}
+              </SearchableSelect>
+            </label>}
+            {payrollScope === 'company' && <div className="payroll-launch__selection"><strong>All eligible employees</strong><span>Every active staff member with a saved salary</span></div>}
             <label>Payroll month<input type="month" value={startMonth} onChange={(event) => { setStartMonth(event.target.value); setEndMonth(event.target.value); }} /></label>
-            <button type="button" className="btn btn-primary" onClick={preparePayroll}>Prepare payroll</button>
+            {payrollScope === 'employee' ? <button type="button" className="btn btn-primary" onClick={preparePayroll}>Review & issue</button> : <button type="button" className="btn btn-primary" disabled={runBusy} onClick={issueSelectedPayroll}>{runBusy ? 'Issuing…' : payrollScope === 'branch' ? 'Issue branch payroll' : 'Issue company payroll'}</button>}
           </div>
         </section>
+        {runSummary && <section className="card payroll-run-summary" aria-live="polite">
+          <strong>{runSummary.issued?.length || 0} salary slip(s) {runSummary.issued?.some((item) => item.status === 'refreshed') ? 'issued or refreshed' : 'issued'} for {formatMonthLabel(runSummary.month)}.</strong>
+          {!!runSummary.skipped?.length && <p>{runSummary.skipped.length} employee(s) skipped: {runSummary.skipped.slice(0, 3).map((item) => `${item.employeeName} (${item.reason})`).join(' · ')}{runSummary.skipped.length > 3 ? '…' : ''}</p>}
+        </section>}
         <div className="card">
           <div className="toolbar" style={{ marginBottom: 14 }}>
             <input

@@ -10,6 +10,7 @@ router.use(authMiddleware, requireRole('admin'), requirePermission('payslips'));
 
 router.get('/', payslips.list);
 router.get('/calculation', payslips.calculation);
+router.post('/run', wrap(payslips.runPayroll));
 router.post('/bulk', wrap(payslips.bulkUpsert));
 router.get('/:id', payslips.getById);
 router.post('/', wrap(payslips.create));
