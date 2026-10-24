@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { to: '/call-logs', label: 'Call Logs', permission: 'callLogs', icon: 'calls' },
   { to: '/users', label: 'Employee & Permission', permission: 'users', icon: 'users' },
   { to: '/branches', label: 'Branch Management', permission: 'branches', adminOnly: true, icon: 'branches' },
-  { to: '/payslips', label: 'Pay Slips', permission: 'payslips', adminOnly: true, icon: 'payslips' },
+  { to: '/payroll', label: 'Payroll', permission: 'payslips', icon: 'payslips' },
 ];
 
 function NavIcon({ name }) {
@@ -117,7 +117,7 @@ export default function Layout() {
     ['Overview', navItems.filter(i => i.to === '/')],
     ['Customers & applications', navItems.filter(i => ['/customer-listings', '/customers'].includes(i.to))],
     ['Team operations', navItems.filter(i => ['/attendance', '/tracking', '/call-logs'].includes(i.to))],
-    ['Administration', navItems.filter(i => ['/users', '/branches', '/payslips'].includes(i.to))],
+    ['Administration', navItems.filter(i => ['/users', '/branches', '/payroll'].includes(i.to))],
   ];
   const currentPage = onProfile ? 'My Profile' : location.pathname.startsWith('/tracking/employee') ? 'Employee route history' : navItems.find(i => i.to === location.pathname)?.label || 'Workspace';
 

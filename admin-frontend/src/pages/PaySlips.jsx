@@ -1,9 +1,10 @@
 import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { payslipsApi, attendanceApi } from '../api/api';
+import { payslipsApi, attendanceApi, usersApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import PaySlipDocument from '../components/PaySlipDocument';
+import SearchableSelect from '../components/SearchableSelect';
 import {
   amountInWords,
   currentMonthKey,
@@ -130,6 +131,11 @@ async function downloadMultiPagePdf(pageEls, filename) {
 
 export default function PaySlips() {
   const [list, setList] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [salaryAmount, setSalaryAmount] = useState('');
+  const [salaryReason, setSalaryReason] = useState('Initial monthly salary');
+  const [salarySaving, setSalarySaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -164,8 +170,15 @@ export default function PaySlips() {
     setLoading(true);
     setError('');
     try {
-      const res = await payslipsApi.getAll(search.trim() ? { search: search.trim() } : {});
-      setList(res.data || []);
+      const [slips, roster] = await Promise.allSettled([
+        payslipsApi.getAll(search.trim() ? { search: search.trim() } : {}),
+        usersApi.getAll(),
+      ]);
+      if (slips.status === 'rejected') throw slips.reason;
+      setList(slips.value.data || []);
+      if (roster.status === 'fulfilled') {
+        setEmployees((roster.value.data || []).filter((user) => !user.isDeleted && user.role !== 'superAdmin'));
+      }
     } catch (err) {
       setError(err.message || 'Failed to load pay slips');
     } finally {
@@ -211,7 +224,82 @@ export default function PaySlips() {
     setMonthMap({ [m]: emptyAmounts() });
     setActiveMonth(m);
     setMode('edit');
+    setSelectedEmployeeId('');
+    setSalaryAmount('');
     setError('');
+  };
+
+  const selectedEmployee = employees.find((employee) => employee.id === selectedEmployeeId) || null;
+
+  const calculatePayroll = async (employeeNo = profile.employeeNo, month = activeMonth) => {
+    const scope = `${employeeNo}|${month}`;
+    try {
+      const response = await payslipsApi.calculation({ employeeNo, month });
+      const payroll = response.data.calculation;
+      if (scope !== `${employeeNo}|${month}`) return false;
+      setError('');
+      setMonthMap((previous) => ({
+        ...previous,
+        [month]: {
+          ...previous[month],
+          autoPayroll: true,
+          payroll,
+          attendance: { ...payroll, note: payroll.policy },
+          earnings: { ...emptyAmounts().earnings, basic: payroll.earnedSalary },
+        },
+      }));
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Could not calculate payroll');
+      return false;
+    }
+  };
+
+  const preparePayroll = async () => {
+    if (!selectedEmployee) {
+      setError('Select an employee to start payroll.');
+      return;
+    }
+    const month = startMonth;
+    setProfile({
+      employeeName: selectedEmployee.name || '',
+      employeeNo: selectedEmployee.employeeId || '',
+      designation: selectedEmployee.role === 'branchManager' ? 'Branch Manager' : selectedEmployee.role === 'admin' ? 'Administrator' : 'Employee',
+      department: selectedEmployee.branch || '',
+      bankName: selectedEmployee.bankName || '',
+      accountNo: selectedEmployee.accountNo || '',
+      companyAddress: '',
+    });
+    setRangeMode('1');
+    setEndMonth(month);
+    setActiveMonth(month);
+    setMonthMap({ [month]: emptyAmounts() });
+    setSalaryAmount(selectedEmployee.monthlySalary || '');
+    setMode('edit');
+    await calculatePayroll(selectedEmployee.employeeId, month);
+  };
+
+  const saveSalaryAndCalculate = async () => {
+    if (!selectedEmployee) return;
+    if (!(Number(salaryAmount) > 0)) {
+      setError('Enter a valid monthly salary before issuing payroll.');
+      return;
+    }
+    if (salaryReason.trim().length < 3) {
+      setError('Enter a salary reason with at least 3 characters.');
+      return;
+    }
+    setSalarySaving(true);
+    setError('');
+    try {
+      await attendanceApi.setSalary(selectedEmployee.id, { amount: Number(salaryAmount), month: activeMonth, reason: salaryReason.trim() });
+      setEmployees((previous) => previous.map((employee) => employee.id === selectedEmployee.id ? { ...employee, monthlySalary: Number(salaryAmount) } : employee));
+      await calculatePayroll(selectedEmployee.employeeId, activeMonth);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Could not save monthly salary');
+    } finally {
+      setSalarySaving(false);
+    }
   };
 
   const openEdit = (slip) => {
@@ -365,12 +453,12 @@ export default function PaySlips() {
   return (
     <div className="payslips-page">
       <PageHeader
-        title="Pay Slips"
-        description="1 / 3 / 6 months or custom range · separate data per month · one combined PDF"
+        title="Payroll"
+        description="Set monthly salary, calculate attendance-based pay, issue payroll and generate salary slips."
       >
         {mode === 'list' ? (
           <button hidden={!canPerformStored('payslips', 'create')} type="button" className="btn btn-primary" onClick={openCreate}>
-            + New pay slip
+            + Create manual salary slip
           </button>
         ) : (
           <button
@@ -394,6 +482,24 @@ export default function PaySlips() {
       )}
 
       {mode === 'list' && (
+        <>
+        <section className="card payroll-launch">
+          <div>
+            <span className="eyebrow">MONTHLY PAYROLL</span>
+            <h3>Prepare attendance-based payroll</h3>
+            <p>Select an employee and month. Payroll uses their saved salary, attendance, four paid Sundays and approved paid leave. Issuing payroll creates the employee’s salary slip.</p>
+          </div>
+          <div className="payroll-launch__controls">
+            <label>Employee
+              <SearchableSelect value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)} required>
+                <option value="">Select employee</option>
+                {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name} · {employee.employeeId} · {employee.branch || 'No branch'}</option>)}
+              </SearchableSelect>
+            </label>
+            <label>Payroll month<input type="month" value={startMonth} onChange={(event) => { setStartMonth(event.target.value); setEndMonth(event.target.value); }} /></label>
+            <button type="button" className="btn btn-primary" onClick={preparePayroll}>Prepare payroll</button>
+          </div>
+        </section>
         <div className="card">
           <div className="toolbar" style={{ marginBottom: 14 }}>
             <input
@@ -423,7 +529,7 @@ export default function PaySlips() {
                 {list.length === 0 && (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                      No pay slips yet. Create the first one.
+                      No salary slips issued yet. Select an employee above to prepare the first payroll.
                     </td>
                   </tr>
                 )}
@@ -437,7 +543,7 @@ export default function PaySlips() {
                     <td>
                       <div className="row-actions">
                         <button hidden={!canPerformStored('payslips', 'update')} type="button" className="btn btn-sm btn-outline" onClick={() => openEdit(p)}>
-                          Edit range
+                          View / edit
                         </button>
                         <button hidden={!canPerformStored('payslips', 'delete')} type="button" className="btn btn-sm btn-danger" onClick={() => removeSlip(p.id)}>
                           Delete
@@ -450,17 +556,31 @@ export default function PaySlips() {
             </table>
           </div>
         </div>
+        </>
       )}
 
       {mode === 'edit' && (
         <div className="payslips-edit">
           <form className="card payslips-form" onSubmit={saveAll}>
             <div className="card__header">
-              <h3 className="card__title">Employee pay slips</h3>
+              <h3 className="card__title">Payroll issue workspace</h3>
               <p className="card__subtitle">
                 Choose how many months, enter different amounts per month, then save &amp; download one PDF.
               </p>
             </div>
+
+            {selectedEmployee && <section className="card payroll-salary-setup">
+              <div>
+                <span className="eyebrow">SALARY SETUP</span>
+                <h3>{selectedEmployee.name} · {formatMonthLabel(activeMonth)}</h3>
+                <p className="muted">Set the base monthly salary here. Attendance remains managed separately; payroll applies the attendance policy when you calculate or issue the slip.</p>
+              </div>
+              <div className="form-grid-2">
+                <label>Monthly salary (₹)<input type="number" min="0.01" max="10000000" step="0.01" value={salaryAmount} onChange={(event) => setSalaryAmount(event.target.value)} /></label>
+                <label>Salary change reason<input minLength="3" maxLength="500" value={salaryReason} onChange={(event) => setSalaryReason(event.target.value)} /></label>
+              </div>
+              <button type="button" className="btn btn-outline" disabled={salarySaving} onClick={saveSalaryAndCalculate}>{salarySaving ? 'Saving salary…' : 'Save salary & refresh payroll'}</button>
+            </section>}
 
             <div className="pslip-range">
               <span className="pslip-range__label">Period</span>
@@ -590,7 +710,7 @@ export default function PaySlips() {
               </div>
             </div>
 
-            <section className="card payroll-attendance"><h3>Attendance-based salary</h3><label><input type="checkbox" checked={isAutomatic} onChange={e=>setMonthMap(prev=>({...prev,[activeMonth]:{...prev[activeMonth],autoPayroll:e.target.checked,payroll:null}}))}/> Calculate salary automatically from attendance</label><p>Monthly salary ÷ calendar days × payable days. The first four Sundays are paid, with no double counting. Extra paid leave requires an Admin or Branch Manager correction with a reason. Future/unrecorded days remain unpaid/pending in provisional payroll.</p><button type="button" className="btn btn-primary" disabled={!isAutomatic} onClick={async()=>{try{const scope=calculationScope.current;const r=await payslipsApi.calculation({employeeNo:profile.employeeNo,month:activeMonth});const p=r.data.calculation;if(scope!==calculationScope.current)return;setError('');setMonthMap(prev=>({...prev,[activeMonth]:{...prev[activeMonth],autoPayroll:true,payroll:p,attendance:{...p,note:p.policy},earnings:{...emptyAmounts().earnings,basic:p.earnedSalary}}}));}catch(e){setError(e.response?.data?.message || e.message);}}}>Calculate / refresh salary</button>{activeAmounts.payroll && <p>Base ₹{formatAmount(activeAmounts.payroll.monthlySalary)} · Payable {activeAmounts.payroll.paidDays}/{activeAmounts.payroll.calendarDays} days · Loss of pay ₹{formatAmount(activeAmounts.payroll.lossOfPay)} · Earned ₹{formatAmount(activeAmounts.payroll.earnedSalary)}. Save recalculates from current attendance.</p>}</section>
+            <section className="card payroll-attendance"><h3>Attendance-based payroll</h3><label><input type="checkbox" checked={isAutomatic} onChange={e=>setMonthMap(prev=>({...prev,[activeMonth]:{...prev[activeMonth],autoPayroll:e.target.checked,payroll:null}}))}/> Calculate salary automatically from attendance</label><p>Monthly salary ÷ calendar days × payable days. The first four Sundays are paid, with no double counting. Extra paid leave needs a reasoned attendance correction. Future or unrecorded days remain unpaid in provisional payroll.</p><button type="button" className="btn btn-primary" disabled={!isAutomatic} onClick={()=>calculatePayroll()}>Calculate / refresh payroll</button>{activeAmounts.payroll && <p>Base ₹{formatAmount(activeAmounts.payroll.monthlySalary)} · Payable {activeAmounts.payroll.paidDays}/{activeAmounts.payroll.calendarDays} days · Loss of pay ₹{formatAmount(activeAmounts.payroll.lossOfPay)} · Earned ₹{formatAmount(activeAmounts.payroll.earnedSalary)}. Issuing payroll saves this calculation and creates the salary slip.</p>}</section>
             <div className="payslips-amounts">
               <div>
                 <h4 className="payslips-amounts__title">
@@ -653,7 +773,7 @@ export default function PaySlips() {
             <div className="payslips-form__actions">
               <button hidden={!canPerformStored('payslips','export')} type="button" className="btn btn-outline" disabled={!payrollReady} onClick={()=>window.print()}>Print salary slips</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Saving…' : `Save all ${monthKeys.length} month(s)`}
+                {saving ? 'Issuing payroll…' : `Issue payroll & generate ${monthKeys.length} salary slip${monthKeys.length === 1 ? '' : 's'}`}
               </button>
               <button hidden={!canPerformStored('payslips', 'export')} type="button" className="btn btn-primary" onClick={handleDownloadPdf} disabled={pdfBusy || !payrollReady}>
                 {pdfBusy

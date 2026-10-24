@@ -43,7 +43,7 @@ export const PERMISSION_LABELS = {
   callLogs: 'Call Logs',
   users: 'Employee & Permission',
   branches: 'Branch Management',
-  payslips: 'Pay Slips',
+  payslips: 'Payroll',
 };
 
 export function getUserPermissions(user) {

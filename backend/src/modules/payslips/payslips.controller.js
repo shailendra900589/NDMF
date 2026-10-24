@@ -7,13 +7,23 @@ const { success, error } = require('../../lib/response');
 
 const { companyFor, actionAllowed } = require('../../lib/companyPolicy');
 const {calculatePayroll}=require('../../lib/payrollCalculation');
-function automaticCalculation(employeeNo,month){
- const employee=getCollection('users').find(u=>String(u.employeeId || '').toLowerCase()===String(employeeNo || '').trim().toLowerCase() && u.role!=='superAdmin');
+function employeeFor(employeeNo){
+ return getCollection('users').find(u=>String(u.employeeId || '').toLowerCase()===String(employeeNo || '').trim().toLowerCase() && u.role!=='superAdmin');
+}
+function canManageEmployee(actor, employee){
+ return actor?.role==='admin' || (actor?.role==='branchManager' && employee?.role==='fieldOfficer' && actor.branch===employee.branch);
+}
+function canAccessSlip(actor, slip){
+ return actor?.role==='admin' || (actor?.role==='branchManager' && slip?.branch===actor.branch);
+}
+function automaticCalculation(employeeNo,month,actor){
+ const employee=employeeFor(employeeNo);
  if(!employee)throw new Error('Employee ID not found in this company');
+ if(actor && !canManageEmployee(actor,employee))throw new Error('You can only manage payroll for employees in your branch');
  return {employee,calculation:calculatePayroll(employee,month,getCollection('attendance'),getCollection('attendanceAdjustments'))};
 }
 exports.calculation=(req,res)=>{
- try{const {employee,calculation}=automaticCalculation(req.query.employeeNo,req.query.month);return success(res,{employeeName:employee.name,employeeNo:employee.employeeId,calculation});}
+ try{const {employee,calculation}=automaticCalculation(req.query.employeeNo,req.query.month,req.user);return success(res,{employeeName:employee.name,employeeNo:employee.employeeId,calculation});}
  catch(e){return error(res,e.message);}
 };
 const DEFAULT_ADDRESS = '';
@@ -68,12 +78,14 @@ function validateBody(body) {
   return { ok: true, employeeName, employeeNo, month };
 }
 
-function buildRecord(id, body, actorId, existing) {
+function buildRecord(id, body, actor, existing) {
   const v = validateBody(body);
   if (!v.ok) return { error: v.message };
+  const employee=employeeFor(v.employeeNo);
+  if(actor?.role==='branchManager' && (!employee || !canManageEmployee(actor,employee)))return {error:'You can only manage payroll for employees in your branch'};
   let payroll=null;
   if(body.autoPayroll){
-    try{const result=automaticCalculation(v.employeeNo,v.month);payroll=result.calculation;v.employeeName=result.employee.name;}catch(e){return {error:e.message};}
+    try{const result=automaticCalculation(v.employeeNo,v.month,actor);payroll=result.calculation;v.employeeName=result.employee.name;}catch(e){return {error:e.message};}
     body={...body,earnings:{basic:payroll.earnedSalary},attendance:{...payroll,note:payroll.policy}};
   }
   const attendance=body.attendance ?? existing?.attendance ?? null;
@@ -96,7 +108,7 @@ function buildRecord(id, body, actorId, existing) {
   return {
     record: {
       id,
-      companyName: companyFor(findById('users', actorId))?.name || 'Company',
+      companyName: companyFor(actor)?.name || 'Company',
       companyAddress: String(body.companyAddress ?? existing?.companyAddress ?? DEFAULT_ADDRESS).trim(),
       employeeName: v.employeeName,
       employeeNo: v.employeeNo,
@@ -115,8 +127,9 @@ function buildRecord(id, body, actorId, existing) {
       netPay,
       createdAt: existing?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy: existing?.createdBy || actorId,
-      updatedBy: actorId,
+      branch: employee?.branch || existing?.branch || '',
+      createdBy: existing?.createdBy || actor.id,
+      updatedBy: actor.id,
     },
   };
 }
@@ -124,7 +137,7 @@ function buildRecord(id, body, actorId, existing) {
 exports.list = (req, res) => {
   const all = getCollection('payslips');
   const { employeeNo, month, search } = req.query;
-  let list = [...all];
+  let list = req.user.role === 'branchManager' ? all.filter((p) => p.branch === req.user.branch) : [...all];
   if (employeeNo) {
     list = list.filter((p) => String(p.employeeNo).toLowerCase() === String(employeeNo).toLowerCase());
   }
@@ -151,12 +164,13 @@ exports.list = (req, res) => {
 exports.getById = (req, res) => {
   const slip = findById('payslips', req.params.id);
   if (!slip) return error(res, 'Pay slip not found', 404);
+  if (!canAccessSlip(req.user, slip)) return error(res, 'You can only access payroll in your branch', 403);
   return success(res, slip);
 };
 
 exports.create = async (req, res) => {
   const id = `PS_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  const built = buildRecord(id, req.body, req.user.id, null);
+  const built = buildRecord(id, req.body, req.user, null);
   if (built.error) return error(res, built.error);
 
   const dup = getCollection('payslips').find(
@@ -175,8 +189,9 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   const existing = findById('payslips', req.params.id);
   if (!existing) return error(res, 'Pay slip not found', 404);
+  if (!canAccessSlip(req.user, existing)) return error(res, 'You can only manage payroll in your branch', 403);
 
-  const built = buildRecord(existing.id, { ...existing, ...req.body }, req.user.id, existing);
+  const built = buildRecord(existing.id, { ...existing, ...req.body }, req.user, existing);
   if (built.error) return error(res, built.error);
 
   const dup = getCollection('payslips').find(
@@ -197,6 +212,7 @@ exports.update = async (req, res) => {
 exports.addMonth = async (req, res) => {
   const existing = findById('payslips', req.params.id);
   if (!existing) return error(res, 'Pay slip not found', 404);
+  if (!canAccessSlip(req.user, existing)) return error(res, 'You can only manage payroll in your branch', 403);
 
   const targetMonth = normalizeMonth(req.body.month) || nextMonthKey(existing.month);
   const all = getCollection('payslips');
@@ -221,7 +237,7 @@ exports.addMonth = async (req, res) => {
       deductions: copyEarnings ? existing.deductions : {},
       companyAddress: existing.companyAddress,
     },
-    req.user.id,
+    req.user,
     null
   );
   if (built.error) return error(res, built.error);
@@ -233,6 +249,7 @@ exports.addMonth = async (req, res) => {
 exports.remove = async (req, res) => {
   const existing = findById('payslips', req.params.id);
   if (!existing) return error(res, 'Pay slip not found', 404);
+  if (!canAccessSlip(req.user, existing)) return error(res, 'You can only manage payroll in your branch', 403);
   removeById('payslips', req.params.id); await flush();
   return success(res, null, 'Pay slip deleted');
 };
@@ -281,7 +298,7 @@ exports.bulkUpsert = async (req, res) => {
         attendance:entry.attendance ?? existing?.attendance ?? null,
         autoPayroll:entry.autoPayroll ?? existing?.autoPayroll ?? false,
       },
-      req.user.id,
+      req.user,
       existing || null
     );
     if (built.error) return error(res, built.error);

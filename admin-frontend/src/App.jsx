@@ -52,7 +52,8 @@ export default function App() {
         <Route path="call-logs" element={<PermissionRoute permission="callLogs"><CallLogs /></PermissionRoute>} />
         <Route path="users" element={<PermissionRoute permission="users"><Users /></PermissionRoute>} />
         <Route path="branches" element={<PermissionRoute permission="branches"><Branches /></PermissionRoute>} />
-        <Route path="payslips" element={<PermissionRoute permission="payslips"><PaySlips /></PermissionRoute>} />
+        <Route path="payroll" element={<PermissionRoute permission="payslips"><PaySlips /></PermissionRoute>} />
+        <Route path="payslips" element={<Navigate to="/payroll" replace />} />
         <Route path="profile" element={<Profile />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
