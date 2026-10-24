@@ -218,37 +218,46 @@ export default function Attendance() {
     <div className="att-page">
       <PageHeader
         title="Attendance"
-        description="Monthly calendar and team report — present dates, employee list, and day-wise status."
+        description="Review your team, correct a day when needed, and export a clear monthly attendance report."
       />
 
-      <div className="att-toolbar">
-        <div className="att-month-nav">
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => shiftMonth(-1)}>
-            ← Prev
+      <section className="att-toolbar card" aria-label="Attendance report period">
+        <div className="att-toolbar__period">
+          <span className="att-toolbar__eyebrow">Report period</span>
+          <div className="att-month-nav">
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => shiftMonth(-1)} aria-label="Previous month">
+              ← Prev
+            </button>
+            <div className="att-month-nav__label">{report?.monthLabel || '—'}</div>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => shiftMonth(1)} aria-label="Next month">
+              Next →
+            </button>
+          </div>
+        </div>
+        <div className="att-toolbar__actions">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              const n = new Date();
+              setYear(n.getFullYear());
+              setMonth(n.getMonth() + 1);
+            }}
+          >
+            This month
           </button>
-          <div className="att-month-nav__label">{report?.monthLabel || '—'}</div>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => shiftMonth(1)}>
-            Next →
+          <button hidden={!canPerformStored('attendance', 'export')} type="button" className="btn btn-primary btn-sm" onClick={downloadReport}>
+            Download report
           </button>
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => {
-            const n = new Date();
-            setYear(n.getFullYear());
-            setMonth(n.getMonth() + 1);
-          }}
-        >
-          This month
-        </button>
         <div className="att-toolbar__meta">
-          {scopeText}
-          {report?.today ? ` · Today ${new Date(report.today).toLocaleDateString('en-IN')}` : ''}
+          <strong>{scopeText}</strong>
+          <span>{report?.today ? `Today · ${new Date(report.today).toLocaleDateString('en-IN')}` : 'Current attendance scope'}</span>
         </div>
-      </div>
+      </section>
 
       <div className="att-filters card">
+        <div className="att-section-title"><div><span>FIND ATTENDANCE</span><h2>Filter the report</h2></div><p>Search a person or focus the report on a team status.</p></div>
         <div className="att-filters__grid">
           <div className="form-group">
             <label htmlFor="att-search">Search</label>
@@ -299,39 +308,40 @@ export default function Attendance() {
             >
               Clear filters
             </button>
-            <button hidden={!canPerformStored('attendance', 'export')} type="button" className="btn btn-primary btn-sm" onClick={downloadReport}>
-              Download Excel
-            </button>
           </div>
         </div>
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
 
-      <div className="stats-grid stats-grid--dashboard">
-        <article className="stat-card stat-card--teal">
+      <div className="stats-grid stats-grid--dashboard att-summary-grid">
+        <article className="stat-card stat-card--teal att-summary-card">
           <div className="stat-card__value">{filteredEmployees.length}</div>
-          <div className="stat-card__label">Employees</div>
+          <div className="stat-card__label">Team members</div>
+          <div className="stat-card__context">In this report</div>
         </article>
-        <article className="stat-card stat-card--amber">
+        <article className="stat-card stat-card--amber att-summary-card">
           <div className="stat-card__value">{presentTodayFiltered}</div>
           <div className="stat-card__label">Present today</div>
+          <div className="stat-card__context">Checked in so far</div>
         </article>
-        <article className="stat-card stat-card--blue">
+        <article className="stat-card stat-card--blue att-summary-card">
           <div className="stat-card__value">{avgPresent}</div>
-          <div className="stat-card__label">Avg present days</div>
+          <div className="stat-card__label">Average present days</div>
+          <div className="stat-card__context">Across filtered staff</div>
         </article>
-        <article className="stat-card stat-card--slate">
+        <article className="stat-card stat-card--slate att-summary-card">
           <div className="stat-card__value">{report?.daysInMonth ?? 0}</div>
           <div className="stat-card__label">Days in month</div>
+          <div className="stat-card__context">{report?.monthLabel || 'Selected month'}</div>
         </article>
       </div>
 
       <div className="att-layout">
         <aside className="att-roster card">
           <div className="att-roster__head">
-            <h3>Team</h3>
-            <span>{filteredEmployees.length}</span>
+            <div><span className="att-roster__eyebrow">EMPLOYEE WORKSPACE</span><h3>Select employee</h3></div>
+            <span title="Employees in current report">{filteredEmployees.length}</span>
           </div>
           <ul className="att-roster__list">
             {filteredEmployees.map((emp) => {
@@ -373,18 +383,15 @@ export default function Attendance() {
         </aside>
 
         <div className="att-main">
-          {selected && <EnrollmentPhotos key={selected.id} userId={selected.id} name={selected.name} />}
-          {selected && ['admin','branchManager'].includes(me.role) && (me.role==='admin' || selected.role==='fieldOfficer') && canPerformStored('attendance','update') && <section className="card attendance-adjustment"><h3>Correct attendance · {selected.name}</h3><p className="muted">Set Present, Absent or leave for a date. Original check-in, GPS and face records stay unchanged. Every correction requires a reason and is recorded for review.</p><form onSubmit={async e=>{e.preventDefault();setAdjusting(true);setAdjustError('');try{await attendanceApi.adjust({...correction,date:new FormData(e.currentTarget).get('date'),userId:selected.id});setCorrection({...correction,reason:''});load(year,month);}catch(err){setAdjustError(err.response?.data?.message || err.message);}finally{setAdjusting(false);}}}><div className="form-grid-2"><label>Date<input type="date" name="date" required defaultValue={correction.date} max={report.today}/></label><label>Status<SearchableSelect value={correction.status} onChange={e=>setCorrection({...correction,status:e.target.value})}>{[['present','Present'],['absent','Absent'],['paid_leave','Paid leave'],['unpaid_leave','Unpaid leave'],['holiday','Weekly off / holiday'],['automatic','Use original attendance']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</SearchableSelect></label></div><label>Reason<input required minLength={3} maxLength={500} value={correction.reason} onChange={e=>setCorrection({...correction,reason:e.target.value})}/></label>{adjustError && <p role="alert" className="error-msg">{adjustError}</p>}<button type="submit" className="btn btn-primary" disabled={adjusting}>{adjusting?'Saving…':'Save attendance correction'}</button></form></section>}
+          {selected && ['admin','branchManager'].includes(me.role) && (me.role==='admin' || selected.role==='fieldOfficer') && canPerformStored('attendance','update') && <details className="card attendance-adjustment"><summary><span><strong>Attendance correction</strong><small>Mark a manual present, absence or leave for {selected.name}</small></span><span className="attendance-adjustment__action">Open form</span></summary><div className="attendance-adjustment__body"><p className="muted">Original check-in, GPS and face records stay unchanged. Every correction needs a reason and is kept in the audit history.</p><form onSubmit={async e=>{e.preventDefault();setAdjusting(true);setAdjustError('');try{await attendanceApi.adjust({...correction,date:new FormData(e.currentTarget).get('date'),userId:selected.id});setCorrection({...correction,reason:''});load(year,month);}catch(err){setAdjustError(err.response?.data?.message || err.message);}finally{setAdjusting(false);}}}><div className="form-grid-2"><label>Date<input type="date" name="date" required defaultValue={correction.date} max={report.today}/></label><label>Status<SearchableSelect value={correction.status} onChange={e=>setCorrection({...correction,status:e.target.value})}>{[['present','Present'],['absent','Absent'],['paid_leave','Paid leave'],['unpaid_leave','Unpaid leave'],['holiday','Weekly off / holiday'],['automatic','Use original attendance']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</SearchableSelect></label></div><label>Reason<input required minLength={3} maxLength={500} value={correction.reason} placeholder="Explain why this change is required" onChange={e=>setCorrection({...correction,reason:e.target.value})}/></label>{adjustError && <p role="alert" className="error-msg">{adjustError}</p>}<button type="submit" className="btn btn-primary" disabled={adjusting}>{adjusting?'Saving…':'Save attendance correction'}</button></form></div></details>}
           {selected && (
             <section className="card att-calendar-card">
               <div className="att-calendar-card__head">
                 <div>
+                  <span className="att-calendar-card__eyebrow">MONTHLY ATTENDANCE · {report?.monthLabel}</span>
                   <h3>{selected.name}</h3>
-                  <p>
-                    {selected.employeeId} · {selected.mobile} · {displayRole(selected.role)} · Present{' '}
-                    {selected.presentDays} day{selected.presentDays === 1 ? '' : 's'}
-                  </p>
-                  <p>Paid leave: {selected.paidLeaveDays || 0} · Unpaid leave: {selected.unpaidLeaveDays || 0} · Absent: {selected.absentDays || 0}. Review salary and generate the salary slip from Payroll.</p>
+                  <p>{selected.employeeId} · {selected.mobile} · {displayRole(selected.role)}</p>
+                  <div className="att-calendar-card__metrics"><span><b>{selected.presentDays}</b> Present</span><span><b>{selected.paidLeaveDays || 0}</b> Paid leave</span><span><b>{selected.unpaidLeaveDays || 0}</b> Unpaid leave</span><span><b>{selected.absentDays || 0}</b> Absent</span></div>
                 </div>
                 <div className="att-legend">
                   <span className="att-dot att-dot--present" /> Present
@@ -431,12 +438,15 @@ export default function Attendance() {
             </section>
           )}
 
+          {selected && <details className="att-enrollment"><summary>View registered face photos <span>Attendance identity references</span></summary><EnrollmentPhotos key={selected.id} userId={selected.id} name={selected.name} /></details>}
+
           <section className="card att-matrix-card">
             <div className="att-matrix-card__head">
               <div>
-                <h3>Monthly report matrix</h3>
+                <span className="att-calendar-card__eyebrow">TEAM OVERVIEW</span>
+                <h3>Monthly attendance matrix</h3>
                 <p>
-                  Filtered team × every date of {report?.monthLabel} · {filteredEmployees.length}{' '}
+                  One row per employee · every date of {report?.monthLabel} · {filteredEmployees.length}{' '}
                   employee{filteredEmployees.length === 1 ? '' : 's'}
                 </p>
               </div>
