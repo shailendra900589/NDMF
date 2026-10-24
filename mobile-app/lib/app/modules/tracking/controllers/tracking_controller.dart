@@ -10,6 +10,9 @@ class TrackingController extends GetxController {
   RxBool get isTracking => _tracking.isTracking;
   RxDouble get totalKmToday => _tracking.totalKmToday;
   RxList<RoutePoint> get routePoints => _tracking.routePoints;
+  RxString get gpsStatus => _tracking.gpsStatus;
+  Rxn<DateTime> get lastGpsFixAt => _tracking.lastGpsFixAt;
+  Rxn<DateTime> get lastUploadAt => _tracking.lastUploadAt;
 
   @override
   void onInit() {

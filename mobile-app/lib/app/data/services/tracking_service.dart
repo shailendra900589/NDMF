@@ -31,6 +31,9 @@ class TrackingService extends GetxService {
   final RxBool isTracking = false.obs;
   final RxDouble totalKmToday = 0.0.obs;
   final RxList<RoutePoint> routePoints = <RoutePoint>[].obs;
+  final RxString gpsStatus = 'GPS not started'.obs;
+  final Rxn<DateTime> lastGpsFixAt = Rxn<DateTime>();
+  final Rxn<DateTime> lastUploadAt = Rxn<DateTime>();
   Timer? _trackingTimer;
   StreamSubscription<Position>? _positionStream;
   Position? _latest;
@@ -172,6 +175,16 @@ class TrackingService extends GetxService {
     } catch (_) {}
   }
 
+  Future<void> _prepareBackgroundTracking() async {
+    if (!GetPlatform.isAndroid) return;
+    final backgroundAllowed =
+        await _locationService.requestDutyBackgroundPermission();
+    if (!backgroundAllowed && gpsStatus.value == 'GPS not started') {
+      gpsStatus.value = 'GPS active while app is open';
+    }
+    unawaited(_askBatteryExemption());
+  }
+
   Future<void> startTracking({bool silent = false}) async {
     if (isTracking.value) return;
 
@@ -185,20 +198,29 @@ class TrackingService extends GetxService {
         await Permission.notification.request();
       } catch (_) {}
     }
-    if (!silent) await _askBatteryExemption();
+    // This also runs when tracking resumes after check-in. Previously the
+    // silent resume path skipped battery/background preparation altogether.
+    unawaited(_prepareBackgroundTracking());
 
     isTracking.value = true;
+    gpsStatus.value = 'Searching for GPS…';
     final now = DateTime.now();
 
     _positionStream =
         Geolocator.getPositionStream(locationSettings: _streamSettings())
             .listen(
       _onPosition,
-      onError: (_) {},
+      onError: (Object error) {
+        gpsStatus.value = _gpsErrorLabel(error);
+      },
     );
 
     final first = await _freshFix();
-    if (first != null) _onPosition(first);
+    if (first != null) {
+      _onPosition(first);
+    } else {
+      gpsStatus.value = 'Waiting for a GPS fix';
+    }
     unawaited(_sendLatest());
 
     _trackingTimer = Timer.periodic(_pingInterval, (_) => _tick());
@@ -236,6 +258,10 @@ class TrackingService extends GetxService {
   void _onPosition(Position p) {
     final prev = _latest;
     if (prev == null || !p.timestamp.isBefore(prev.timestamp)) _latest = p;
+    lastGpsFixAt.value = p.timestamp.toLocal();
+    gpsStatus.value = p.accuracy > 100
+        ? 'GPS signal is weak (${p.accuracy.round()} m)'
+        : 'GPS connected · ${p.accuracy.round()} m accuracy';
     _addDrawPoint(p);
   }
 
@@ -243,8 +269,13 @@ class TrackingService extends GetxService {
     final latest = _latest;
     if (latest == null ||
         DateTime.now().difference(latest.timestamp) > _staleFix) {
+      gpsStatus.value = 'Refreshing GPS signal…';
       final fix = await _freshFix();
-      if (fix != null) _onPosition(fix);
+      if (fix != null) {
+        _onPosition(fix);
+      } else {
+        gpsStatus.value = 'No GPS fix yet — check location permission';
+      }
     }
     await _sendLatest();
   }
@@ -279,6 +310,10 @@ class TrackingService extends GetxService {
       if (data['totalKm'] != null) {
         totalKmToday.value = (data['totalKm'] as num).toDouble();
       }
+      lastUploadAt.value = DateTime.now();
+      if (data['onDuty'] == false) {
+        gpsStatus.value = 'GPS received; attendance duty is not open';
+      }
     } catch (_) {
       final pending = _storage.readList(_pendingKey)..add(fix);
       _storage.writeList(
@@ -287,10 +322,19 @@ class TrackingService extends GetxService {
             ? pending.sublist(pending.length - _maxPending)
             : pending,
       );
+      gpsStatus.value = 'GPS saved offline — will sync automatically';
     } finally {
       _lastSentFix = p.timestamp;
       _sending = false;
     }
+  }
+
+  String _gpsErrorLabel(Object error) {
+    final text = error.toString().toLowerCase();
+    if (text.contains('permission')) return 'Location permission is required';
+    if (text.contains('disabled')) return 'Turn on device location';
+    if (text.contains('timeout')) return 'GPS signal timeout — trying again';
+    return 'GPS unavailable — trying again';
   }
 
   Future<void> _flushPending() async {
@@ -338,6 +382,7 @@ class TrackingService extends GetxService {
     await _positionStream?.cancel();
     _positionStream = null;
     isTracking.value = false;
+    gpsStatus.value = 'Duty ended';
 
     await _sendLatest();
     await _flushPending();

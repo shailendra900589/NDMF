@@ -55,13 +55,20 @@ class _LiveTab extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+              decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: AppRadii.card,
+                  boxShadow: AppShadows.card),
               child: Column(
                 children: [
                   Obx(() => Icon(
-                        controller.isTracking.value ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
+                        controller.isTracking.value
+                            ? Icons.gps_fixed_rounded
+                            : Icons.gps_not_fixed_rounded,
                         size: 56,
-                        color: controller.isTracking.value ? AppColors.success : AppColors.textSecondary,
+                        color: controller.isTracking.value
+                            ? AppColors.success
+                            : AppColors.textSecondary,
                       )),
                   const SizedBox(height: 8),
                   Obx(() => Text(
@@ -69,18 +76,65 @@ class _LiveTab extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 18,
-                          color: controller.isTracking.value ? AppColors.success : AppColors.textSecondary,
+                          color: controller.isTracking.value
+                              ? AppColors.success
+                              : AppColors.textSecondary,
                         ),
                       )),
                   const SizedBox(height: 12),
                   Obx(() => Text(
                         '${controller.totalKmToday.value.toStringAsFixed(2)} km today',
-                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.primary),
+                        style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary),
                       )),
                   Obx(() => Text(
                         '${controller.routePoints.length} GPS points',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary),
                       )),
+                  const SizedBox(height: 10),
+                  Obx(() => Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: controller.gpsStatus.value
+                                  .startsWith('GPS connected')
+                              ? AppColors.success.withValues(alpha: 0.10)
+                              : AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          controller.gpsStatus.value,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary),
+                        ),
+                      )),
+                  Obx(() => controller.lastGpsFixAt.value == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            'Last GPS fix ${DateFormat('hh:mm:ss a').format(controller.lastGpsFixAt.value!)}',
+                            style: const TextStyle(
+                                fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                        )),
+                  Obx(() => controller.lastUploadAt.value == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Text(
+                            'Last server sync ${DateFormat('hh:mm:ss a').format(controller.lastUploadAt.value!)}',
+                            style: const TextStyle(
+                                fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                        )),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
@@ -108,7 +162,9 @@ class _HistoryTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       if (controller.travelHistory.isEmpty) {
-        return const Center(child: Text('No route history yet', style: TextStyle(color: AppColors.textSecondary)));
+        return const Center(
+            child: Text('No route history yet',
+                style: TextStyle(color: AppColors.textSecondary)));
       }
       return ListView.builder(
         padding: const EdgeInsets.all(16),
@@ -117,14 +173,20 @@ class _HistoryTab extends StatelessWidget {
           final report = controller.travelHistory.reversed.elementAt(i);
           return Container(
             margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+            decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: AppRadii.card,
+                boxShadow: AppShadows.card),
             child: ListTile(
               leading: CircleAvatar(
                 backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                child: const Icon(Icons.route_rounded, color: AppColors.primaryDark, size: 20),
+                child: const Icon(Icons.route_rounded,
+                    color: AppColors.primaryDark, size: 20),
               ),
-              title: Text(DateFormat('dd MMM yyyy').format(report.date), style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text('${report.totalKm.toStringAsFixed(2)} km • ${report.routePoints.length} points'),
+              title: Text(DateFormat('dd MMM yyyy').format(report.date),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(
+                  '${report.totalKm.toStringAsFixed(2)} km • ${report.routePoints.length} points'),
             ),
           );
         },
