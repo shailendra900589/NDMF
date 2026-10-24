@@ -241,8 +241,8 @@ export default function CustomerListings() {
     }
   };
 
-  const download = () => {
-    downloadExcel('customer-listings.xls', {
+  const download = async () => {
+    await downloadExcel('customer-listings.xlsx', {
       headers: ['Name', 'Mobile', 'Shop Address', 'Status', 'Location', 'GPS Lat', 'GPS Lng'],
       rows: filtered.map((l) => [
         l.name,
@@ -253,6 +253,9 @@ export default function CustomerListings() {
         l.shopLatitude || '',
         l.shopLongitude || '',
       ]),
+      title: 'Customer listing report',
+      subtitle: `${filtered.length} listing${filtered.length === 1 ? '' : 's'} in the current view`,
+      sheetName: 'Listings',
     });
   };
 

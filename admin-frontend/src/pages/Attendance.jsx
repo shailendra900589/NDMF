@@ -167,7 +167,7 @@ export default function Attendance() {
     }).length;
   }, [filteredEmployees, report]);
 
-  const downloadReport = () => {
+  const downloadReport = async () => {
     if (!report) return;
     const headers = [
       'Employee',
@@ -204,7 +204,13 @@ export default function Attendance() {
       });
     });
     const stamp = `${report.year}-${String(report.month).padStart(2, '0')}`;
-    downloadExcel(`attendance-report-${stamp}.xls`, { headers, rows });
+    await downloadExcel(`attendance-report-${stamp}.xlsx`, {
+      headers,
+      rows,
+      title: 'Monthly attendance report',
+      subtitle: `${scopeText} · ${new Date(report.year, report.month - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · ${rows.length} day records`,
+      sheetName: 'Attendance',
+    });
   };
 
   if (loading && !report) return <PageLoader label="Loading monthly attendance..." />;

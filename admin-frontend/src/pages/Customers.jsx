@@ -94,8 +94,8 @@ export default function Customers() {
     }
   };
 
-  const download = () => {
-    downloadExcel('customers.xls', {
+  const download = async () => {
+    await downloadExcel('customers.xlsx', {
       headers: ['Name', 'Mobile', 'Address', 'Aadhaar', 'PAN', 'Location', 'GPS Lat', 'GPS Lng'],
       rows: customers.map((c) => [
         c.name,
@@ -107,6 +107,9 @@ export default function Customers() {
         c.latitude || '',
         c.longitude || '',
       ]),
+      title: 'Customers report',
+      subtitle: `${customers.length} approved customer${customers.length === 1 ? '' : 's'}`,
+      sheetName: 'Customers',
     });
   };
 

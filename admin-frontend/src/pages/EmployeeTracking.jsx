@@ -198,14 +198,19 @@ export default function EmployeeTracking({ embedded = false }) {
 
   const timeline = (route?.timeline || []).filter((e) => isField || e.type !== 'stop');
 
-  const exportDay = () => {
+  const exportDay = async () => {
     if (!route) return;
     const shifts=days.filter(d=>d.date===route.date);
-    if(shifts.length>1){exportShifts(shifts,`routes-${userId}-${route.date}.csv`);return;}
-    downloadExcel(`route-${route.employeeId || route.userId}-${route.date}.csv`, routeReport([route],cachedAddress));
+    if(shifts.length>1){await exportShifts(shifts,`routes-${userId}-${route.date}.xlsx`);return;}
+    await downloadExcel(`route-${route.employeeId || route.userId}-${route.date}.xlsx`, {
+      ...routeReport([route],cachedAddress),
+      title: 'Daily route report',
+      subtitle: `${route.name || 'Employee'} · ${route.date} · Stop and GPS activity`,
+      sheetName: 'Route details',
+    });
   };
   const monthDays=useMemo(()=>groupRouteDays(days,month),[days,month]);
-  const exportMonth=()=>exportShifts(monthDays.flatMap(d=>d.shifts),`routes-${userId}-${month}.csv`);
+  const exportMonth=()=>exportShifts(monthDays.flatMap(d=>d.shifts),`routes-${userId}-${month}.xlsx`);
   async function exportShifts(shifts,filename) {
     const run=++reportRun.current;setExporting(true);setReportError('');
     try {
@@ -216,7 +221,12 @@ export default function EmployeeTracking({ embedded = false }) {
         if(!res.data?.attendanceId)throw new Error('A shift is no longer available. Refresh history before downloading.');
         reports.push(res.data);
       }
-      downloadExcel(filename,routeReport(reports,cachedAddress));
+      await downloadExcel(filename, {
+        ...routeReport(reports,cachedAddress),
+        title: 'Route activity report',
+        subtitle: `${reports[0]?.name || 'Employee'} · ${month} · ${reports.length} recorded shift${reports.length === 1 ? '' : 's'}`,
+        sheetName: 'Route details',
+      });
     } catch(e){if(run===reportRun.current)setReportError(e.response?.data?.message || e.message || 'Unable to download report. Please retry.');}
     finally{if(run===reportRun.current)setExporting(false);}
   }
@@ -293,7 +303,7 @@ export default function EmployeeTracking({ embedded = false }) {
 
       <section className="card route-month-report">
         <h2>Monthly travel report</h2><p className="muted">Choose a month for day-wise kilometres and every recorded shift, journey and stop. Times use India Standard Time.</p>
-        <div className="route-month-fields"><label htmlFor="route-month">Report month<input id="route-month" type="month" value={month} max={todayKey().slice(0,7)} onChange={e=>{if(e.target.value)setMonth(e.target.value);}}/></label><div><strong>{monthDays.reduce((sum,d)=>sum+d.totalKm,0).toFixed(2)} km</strong><p>{monthDays.length} recorded days · {monthDays.reduce((sum,d)=>sum+d.stopCount,0)} stops</p><button className="btn btn-primary" disabled={!monthDays.length || daysLoading || !!daysError || exporting} onClick={exportMonth}>{exporting ? 'Preparing report…' : 'Download monthly details (CSV)'}</button></div></div>
+        <div className="route-month-fields"><label htmlFor="route-month">Report month<input id="route-month" type="month" value={month} max={todayKey().slice(0,7)} onChange={e=>{if(e.target.value)setMonth(e.target.value);}}/></label><div><strong>{monthDays.reduce((sum,d)=>sum+d.totalKm,0).toFixed(2)} km</strong><p>{monthDays.length} recorded days · {monthDays.reduce((sum,d)=>sum+d.stopCount,0)} stops</p><button className="btn btn-primary" disabled={!monthDays.length || daysLoading || !!daysError || exporting} onClick={exportMonth}>{exporting ? 'Preparing report…' : 'Download monthly Excel report'}</button></div></div>
         <p className="muted">Includes retained GPS data only ({retentionDays} days). Missing dates mean no recorded duty, not zero travel. Place names appear when available; coordinates are always included. GPS gaps are not confirmed stops.</p>
         {reportError && <p role="alert" className="error-msg">{reportError}</p>}
         {daysLoading ? <p role="status">Loading history…</p> : daysError ? <p role="alert" className="error-msg">{daysError}</p> : monthDays.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Distance</th><th>Duty time</th><th>Stops</th><th>Route details</th></tr></thead><tbody>{monthDays.map(d=><tr key={d.date}><td>{fmtDay(d.date)}</td><td>{d.totalKm.toFixed(2)} km{!d.pointCount && <small> · No GPS route</small>}</td><td>{fmtDuration(d.dutyMinutes)}</td><td>{d.stopCount}</td><td>{d.shifts.map((shift,i)=><button key={shift.attendanceId} type="button" className="btn btn-outline btn-sm" onClick={()=>update({date:d.date,attendanceId:shift.attendanceId})}>View {d.shifts.length>1?`shift ${i+1}`:'day'}</button>)}</td></tr>)}</tbody></table></div> : <p>No retained shifts for this month.</p>}
