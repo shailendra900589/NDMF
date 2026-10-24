@@ -1,6 +1,6 @@
 import { amountInWords, formatAmount, formatMonthLabel } from '../utils/payslip';
 
-const LOGO_SRC = '/mystaff-smart-logo.svg';
+const LOGO_SRC = '/mystaff-smart-official-logo.jpeg';
 
 /**
  * Print-ready pay slip matching the professional grid template.

@@ -45,9 +45,7 @@ export default function Login() {
 
       <div className="login-shell">
         <header className="login-brand">
-          <div className="login-brand__mark" aria-hidden>
-            S
-          </div>
+          <img className="login-brand__official-logo" src="/mystaff-smart-official-logo.jpeg" alt="MyStaff Smart" />
           <h1 className="login-brand__name">MyStaff Smart</h1>
           <p className="login-brand__tag">Workforce operations console</p>
         </header>

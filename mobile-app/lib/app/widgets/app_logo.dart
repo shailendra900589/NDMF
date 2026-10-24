@@ -14,7 +14,7 @@ class AppLogo extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Image.asset(
-            'assets/images/mystaff-smart-logo.png',
+            'assets/images/mystaff-smart-official-logo.jpeg',
             height: height,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Icon(Icons.account_balance, size: height * 0.7, color: const Color(0xFF00897B)),

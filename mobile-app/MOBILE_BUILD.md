@@ -1,7 +1,7 @@
-# MyStaff Smart Android 1.3.0 (20)
+# MyStaff Smart Android 1.3.1 (21)
 
 Production API: https://ndclients.co.in/api/v1
-Distribution artifact: public-site/downloads/mystaff-smart-1.3.0.apk (ARMv7 + ARM64, Android 7/API 24 or later).
+Distribution artifact: public-site/downloads/mystaff-smart-1.3.1.apk (ARMv7 + ARM64, Android 7/API 24 or later).
 
 Build from mobile-app:
 

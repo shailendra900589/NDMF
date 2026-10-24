@@ -1896,3 +1896,19 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 [hidden] { display: none !important; }
+
+/* The supplied MyStaff Smart artwork is intentionally displayed unaltered. */
+.login-brand__official-logo {
+  display: block;
+  width: min(164px, 42vw);
+  height: auto;
+  margin: 0 auto 12px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar__brand-icon--official {
+  object-fit: contain;
+  background: #fff;
+}
