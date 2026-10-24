@@ -26,6 +26,7 @@ const {
   validDescriptors,
 } = require('../../lib/faceMatch');
 const { workTypeOf, cleanRadius, MIN_RADIUS_M, MAX_RADIUS_M } = require('../../lib/officeGeofence');
+const { salaryUpdate } = require('../../lib/payrollCalculation');
 
 function sanitizeUser(user) {
   const { password, ...rest } = user;
@@ -104,13 +105,7 @@ exports.saveFaceEnrollment = async (req, res) => {
   return success(res, sanitizeUser(user), 'Face enrollment saved');
 };
 
-/** Admin or the employee's branch clears a registered face so it can be captured again. */
-exports.resetFaceEnrollment = async (req, res) => {
-  const target = findById('users', req.params.id);
-  if (!target) return error(res, 'User not found', 404);
-  if (!canManageUser(req.user, target)) {
-    return error(res, 'You cannot reset this employee', 403);
-  }
+function clearFaceEnrollment(target) {
   target.faceEnrollmentRevision = uuid();
   delete target.faceEnrollmentUrls;
   delete target.faceEnrollmentAt;
@@ -121,7 +116,32 @@ exports.resetFaceEnrollment = async (req, res) => {
   delete target.faceEnrollmentProblem;
   delete target.faceVerification;
   delete target.faceVerifyFailures;
+  return target;
+}
+
+/** Allows an employee to replace unusable face references from their own profile. */
+exports.resetOwnFaceEnrollment = async (req, res) => {
+  const target = findById('users', req.user.id);
+  if (!target || target.isActive === false || target.isDeleted) return error(res, 'User not found', 404);
+  clearFaceEnrollment(target);
   upsert('users', target, { single: true });
+  upsert('platformAudit', { id: uuid(), companyId: req.user.companyId, actorId: req.user.id,
+    action: 'employee.face.reset.self', targetId: target.id, createdAt: new Date().toISOString() }, { single: true });
+  await flush();
+  return success(res, sanitizeUser(target), 'Face reset — capture 3 new reference selfies before attendance');
+};
+
+/** Admin or the employee's branch clears a registered face so it can be captured again. */
+exports.resetFaceEnrollment = async (req, res) => {
+  const target = findById('users', req.params.id);
+  if (!target) return error(res, 'User not found', 404);
+  if (!canManageUser(req.user, target)) {
+    return error(res, 'You cannot reset this employee', 403);
+  }
+  clearFaceEnrollment(target);
+  upsert('users', target, { single: true });
+  upsert('platformAudit', { id: uuid(), companyId: req.user.companyId, actorId: req.user.id,
+    action: 'employee.face.reset.manager', targetId: target.id, createdAt: new Date().toISOString() }, { single: true });
   await flush();
   return success(res, sanitizeUser(target), 'Face reset — employee must register again');
 };
@@ -134,7 +154,7 @@ exports.getAll = (req, res) => {
   return success(res, users);
 };
 
-exports.create = (req, res) => {
+exports.create = async (req, res) => {
   const { name, mobile, employeeId, role, branch, password, permissions } = req.body;
   if (!name || !mobile || !employeeId || !role || !password || (role !== 'admin' && !branch)) {
     return error(res, 'Name, mobile, employee ID, role and password are required; employees also need a location');
@@ -178,7 +198,7 @@ exports.create = (req, res) => {
   const attendance = attendanceSettings(req.body);
   if (attendance.error) return error(res, attendance.error);
 
-  const user = {
+  let user = {
     id: `U_${uuid().slice(0, 8)}`,
     name: name.trim(),
     mobile: mobile.trim(),
@@ -194,7 +214,21 @@ exports.create = (req, res) => {
     createdBy: req.user.id,
     createdAt: new Date().toISOString(),
   };
+  if (req.body.monthlySalary !== undefined && String(req.body.monthlySalary).trim() !== '') {
+    if (role === 'admin') return error(res, 'Monthly salary can be set for employees and managers only');
+    const month = String(req.body.salaryEffectiveMonth || '').trim();
+    const reason = String(req.body.salaryReason || 'Initial monthly salary').trim();
+    if (reason.length < 3 || reason.length > 500) return error(res, 'Enter a salary reason (3–500 characters)');
+    try {
+      user = salaryUpdate(user, req.body.monthlySalary, month, req.user.id);
+    } catch (err) {
+      return error(res, err.message);
+    }
+    upsert('platformAudit', { id: uuid(), companyId: req.user.companyId, actorId: req.user.id,
+      action: 'employee.salary.created', targetId: user.id, amount: Number(req.body.monthlySalary), month, reason, createdAt: new Date().toISOString() }, { single: true });
+  }
   upsert('users', user);
+  await flush();
   return success(res, sanitizeUser(user), 'Employee created', 201);
 };
 

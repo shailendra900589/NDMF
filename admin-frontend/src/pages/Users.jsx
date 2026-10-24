@@ -2,7 +2,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { canPerformStored } from '../utils/permissions';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { usersApi, branchesApi } from '../api/api';
+import { usersApi, branchesApi, attendanceApi } from '../api/api';
 import { PERMISSION_LABELS } from '../utils/permissions';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
@@ -19,6 +19,14 @@ const ROLE_LABELS = {
   branchManager: 'Manager',
   admin: 'Admin',
 };
+
+const currentPayrollMonth = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+};
+const formatSalary = (amount) => Number(amount || 0) > 0
+  ? `₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+  : 'Not set';
 
 export default function Users() {
   let me = {};
@@ -38,6 +46,7 @@ export default function Users() {
   const [editId, setEditId] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [deleting,setDeleting]=useState(null),[busy,setBusy]=useState(false),[actionError,setActionError]=useState('');
+  const [salarySaving, setSalarySaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -89,6 +98,10 @@ export default function Users() {
       isActive: true,
       workType: 'field',
       attendanceRadiusM: '',
+      monthlySalary: '',
+      savedMonthlySalary: '',
+      salaryEffectiveMonth: currentPayrollMonth(),
+      salaryReason: 'Initial monthly salary',
     });
   };
 
@@ -107,6 +120,10 @@ export default function Users() {
       faceEnrollmentComplete: !!user.faceEnrollmentComplete,
       workType: user.workType === 'office' ? 'office' : 'field',
       attendanceRadiusM: user.attendanceRadiusM ?? '',
+      monthlySalary: user.monthlySalary || '',
+      savedMonthlySalary: user.monthlySalary || '',
+      salaryEffectiveMonth: currentPayrollMonth(),
+      salaryReason: 'Salary revision',
     });
   };
 
@@ -142,7 +159,7 @@ export default function Users() {
           ...attendancePayload(),
         });
       } else {
-        const { faceEnrollmentComplete, ...rest } = form;
+        const { faceEnrollmentComplete, savedMonthlySalary, ...rest } = form;
         await usersApi.create({ ...rest, ...attendancePayload() });
       }
       setForm(null);
@@ -150,6 +167,33 @@ export default function Users() {
     } catch (err) {
       setActionError(err.response?.data?.message || err.message || 'Save failed');
     }finally{setBusy(false);}
+  };
+
+  const saveSalary = async () => {
+    if (!editId) return;
+    if (!(Number(form.monthlySalary) > 0)) {
+      setActionError('Enter a valid monthly salary.');
+      return;
+    }
+    if ((form.salaryReason || '').trim().length < 3) {
+      setActionError('Enter a salary reason with at least 3 characters.');
+      return;
+    }
+    setSalarySaving(true);
+    setActionError('');
+    try {
+      await attendanceApi.setSalary(editId, {
+        amount: Number(form.monthlySalary),
+        month: form.salaryEffectiveMonth,
+        reason: form.salaryReason.trim(),
+      });
+      setForm((current) => ({ ...current, savedMonthlySalary: current.monthlySalary }));
+      await load();
+    } catch (err) {
+      setActionError(err.response?.data?.message || err.message || 'Could not save monthly salary');
+    } finally {
+      setSalarySaving(false);
+    }
   };
 
   const togglePerm = (key) => {
@@ -198,6 +242,7 @@ export default function Users() {
               <th>Actions</th><th>Mobile</th>
               <th>Role</th>
               <th>Location</th>
+              <th>Monthly salary</th>
               <th>Attendance</th>
               <th>Status</th>
             </tr>
@@ -205,7 +250,7 @@ export default function Users() {
           <tbody>
             {users.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ padding: 24, color: 'var(--color-text-muted)' }}>
+                <td colSpan={8} style={{ padding: 24, color: 'var(--color-text-muted)' }}>
                   No employees yet. Use &quot;Add employee&quot; to create an Employee.
                 </td>
               </tr>
@@ -217,6 +262,7 @@ export default function Users() {
                 <td>{u.mobile}</td>
                 <td>{ROLE_LABELS[u.role] || u.role}</td>
                 <td>{displayLocation(u.branch)}</td>
+                <td>{u.role === 'admin' ? '—' : formatSalary(u.monthlySalary)}</td>
                 <td>{attendanceLabel(u)}</td>
                 <td>{u.isActive === false ? 'Disabled' : 'Active'}</td>
               </tr>
@@ -363,6 +409,21 @@ export default function Users() {
                   );
                 })()}
               </div>
+            )}
+            {form.role !== 'admin' && (
+              <section className="employee-salary-setup">
+                <div>
+                  <span>PAYROLL SETUP</span>
+                  <h4>Monthly salary</h4>
+                  <p>Set the base salary now so payroll can calculate attendance-based pay and generate salary slips.</p>
+                </div>
+                <div className="form-grid-2">
+                  <label>Monthly salary (₹)<input type="number" min="0.01" max="10000000" step="0.01" value={form.monthlySalary} onChange={(e) => setForm({ ...form, monthlySalary: e.target.value })} placeholder="For example 18000" /></label>
+                  <label>Effective month<input type="month" value={form.salaryEffectiveMonth} onChange={(e) => setForm({ ...form, salaryEffectiveMonth: e.target.value })} /></label>
+                </div>
+                <label>Salary reason<input minLength="3" maxLength="500" value={form.salaryReason} onChange={(e) => setForm({ ...form, salaryReason: e.target.value })} placeholder="Initial monthly salary" /></label>
+                {editId ? <button type="button" className="btn btn-outline btn-sm" disabled={salarySaving || Number(form.monthlySalary) <= 0} onClick={saveSalary}>{salarySaving ? 'Saving salary…' : `Save salary · ${formatSalary(form.monthlySalary)}`}</button> : <small>Optional at creation, but required before this employee can be included in payroll.</small>}
+              </section>
             )}
             <div className="form-group">
               <label>

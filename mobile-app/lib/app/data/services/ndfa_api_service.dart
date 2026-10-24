@@ -48,9 +48,11 @@ class NdfaApiService extends GetxService {
   Future<LeadModel> acceptLead(String leadId) => _api.acceptLead(leadId);
   Future<LeadModel> getLeadById(String id) => _api.getLeadById(id);
 
-  Future<List<LoanModel>> getAllLoans({LoanStatus? status, String? search}) async {
+  Future<List<LoanModel>> getAllLoans(
+      {LoanStatus? status, String? search}) async {
     if (ApiConstants.useRemoteApi) {
-      return Get.find<RemoteApiService>().getAllLoans(status: status, search: search);
+      return Get.find<RemoteApiService>()
+          .getAllLoans(status: status, search: search);
     }
     return Get.find<DummyApiService>().localLoans;
   }
@@ -87,7 +89,9 @@ class NdfaApiService extends GetxService {
     final userBranch = user?.branch.trim() ?? '';
     final resolvedBranch = (branch != null && branch.trim().isNotEmpty)
         ? branch.trim()
-        : (userBranch.isNotEmpty ? userBranch : (address.trim().isNotEmpty ? address.trim() : 'All branches'));
+        : (userBranch.isNotEmpty
+            ? userBranch
+            : (address.trim().isNotEmpty ? address.trim() : 'All branches'));
     return Get.find<RemoteApiService>().createCustomer({
       'name': name,
       'mobile': mobile,
@@ -106,9 +110,11 @@ class NdfaApiService extends GetxService {
     required double lng,
     bool faceVerified = false,
   }) =>
-      _api.markAttendance(isCheckIn: isCheckIn, lat: lat, lng: lng, faceVerified: faceVerified);
+      _api.markAttendance(
+          isCheckIn: isCheckIn, lat: lat, lng: lng, faceVerified: faceVerified);
 
-  Future<List<AttendanceModel>> getAttendanceHistory() => _api.getAttendanceHistory();
+  Future<List<AttendanceModel>> getAttendanceHistory() =>
+      _api.getAttendanceHistory();
 
   Future<bool> verifyAttendanceFace(String imagePath) async {
     if (!ApiConstants.useRemoteApi) return true;
@@ -125,27 +131,39 @@ class NdfaApiService extends GetxService {
     await Get.find<RemoteApiService>().saveFaceEnrollmentUrls(urls);
   }
 
+  Future<void> resetFaceEnrollment() async {
+    if (!ApiConstants.useRemoteApi) return;
+    await Get.find<RemoteApiService>().resetFaceEnrollment();
+  }
+
   Future<bool> setFaceAttendanceRequired(bool enabled) async {
     if (!ApiConstants.useRemoteApi) return enabled;
     return Get.find<RemoteApiService>().setFaceAttendanceRequired(enabled);
   }
 
   /// One GPS fix: lat, lng, accuracy (m), speed (m/s), heading, recordedAt, mocked.
-  Future<Map<String, dynamic>> sendLiveTrackingPing(Map<String, dynamic> fix) async {
+  Future<Map<String, dynamic>> sendLiveTrackingPing(
+      Map<String, dynamic> fix) async {
     if (!ApiConstants.useRemoteApi) return {'totalKm': 0};
     return Get.find<RemoteApiService>().sendLiveTrackingPing(fix);
   }
 
-  Future<CustomerListingModel> submitCustomerListing(CustomerListingModel listing, {String? branch}) =>
+  Future<CustomerListingModel> submitCustomerListing(
+          CustomerListingModel listing,
+          {String? branch}) =>
       _api.submitCustomerListing(listing, branch: branch);
   Future<List<CustomerListingModel>> getCustomerListings({
     CustomerListingStatus? status,
     String? search,
-  }) => _api.getCustomerListings(status: status, search: search);
-  Future<CustomerListingModel> getListingById(String id) => _api.getListingById(id);
-  Future<List<CustomerListingModel>> getListingsForApproval({CustomerListingStatus? status}) =>
+  }) =>
+      _api.getCustomerListings(status: status, search: search);
+  Future<CustomerListingModel> getListingById(String id) =>
+      _api.getListingById(id);
+  Future<List<CustomerListingModel>> getListingsForApproval(
+          {CustomerListingStatus? status}) =>
       _api.getListingsForApproval(status: status);
-  Future<CustomerListingModel> processListingApproval(String id, ApprovalAction action) =>
+  Future<CustomerListingModel> processListingApproval(
+          String id, ApprovalAction action) =>
       _api.processListingApproval(id, action);
 
   Future<CustomerListingModel> assignListingOfficer(
@@ -153,7 +171,8 @@ class NdfaApiService extends GetxService {
     required String employeeId,
     required String employeeName,
   }) async {
-    if (!ApiConstants.useRemoteApi) throw Exception('Assign requires online API');
+    if (!ApiConstants.useRemoteApi)
+      throw Exception('Assign requires online API');
     return Get.find<RemoteApiService>().assignListingOfficer(
       listingId,
       employeeId: employeeId,
@@ -168,7 +187,10 @@ class NdfaApiService extends GetxService {
 
   Future<Map<String, dynamic>> getUsersPermissionSchema() async {
     if (!ApiConstants.useRemoteApi) {
-      return {'canCreateRoles': ['fieldOfficer'], 'keys': []};
+      return {
+        'canCreateRoles': ['fieldOfficer'],
+        'keys': []
+      };
     }
     return Get.find<RemoteApiService>().getUsersPermissionSchema();
   }
@@ -184,7 +206,8 @@ class NdfaApiService extends GetxService {
     String state = '',
     String address = '',
   }) async {
-    if (!ApiConstants.useRemoteApi) throw Exception('Create branch requires online API');
+    if (!ApiConstants.useRemoteApi)
+      throw Exception('Create branch requires online API');
     return Get.find<RemoteApiService>().createBranch({
       'name': name,
       'city': city,
@@ -194,12 +217,14 @@ class NdfaApiService extends GetxService {
   }
 
   Future<void> createUser(Map<String, dynamic> payload) async {
-    if (!ApiConstants.useRemoteApi) throw Exception('Create user requires online API');
+    if (!ApiConstants.useRemoteApi)
+      throw Exception('Create user requires online API');
     await Get.find<RemoteApiService>().createUser(payload);
   }
 
   Future<void> updateUser(String id, Map<String, dynamic> payload) async {
-    if (!ApiConstants.useRemoteApi) throw Exception('Update user requires online API');
+    if (!ApiConstants.useRemoteApi)
+      throw Exception('Update user requires online API');
     await Get.find<RemoteApiService>().updateUser(id, payload);
   }
 
@@ -208,8 +233,10 @@ class NdfaApiService extends GetxService {
     return Get.find<RemoteApiService>().getPayslips(search: search);
   }
 
-  Future<Map<String, dynamic>> savePayslip(Map<String, dynamic> payload, {String? id}) async {
-    if (!ApiConstants.useRemoteApi) throw Exception('Pay slips require online API');
+  Future<Map<String, dynamic>> savePayslip(Map<String, dynamic> payload,
+      {String? id}) async {
+    if (!ApiConstants.useRemoteApi)
+      throw Exception('Pay slips require online API');
     if (id != null && id.isNotEmpty) {
       return Get.find<RemoteApiService>().updatePayslip(id, payload);
     }
@@ -221,8 +248,9 @@ class NdfaApiService extends GetxService {
     await Get.find<RemoteApiService>().deletePayslip(id);
   }
 
-  List<CustomerListingModel> get localListings =>
-      ApiConstants.useRemoteApi ? [] : Get.find<DummyApiService>().localListings;
+  List<CustomerListingModel> get localListings => ApiConstants.useRemoteApi
+      ? []
+      : Get.find<DummyApiService>().localListings;
 
   Future<double> getTrackingTodayKm() async {
     final data = await getTrackingToday();
@@ -236,7 +264,8 @@ class NdfaApiService extends GetxService {
     return Get.find<RemoteApiService>().getTrackingToday();
   }
 
-  Future<Map<String, dynamic>> syncRoutePoints(List<Map<String, dynamic>> points) async {
+  Future<Map<String, dynamic>> syncRoutePoints(
+      List<Map<String, dynamic>> points) async {
     if (!ApiConstants.useRemoteApi || points.isEmpty) {
       return {'totalKm': 0, 'routePoints': points};
     }
@@ -263,12 +292,12 @@ class NdfaApiService extends GetxService {
       await Get.find<RemoteApiService>().changePassword(oldPass, newPass);
       return;
     }
-    if (oldPass.length < 4 || newPass.length < 4) throw Exception('Invalid password');
+    if (oldPass.length < 4 || newPass.length < 4)
+      throw Exception('Invalid password');
   }
 
   Future<void> updateProfile({String? photoUrl}) async {
     if (!ApiConstants.useRemoteApi) return;
     await Get.find<RemoteApiService>().updateProfile(photoUrl: photoUrl);
   }
-
 }

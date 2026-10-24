@@ -87,25 +87,10 @@ class ProfileView extends GetView<ProfileController> {
             _tile(Icons.phone, 'Mobile',
                 controller.mobile.isEmpty ? '—' : controller.mobile),
             if (AccessControl.isFieldOfficer || AccessControl.isBranchManager)
-              _tile(
-                Icons.face_retouching_natural,
-                'Face enrollment',
-                controller.faceEnrollmentComplete ? 'Completed' : 'Pending',
-              ),
+              _faceEnrollmentTile(),
             _permissionsSection(),
             _menuTile(Icons.lock, 'Change Password',
                 controller.navigateToChangePassword),
-            Obx(() {
-              if (!(AccessControl.isFieldOfficer ||
-                  AccessControl.isBranchManager)) {
-                return const SizedBox.shrink();
-              }
-              if (!controller.faceAttendanceRequired.value) {
-                return const SizedBox.shrink();
-              }
-              return _menuTile(Icons.face, 'Face enrollment',
-                  () => Get.toNamed(AppRoutes.faceEnrollment));
-            }),
             _menuTile(Icons.phone_android, 'Device Info',
                 controller.navigateToDeviceInfo),
             _menuTile(Icons.security, 'App Lock (PIN)',
@@ -221,6 +206,46 @@ class ProfileView extends GetView<ProfileController> {
           leading: Icon(icon, color: AppColors.primary),
           title: Text(label),
           subtitle: Text(value)),
+    );
+  }
+
+  Widget _faceEnrollmentTile() {
+    final complete = controller.faceEnrollmentComplete;
+    return _menuTile(
+      complete ? Icons.restart_alt_rounded : Icons.face_retouching_natural,
+      complete ? 'Reset & re-register face' : 'Register face for attendance',
+      () async {
+        if (!complete) {
+          Get.toNamed(AppRoutes.faceEnrollment);
+          return;
+        }
+        final reset = await Get.dialog<bool>(
+          AlertDialog(
+            title: const Text('Reset face enrollment?'),
+            content: const Text(
+              'Your old reference selfies will be removed. You will need to capture three new selfies before face attendance can be marked again.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(result: false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Get.back(result: true),
+                child: const Text('Reset & continue'),
+              ),
+            ],
+          ),
+        );
+        if (reset == true) await controller.restartFaceEnrollment();
+      },
+      trailing: Text(
+        complete ? 'Registered' : 'Required',
+        style: TextStyle(
+          color: complete ? AppColors.success : AppColors.warning,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 

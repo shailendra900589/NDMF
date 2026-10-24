@@ -20,10 +20,10 @@ test('Flutter API contract: authentication, uploads, listings, customers, attend
  await call('/auth/profile','PUT',{name:'Updated dummy employee'});
  await call('/branches');await call('/users/permission-schema','GET',undefined,'B');await call('/users','GET',undefined,'B');
  const branch=await call('/branches','POST',{name:'Temporary mobile branch'},'A',201);await call(`/branches/${branch.data.id}`,'PUT',{name:'Renamed mobile branch'},'A');await call(`/branches/${branch.data.id}`,'DELETE',undefined,'A');
- const employee=await call('/users','POST',{name:'Team fixture',mobile:'9001000004',employeeId:'MOBILE_NEW',role:'fieldOfficer',branch:'Test office',password:'MobileTest432!'},'B',201);await call(`/users/${employee.data.id}`,'PUT',{name:'Updated fixture',mobile:'9001000005'},'B');
+ const employee=await call('/users','POST',{name:'Team fixture',mobile:'9001000004',employeeId:'MOBILE_NEW',role:'fieldOfficer',branch:'Test office',password:'MobileTest432!',monthlySalary:18000,salaryEffectiveMonth:'2026-10',salaryReason:'Initial appointment salary'},'B',201);assert.equal(employee.data.monthlySalary,18000);await call(`/users/${employee.data.id}`,'PUT',{name:'Updated fixture',mobile:'9001000005'},'B');
  const form=new FormData();form.append('file',new Blob([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=','base64')],{type:'image/png'}),'fixture.png');form.append('type','photo');form.append('latitude','26.75');form.append('longitude','83.37');
  const upload=await call('/uploads/single','POST',form);uploaded.push(upload.data.fileName);assert.match(upload.data.fileUrl,/signature=/);const asset=await fetch(origin+upload.data.fileUrl);assert.equal(asset.status,200);assert.ok((await asset.arrayBuffer()).byteLength>0);
- await call('/users/me/face-enrollment');await call('/users/me/face-enrollment','PUT',{urls:[]},'F',400);await call('/attendance/verify-face','POST',new FormData(),'F',400);
+ await call('/users/me/face-enrollment');await call('/users/me/face-enrollment','PUT',{urls:[]},'F',400);await call('/users/me/face-enrollment','DELETE',undefined,'F');await call('/attendance/verify-face','POST',new FormData(),'F',400);
  await call('/settings/attendance-face','PUT',{faceAttendanceRequired:false},'B',403);await call('/settings/attendance-face','PUT',{faceAttendanceRequired:false},'A');
  await call('/attendance/check-in','POST',{lat:26.75,lng:83.37});
  await call('/tracking/live-ping','POST',{lat:26.75,lng:83.37,accuracy:10,recordedAt:new Date().toISOString()});

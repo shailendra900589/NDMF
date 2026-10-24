@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../data/models/attendance_model.dart';
@@ -153,8 +154,33 @@ class AttendanceController extends GetxController {
     }
     final ok = await _api.verifyAttendanceFace(file.path);
     if (!ok) {
-      Get.snackbar('Verification failed',
-          'Face did not match — try again in good light');
+      final reset = await Get.dialog<bool>(
+        AlertDialog(
+          title: const Text('Face did not match'),
+          content: const Text(
+            'Try again in bright, even light with your face centered. If the issue continues, reset your enrollment and capture fresh reference selfies.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('Try again later'),
+            ),
+            FilledButton(
+              onPressed: () => Get.back(result: true),
+              child: const Text('Reset & re-register'),
+            ),
+          ],
+        ),
+      );
+      if (reset == true) {
+        try {
+          await _api.resetFaceEnrollment();
+          Get.snackbar('Face reset', 'Capture three new reference selfies.');
+          Get.offNamed(AppRoutes.faceEnrollment);
+        } catch (e) {
+          Get.snackbar('Could not reset face', e.toString());
+        }
+      }
     }
     return ok;
   }

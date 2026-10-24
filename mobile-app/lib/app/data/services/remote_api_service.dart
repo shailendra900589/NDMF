@@ -255,6 +255,15 @@ class RemoteApiService extends GetxService {
     _storage.saveUser(UserModel.fromJson(data));
   }
 
+  /// Clears only this signed-in employee's biometric enrollment. The employee
+  /// must then capture fresh reference selfies before face attendance is allowed.
+  Future<void> resetFaceEnrollment() async {
+    final res = await _http.delete(ApiConstants.faceEnrollment);
+    final data = _unwrapMap(res);
+    data['token'] = _storage.getToken() ?? '';
+    _storage.saveUser(UserModel.fromJson(data));
+  }
+
   Future<bool> setFaceAttendanceRequired(bool enabled) async {
     final res = await _http.put(ApiConstants.settingsAttendanceFace, data: {
       'faceAttendanceRequired': enabled,

@@ -28,7 +28,8 @@ class ProfileController extends GetxController {
   void onInit() {
     super.onInit();
     photoPath.value = _storage.getUser()?.photoUrl;
-    faceAttendanceRequired.value = _storage.getUser()?.faceAttendanceRequired ?? true;
+    faceAttendanceRequired.value =
+        _storage.getUser()?.faceAttendanceRequired ?? true;
   }
 
   Future<void> toggleFaceAttendancePolicy(bool enabled) async {
@@ -37,7 +38,8 @@ class ProfileController extends GetxController {
     try {
       await _api.setFaceAttendanceRequired(enabled);
       await _api.syncSession();
-      faceAttendanceRequired.value = _storage.getUser()?.faceAttendanceRequired ?? enabled;
+      faceAttendanceRequired.value =
+          _storage.getUser()?.faceAttendanceRequired ?? enabled;
       if (!enabled) _storage.setFaceEnrollmentSkipped(false);
       Get.snackbar(
         'Policy updated',
@@ -58,7 +60,24 @@ class ProfileController extends GetxController {
   String get mobile => _storage.getUser()?.mobile ?? '';
   String get role => _storage.getUser()?.role.label ?? '';
   String get userId => _storage.getUser()?.id ?? '';
-  bool get faceEnrollmentComplete => _storage.getUser()?.faceEnrollmentComplete ?? false;
+  bool get faceEnrollmentComplete =>
+      _storage.getUser()?.faceEnrollmentComplete ?? false;
+
+  /// Lets an employee replace a face enrollment that no longer verifies well.
+  /// The server writes an audit event and removes the old biometric references.
+  Future<void> restartFaceEnrollment() async {
+    try {
+      await _api.resetFaceEnrollment();
+      _storage.setFaceEnrollmentSkipped(false);
+      Get.snackbar(
+        'Face reset',
+        'Capture three new reference selfies in clear, even lighting.',
+      );
+      Get.toNamed(AppRoutes.faceEnrollment);
+    } catch (e) {
+      Get.snackbar('Could not reset face', e.toString());
+    }
+  }
 
   List<String> get enabledModuleLabels {
     final user = _storage.getUser();
@@ -78,7 +97,9 @@ class ProfileController extends GetxController {
       photoPath.value = url;
       final user = _storage.getUser();
       if (user != null) {
-        final photo = url.contains('/uploads/') ? url.substring(url.indexOf('/uploads/')) : url;
+        final photo = url.contains('/uploads/')
+            ? url.substring(url.indexOf('/uploads/'))
+            : url;
         await _api.updateProfile(photoUrl: photo);
         _storage.saveUser(user.copyWith(photoUrl: photo));
         Get.snackbar('Success', 'Profile photo updated');
