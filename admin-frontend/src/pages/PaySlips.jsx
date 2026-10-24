@@ -1,6 +1,6 @@
 import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { payslipsApi } from '../api/api';
+import { payslipsApi, attendanceApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import PaySlipDocument from '../components/PaySlipDocument';
@@ -61,6 +61,8 @@ function blankProfile() {
 
 function amountsFromSlip(slip) {
   return {
+    autoPayroll:!!slip.autoPayroll,payroll:slip.payroll || null,
+    attendance:slip.attendance || null,
     earnings: {
       basic: slip.earnings?.basic ?? '',
       hra: slip.earnings?.hra ?? '',
@@ -114,7 +116,7 @@ async function downloadMultiPagePdf(pageEls, filename) {
     const canvas = await html2canvas(pageEls[i], {
       scale: 2,
       useCORS: true,
-      backgroundColor: 'var(--color-surface)',
+      backgroundColor: '#ffffff',
       logging: false,
     });
     const img = canvas.toDataURL('image/png');
@@ -176,6 +178,9 @@ export default function PaySlips() {
   }, []);
 
   const activeAmounts = monthMap[activeMonth] || emptyAmounts();
+  const isAutomatic=activeAmounts.autoPayroll ?? true;
+  const calculationScope=useRef('');calculationScope.current=`${profile.employeeNo}|${activeMonth}`;
+  const payrollReady=monthKeys.every(m=>!(monthMap[m]?.autoPayroll ?? true) || (String(monthMap[m]?.payroll?.employeeNo || '').toLowerCase()===profile.employeeNo.trim().toLowerCase() && monthMap[m]?.payroll?.month===m));
   const activeComputed = useMemo(
     () => computeAmounts(activeAmounts.earnings, activeAmounts.deductions),
     [activeAmounts]
@@ -189,6 +194,8 @@ export default function PaySlips() {
           ...profile,
           companyName: JSON.parse(localStorage.getItem('ndfa_user') || '{}').company?.name || 'Smartstaff plus',
           month: m,
+          attendance:monthMap[m]?.attendance || null,
+          payroll:monthMap[m]?.payroll || null,
           ...am,
         };
       }),
@@ -282,7 +289,8 @@ export default function PaySlips() {
       const next = { ...prev };
       monthKeys.forEach((m) => {
         next[m] = {
-          earnings: { ...src.earnings },
+          ...prev[m],
+          earnings: (prev[m]?.autoPayroll ?? true) ? (prev[m]?.earnings || emptyAmounts().earnings) : { ...src.earnings },
           deductions: { ...src.deductions },
         };
       });
@@ -305,9 +313,10 @@ export default function PaySlips() {
     try {
       const months = monthKeys.map((m) => {
         const c = computeAmounts(monthMap[m]?.earnings, monthMap[m]?.deductions);
-        return { month: m, earnings: c.earnings, deductions: c.deductions };
+        return { month: m, earnings: c.earnings, deductions: c.deductions,attendance:monthMap[m]?.attendance || null,autoPayroll:monthMap[m]?.autoPayroll ?? true };
       });
-      await payslipsApi.bulkUpsert({ ...profile, months });
+      const saved=await payslipsApi.bulkUpsert({ ...profile, months });
+      setMonthMap(Object.fromEntries(saved.data.map(slip=>[slip.month,amountsFromSlip(slip)])));
       await load();
     } catch (err) {
       setError(err.message || 'Could not save pay slips');
@@ -327,6 +336,7 @@ export default function PaySlips() {
   };
 
   const handleDownloadPdf = async () => {
+    if(!payrollReady){setError('Calculate or save automatic payroll for every selected month before downloading.');return;}
     const root = pdfPagesRef.current;
     if (!root) return;
     const pages = [...root.querySelectorAll('.pslip-pdf-page')];
@@ -580,6 +590,7 @@ export default function PaySlips() {
               </div>
             </div>
 
+            <section className="card payroll-attendance"><h3>Attendance-based salary</h3><label><input type="checkbox" checked={isAutomatic} onChange={e=>setMonthMap(prev=>({...prev,[activeMonth]:{...prev[activeMonth],autoPayroll:e.target.checked,payroll:null}}))}/> Calculate salary automatically from attendance</label><p>Monthly salary ÷ calendar days × payable days. The first four Sundays are paid, with no double counting. Extra paid leave requires an Admin or Branch Manager correction with a reason. Future/unrecorded days remain unpaid/pending in provisional payroll.</p><button type="button" className="btn btn-primary" disabled={!isAutomatic} onClick={async()=>{try{const scope=calculationScope.current;const r=await payslipsApi.calculation({employeeNo:profile.employeeNo,month:activeMonth});const p=r.data.calculation;if(scope!==calculationScope.current)return;setError('');setMonthMap(prev=>({...prev,[activeMonth]:{...prev[activeMonth],autoPayroll:true,payroll:p,attendance:{...p,note:p.policy},earnings:{...emptyAmounts().earnings,basic:p.earnedSalary}}}));}catch(e){setError(e.response?.data?.message || e.message);}}}>Calculate / refresh salary</button>{activeAmounts.payroll && <p>Base ₹{formatAmount(activeAmounts.payroll.monthlySalary)} · Payable {activeAmounts.payroll.paidDays}/{activeAmounts.payroll.calendarDays} days · Loss of pay ₹{formatAmount(activeAmounts.payroll.lossOfPay)} · Earned ₹{formatAmount(activeAmounts.payroll.earnedSalary)}. Save recalculates from current attendance.</p>}</section>
             <div className="payslips-amounts">
               <div>
                 <h4 className="payslips-amounts__title">
@@ -598,7 +609,7 @@ export default function PaySlips() {
                       type="number"
                       min="0"
                       step="1"
-                      value={activeAmounts.earnings[k]}
+                      disabled={isAutomatic} value={activeAmounts.earnings[k] ?? ''}
                       onChange={(e) => updateActiveEarn(k, e.target.value)}
                     />
                   </div>
@@ -638,11 +649,13 @@ export default function PaySlips() {
               </div>
             </div>
 
+            <section className="card payroll-attendance"><h3>Attendance & leave · {formatMonthLabel(activeMonth)}</h3><p className="muted">Review days for this month. Import uses the attendance calendar, including admin corrections. Automatic payroll applies four paid Sundays and approved paid leave. Manual day entries are for legacy/manual slips; automatic slips always recalculate from attendance when saved.</p><button type="button" className="btn btn-outline" onClick={async()=>{try{const r=await attendanceApi.getMonthly({year:Number(activeMonth.slice(0,4)),month:Number(activeMonth.slice(5))});const employee=r.data.employees.find(e=>String(e.employeeId).toLowerCase()===profile.employeeNo.trim().toLowerCase());if(!employee)throw new Error('Employee ID not found in the active attendance roster. Enter the matching employee number or fill reviewed days manually.');setMonthMap(prev=>({...prev,[activeMonth]:{...prev[activeMonth],attendance:{presentDays:employee.presentDays,paidLeaveDays:employee.paidLeaveDays || 0,unpaidLeaveDays:employee.unpaidLeaveDays || 0,weeklyOffDays:employee.holidayDays || 0,absentDays:employee.absentDays || 0,note:'Imported attendance; reviewed payroll amounts entered separately.'}}}));}catch(err){setError(err.response?.data?.message || err.message);}}} disabled={isAutomatic}>Import attendance summary</button><div className="form-grid-2">{[['presentDays','Present days'],['paidLeaveDays','Paid leave days'],['unpaidLeaveDays','Unpaid leave days'],['weeklyOffDays','Weekly off / holidays'],['absentDays','Absent days']].map(([key,label])=><label key={key}>{label}<input type="number" min="0" max="31" step="0.5" disabled={isAutomatic} value={activeAmounts.attendance?.[key] ?? ''} onChange={e=>setMonthMap(prev=>({...prev,[activeMonth]:{...prev[activeMonth],attendance:{...prev[activeMonth].attendance,[key]:e.target.value}}}))}/></label>)}</div><label>Leave / payroll policy note<input maxLength={500} disabled={isAutomatic} value={activeAmounts.attendance?.note || ''} onChange={e=>setMonthMap(prev=>({...prev,[activeMonth]:{...prev[activeMonth],attendance:{...prev[activeMonth].attendance,note:e.target.value}}}))}/></label></section>
             <div className="payslips-form__actions">
+              <button hidden={!canPerformStored('payslips','export')} type="button" className="btn btn-outline" disabled={!payrollReady} onClick={()=>window.print()}>Print salary slips</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>
                 {saving ? 'Saving…' : `Save all ${monthKeys.length} month(s)`}
               </button>
-              <button hidden={!canPerformStored('payslips', 'export')} type="button" className="btn btn-primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
+              <button hidden={!canPerformStored('payslips', 'export')} type="button" className="btn btn-primary" onClick={handleDownloadPdf} disabled={pdfBusy || !payrollReady}>
                 {pdfBusy
                   ? 'Preparing PDF…'
                   : `Download PDF (${monthKeys.length} page${monthKeys.length === 1 ? '' : 's'})`}

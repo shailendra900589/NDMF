@@ -1,5 +1,5 @@
 const { v4: uuid } = require('uuid');
-const { getCollection, findById, upsert } = require('../../lib/db');
+const { getCollection, findById, upsert, flush } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { filterByBranch, sameBranch, isAdmin } = require('../../lib/rbac');
 const { initialListingStatus, canActorApprove } = require('../../lib/listingWorkflow');
@@ -16,7 +16,7 @@ function advanceOnApprove(actor, listing) {
 
 function createCustomerFromListing(listing) {
   const customers = getCollection('customers');
-  if (customers.some((c) => c.mobile === listing.mobile)) return;
+  const existing=customers.find(c=>c.mobile===listing.mobile);
 
   const photoPaths = [
     listing.customerPhoto,
@@ -29,10 +29,11 @@ function createCustomerFromListing(listing) {
     listing.shopPhoto4,
   ]
     .filter(Boolean)
-    .map((p) => (typeof p === 'string' ? p : p.filePath));
+    .map((p) => (typeof p === 'string' ? p : p.filePath)).filter(Boolean);
 
   upsert('customers', {
-    id: `C_${listing.id}`,
+    ...existing,
+    id: existing?.id || `C_${listing.id}`,
     name: listing.name,
     mobile: listing.mobile,
     address: listing.shopFullAddress,
@@ -41,15 +42,16 @@ function createCustomerFromListing(listing) {
     latitude: listing.shopLatitude,
     longitude: listing.shopLongitude,
     listingId: listing.id,
+    listingIds:[...new Set([...(existing?.listingIds || []),existing?.listingId,listing.id].filter(Boolean))],
     branch: listing.branch,
-    documentPaths: photoPaths,
-    loanHistory: [],
-    createdAt: new Date().toISOString(),
+    documentPaths: [...new Set([...(existing?.documentPaths || []),...photoPaths])],
+    loanHistory: existing?.loanHistory || [],
+    createdAt: existing?.createdAt || new Date().toISOString(),
   });
 }
 
 exports.getAll = (req, res) => {
-  let listings = getCollection('customerListings');
+  let listings = getCollection('customerListings').filter(l=>['draft','branchPending','adminPending','rejected'].includes(l.status));
   listings = filterByBranch(listings, req.user, 'branch');
   const { status, search } = req.query;
   if (status) listings = listings.filter((l) => l.status === status);
@@ -211,7 +213,7 @@ exports.assignOfficer = (req, res) => {
   return success(res, listing, 'Listing assigned to field officer');
 };
 
-exports.processApproval = (req, res) => {
+exports.processApproval = async (req, res) => {
   const { id, action } = req.body;
   const listing = findById('customerListings', id);
   if (!listing) return error(res, 'Listing not found', 404);
@@ -240,5 +242,6 @@ exports.processApproval = (req, res) => {
   }
 
   upsert('customerListings', listing);
+  await flush();
   return success(res, listing, `Listing ${action} successful`);
 };

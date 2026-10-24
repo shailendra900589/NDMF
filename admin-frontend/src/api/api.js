@@ -56,6 +56,7 @@ export const usersApi = {
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
   resetFace: (id) => api.delete(`/users/${id}/face-enrollment`),
+  remove: (id) => api.delete(`/users/${id}`),
   getPermissionSchema: () => api.get('/users/permission-schema'),
 };
 
@@ -73,6 +74,8 @@ export const customersApi = {
 };
 
 export const attendanceApi = {
+  setSalary:(userId,data)=>api.put(`/attendance/salary/${userId}`,data),
+  adjust: data=>api.put('/attendance/adjustment',data),
   getEnrollment: userId => api.get(`/attendance/enrollment/${encodeURIComponent(userId)}`),
   getHistory: () => api.get('/attendance/history'),
   getMonthly: (params) => api.get('/attendance/monthly', { params }),
@@ -111,6 +114,7 @@ export const listingsApi = {
 };
 
 export const payslipsApi = {
+  calculation:params=>api.get('/payslips/calculation',{params}),
   getAll: (params) => api.get('/payslips', { params }),
   getById: (id) => api.get(`/payslips/${id}`),
   create: (data) => api.post('/payslips', data),

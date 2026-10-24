@@ -10,6 +10,8 @@ router.post('/check-in', authMiddleware, wrap(attendance.checkIn));
 router.post('/check-out', authMiddleware, wrap(attendance.checkOut));
 router.get('/history', authMiddleware, attendance.getHistory);
 router.get('/monthly', authMiddleware, attendance.getMonthly);
+router.put('/adjustment', authMiddleware, wrap(attendance.adjust));
+router.put('/salary/:userId', authMiddleware, wrap(attendance.setSalary));
 router.get('/enrollment/:userId', authMiddleware, attendance.getEnrollmentPhotos);
 
 module.exports = router;

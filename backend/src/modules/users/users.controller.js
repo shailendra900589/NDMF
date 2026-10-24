@@ -128,7 +128,7 @@ exports.resetFaceEnrollment = async (req, res) => {
 
 exports.getAll = (req, res) => {
   const all = getCollection('users');
-  let users = listUsersVisibleTo(req.user, all);
+  let users = listUsersVisibleTo(req.user, all).filter(u=>!u.isDeleted);
   users = users.map(sanitizeUser);
   users.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   return success(res, users);
@@ -198,11 +198,19 @@ exports.create = (req, res) => {
   return success(res, sanitizeUser(user), 'Employee created', 201);
 };
 
-exports.update = (req, res) => {
+exports.update = async (req, res) => {
   const stored = findById('users', req.params.id);
   if (!stored) return error(res, 'User not found', 404);
   const target = structuredClone(stored);
   if (!canManageUser(req.user, target)) return error(res, 'Forbidden', 403);
+  if(target.isDeleted)return error(res,'Employee has been deleted',409);
+  if(req.body.mobile!==undefined){
+    const mobile=String(req.body.mobile).trim();
+    if(!/^\d{10}$/.test(mobile))return error(res,'Enter a valid 10-digit mobile number');
+    const all=require('../../lib/tenantContext').context.run(undefined,()=>getCollection('users'));
+    if(all.some(u=>u.id!==target.id && (String(u.employeeId || '').toLowerCase()===mobile || String(u.email || '').toLowerCase()===mobile || (u.mobile===mobile && (u.companyId!==target.companyId || u.role===(req.body.role || target.role))))))return error(res,'Mobile or login ID is already in use',409);
+    target.mobile=mobile;
+  }
 
   const { name, branch, role, permissions, isActive, password } = req.body;
   const assignable = assignablePermissionKeys(req.user);
@@ -258,9 +266,21 @@ exports.update = (req, res) => {
   }
 
   Object.assign(target, attendance.fields);
+  if(stored.role==='admin' && stored.isActive!==false && (target.role!=='admin' || target.isActive===false) && !getCollection('users').some(u=>u.id!==target.id && u.role==='admin' && u.isActive!==false))return error(res,'Keep at least one active company administrator',409);
 
   upsert('users', target);
+  await flush();
   return success(res, sanitizeUser(target), 'User updated');
+};
+
+exports.remove = async(req,res)=>{
+  const target=findById('users',req.params.id);
+  if(!target || target.isDeleted)return error(res,'Employee not found',404);
+  if(!canManageUser(req.user,target))return error(res,'Forbidden',403);
+  if(target.id===req.user.id)return error(res,'You cannot delete your own account',409);
+  if(target.role==='admin' && target.isActive!==false && !getCollection('users').some(u=>u.id!==target.id && u.role==='admin' && u.isActive!==false))return error(res,'Keep at least one active company administrator',409);
+  upsert('users',{...target,isActive:false,isDeleted:true,deletedAt:new Date().toISOString(),deletedBy:req.user.id},{single:true});await flush();
+  return success(res,{id:target.id},'Employee removed. Login disabled; attendance and payroll history preserved.');
 };
 
 exports.getPermissionSchema = (req, res) => {

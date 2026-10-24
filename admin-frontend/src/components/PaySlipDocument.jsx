@@ -71,6 +71,9 @@ export default function PaySlipDocument({ slip, id, className = '' }) {
             <td colSpan={2} className="pslip__head">Earnings</td>
             <td colSpan={2} className="pslip__head">Deductions</td>
           </tr>
+          {slip.attendance && <tr><td colSpan={4} style={{padding:10,fontSize:11}}>Calendar days: {slip.attendance.calendarDays || new Date(Number(slip.month.slice(0,4)),Number(slip.month.slice(5)),0).getDate()} · Present: {slip.attendance.presentDays || 0} · Paid leave: {slip.attendance.paidLeaveDays || 0} · Unpaid leave: {slip.attendance.unpaidLeaveDays || 0} · Weekly off/holidays: {slip.attendance.weeklyOffDays || 0} · {slip.payroll ? 'Absent/unrecorded' : 'Absent'}: {slip.attendance.absentDays || 0}{slip.attendance.note && <div>{slip.attendance.note}</div>}</td></tr>}
+          {slip.payroll && <tr><td colSpan={4} style={{padding:10,fontSize:11}}>Base monthly salary: ₹{formatAmount(slip.payroll.monthlySalary)} · Payable days: {slip.payroll.paidDays}/{slip.payroll.calendarDays} · Unpaid/pending days: {slip.payroll.unpaidDays} · Loss of pay: ₹{formatAmount(slip.payroll.lossOfPay)}</td></tr>}
+          {slip.payroll?.isProvisional && <tr><td colSpan={4} style={{padding:8,fontSize:11,fontWeight:700}}>Provisional payroll as of {slip.payroll.asOf}. Future and unrecorded days are pending; recalculate after attendance review.</td></tr>}
           {earnRows.map((row, i) => (
             <tr key={`er-${i}`}>
               <td className="pslip__label">{row[0]}</td>
@@ -100,19 +103,7 @@ export default function PaySlipDocument({ slip, id, className = '' }) {
           </tr>
           <tr>
             <td className="pslip__sign-cell" colSpan={4}>
-              <div className="pslip__sign-row">
-                <div className="pslip__sign-block">
-                  <div className="pslip__sign-space" />
-                  <div className="pslip__sign-line" />
-                  <div className="pslip__sign-label">Employee Signature</div>
-                </div>
-                <div className="pslip__sign-block pslip__sign-block--right">
-                  <div className="pslip__sign-space" />
-                  <div className="pslip__sign-line" />
-                  <div className="pslip__sign-label">Authorized Signatory</div>
-                  <div className="pslip__sign-org">For {company}</div>
-                </div>
-              </div>
+              <p style={{textAlign:'center',fontSize:12}}>Digital salary slip — computer generated. No signature is required.</p>
             </td>
           </tr>
         </tbody>

@@ -61,7 +61,7 @@ exports.create = async (req, res) => {
   return success(res, branch, 'Branch created', 201);
 };
 
-const LINKED_COLLECTIONS=['users','customers','customerListings','attendance','tracking','liveLocations','callLogs','leads','loans','collections','payslips'];
+const LINKED_COLLECTIONS=['users','customers','customerListings','attendance','attendanceAdjustments','tracking','liveLocations','callLogs','leads','loans','collections','payslips'];
 const linkedTo=(record,branch)=>record.branchId===branch.id || (typeof record.branch==='string' && record.branch.trim()===branch.name.trim());
 
 exports.update = async (req, res) => {

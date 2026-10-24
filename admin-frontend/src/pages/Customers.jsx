@@ -6,6 +6,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { displayLocation } from '../utils/displayLabels';
 import { downloadExcel } from '../utils/exportExcel';
+import CustomerDetails from '../components/CustomerDetails';
 
 const EMPTY_FORM = {
   name: '',
@@ -29,6 +30,7 @@ export default function Customers() {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [detailId,setDetailId]=useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -190,6 +192,7 @@ export default function Customers() {
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Details</th>
                 <th>Mobile</th>
                 <th>Address</th>
                 <th>Aadhaar</th>
@@ -204,6 +207,7 @@ export default function Customers() {
                   <td>
                     <strong>{c.name}</strong>
                   </td>
+                  <td><button type="button" className="btn btn-outline btn-sm" aria-label={`View details for ${c.name}`} onClick={()=>setDetailId(c.id)}>View details</button></td>
                   <td>{c.mobile}</td>
                   <td>{c.address || '—'}</td>
                   <td>{c.aadhaar || '—'}</td>
@@ -305,6 +309,7 @@ export default function Customers() {
           </div>
         </div>
       )}
+      {detailId && <CustomerDetails customerId={detailId} onClose={()=>setDetailId(null)}/>}
     </div>
   );
 }

@@ -10,7 +10,8 @@ router.get('/me/face-enrollment', authMiddleware, users.getFaceEnrollment);
 router.put('/me/face-enrollment', authMiddleware, wrap(users.saveFaceEnrollment));
 router.get('/', authMiddleware, requirePermission('users'), users.getAll);
 router.post('/', authMiddleware, requireRole('admin', 'branchManager'), requirePermission('users'), users.create);
-router.put('/:id', authMiddleware, requireRole('admin', 'branchManager'), requirePermission('users'), users.update);
+router.put('/:id', authMiddleware, requireRole('admin', 'branchManager'), requirePermission('users'), wrap(users.update));
+router.delete('/:id', authMiddleware, requireRole('admin', 'branchManager'), requirePermission('users'), wrap(users.remove));
 router.delete('/:id/face-enrollment', authMiddleware, requireRole('admin', 'branchManager'), requirePermission('users'), wrap(users.resetFaceEnrollment));
 
 module.exports = router;

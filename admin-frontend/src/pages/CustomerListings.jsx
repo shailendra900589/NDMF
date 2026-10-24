@@ -120,7 +120,7 @@ export default function CustomerListings() {
   }, [selected]);
 
   const filtered = useMemo(() => {
-    let list = listings;
+    let list = listings.filter(l=>l.status!=='listed');
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter(
@@ -272,7 +272,7 @@ export default function CustomerListings() {
     <div>
       <PageHeader
         title="Customer listing"
-        description="Live photos, shop GPS and neighbor notes. Branch approval, then admin, then listed."
+        description="Pending and rejected applications. Approved customers move to Customers, with photos and verification history retained."
       >
         <button hidden={!canPerformStored('customerListings', 'export')} type="button" className="btn btn-outline btn-sm" onClick={download}>
           Download Excel
@@ -301,9 +301,9 @@ export default function CustomerListings() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="all">All statuses</option>
-              {Object.entries(LISTING_STATUS).map(([value, label]) => (
+              {Object.entries(LISTING_STATUS).filter(([value])=>value!=='listed').map(([value, label]) => (
                 <option key={value} value={value}>
-                  {label}
+                  {value==='draft'?'Pending rework':label}
                 </option>
               ))}
             </SearchableSelect>

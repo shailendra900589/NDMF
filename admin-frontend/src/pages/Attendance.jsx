@@ -25,7 +25,9 @@ function statusLabel(status) {
     case 'absent':
       return 'Absent';
     case 'holiday':
-      return 'Sunday';
+      return 'Weekly off / holiday';
+    case 'paid_leave': return 'Paid leave';
+    case 'unpaid_leave': return 'Unpaid leave';
     case 'today':
       return 'Today';
     default:
@@ -45,6 +47,8 @@ export default function Attendance() {
   const [filterEmployee, setFilterEmployee] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [search, setSearch] = useState('');
+  const [correction,setCorrection]=useState({date:'',status:'present',reason:''}),[adjusting,setAdjusting]=useState(false),[adjustError,setAdjustError]=useState('');
+  const [salaryError,setSalaryError]=useState(''),[salaryBusy,setSalaryBusy]=useState(false);
 
   const load = (y, m) => {
     setLoading(true);
@@ -371,6 +375,8 @@ export default function Attendance() {
 
         <div className="att-main">
           {selected && <EnrollmentPhotos key={selected.id} userId={selected.id} name={selected.name} />}
+          {selected && ['admin','branchManager'].includes(me.role) && (me.role==='admin' || selected.role==='fieldOfficer') && canPerformStored('attendance','update') && <section className="card attendance-adjustment" key={`salary-${selected.id}`}><h3>Monthly salary · {selected.name}</h3><p className="muted">Current base salary: ₹{selected.monthlySalary || 'Not set'}. Payroll uses salary effective for its selected month. First four Sundays are paid; other paid leave needs an attendance correction with a reason.</p><form onSubmit={async e=>{e.preventDefault();const values=new FormData(e.currentTarget);setSalaryBusy(true);setSalaryError('');try{await attendanceApi.setSalary(selected.id,{amount:Number(values.get('amount')),month:values.get('salaryMonth'),reason:values.get('reason')});load(year,month);}catch(err){setSalaryError(err.response?.data?.message || err.message);}finally{setSalaryBusy(false);}}}><label>Monthly salary (₹)<input type="number" name="amount" required min="0.01" max="10000000" step="0.01" defaultValue={selected.monthlySalary || ''}/></label><label>Effective month<input type="month" name="salaryMonth" required defaultValue={`${year}-${String(month).padStart(2,'0')}`}/></label><label>Salary change reason<input name="reason" required minLength={3} maxLength={500}/></label>{salaryError && <p role="alert" className="error-msg">{salaryError}</p>}<button type="submit" className="btn btn-primary" disabled={salaryBusy}>{salaryBusy?'Saving…':'Save monthly salary'}</button></form></section>}
+          {selected && ['admin','branchManager'].includes(me.role) && (me.role==='admin' || selected.role==='fieldOfficer') && canPerformStored('attendance','update') && <section className="card attendance-adjustment"><h3>Correct attendance · {selected.name}</h3><p className="muted">Set Present, Absent or leave for a date. Original check-in, GPS and face records stay unchanged. Every correction requires a reason and is recorded for review.</p><form onSubmit={async e=>{e.preventDefault();setAdjusting(true);setAdjustError('');try{await attendanceApi.adjust({...correction,date:new FormData(e.currentTarget).get('date'),userId:selected.id});setCorrection({...correction,reason:''});load(year,month);}catch(err){setAdjustError(err.response?.data?.message || err.message);}finally{setAdjusting(false);}}}><div className="form-grid-2"><label>Date<input type="date" name="date" required defaultValue={correction.date} max={report.today}/></label><label>Status<SearchableSelect value={correction.status} onChange={e=>setCorrection({...correction,status:e.target.value})}>{[['present','Present'],['absent','Absent'],['paid_leave','Paid leave'],['unpaid_leave','Unpaid leave'],['holiday','Weekly off / holiday'],['automatic','Use original attendance']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</SearchableSelect></label></div><label>Reason<input required minLength={3} maxLength={500} value={correction.reason} onChange={e=>setCorrection({...correction,reason:e.target.value})}/></label>{adjustError && <p role="alert" className="error-msg">{adjustError}</p>}<button type="submit" className="btn btn-primary" disabled={adjusting}>{adjusting?'Saving…':'Save attendance correction'}</button></form></section>}
           {selected && (
             <section className="card att-calendar-card">
               <div className="att-calendar-card__head">
@@ -380,6 +386,7 @@ export default function Attendance() {
                     {selected.employeeId} · {selected.mobile} · {displayRole(selected.role)} · Present{' '}
                     {selected.presentDays} day{selected.presentDays === 1 ? '' : 's'}
                   </p>
+                  <p>Paid leave: {selected.paidLeaveDays || 0} · Unpaid leave: {selected.unpaidLeaveDays || 0} · Absent: {selected.absentDays || 0}. Final payroll days are reviewed in Pay Slips.</p>
                 </div>
                 <div className="att-legend">
                   <span className="att-dot att-dot--present" /> Present
@@ -406,11 +413,13 @@ export default function Attendance() {
                     >
                       <span className="att-cal-cell__day">{cell.day}</span>
                       <span className="att-cal-cell__mark">
+                        {cell.status === 'paid_leave' && 'PL'}{cell.status === 'unpaid_leave' && 'UL'}
                         {cell.status === 'present' && 'P'}
                         {cell.status === 'partial' && 'I'}
                         {cell.status === 'absent' && 'A'}
                         {cell.status === 'holiday' && 'S'}
                       </span>
+                      {cell.correction && <small title={cell.correction.reason}>Admin corrected</small>}
                       {(cell.checkInTime || cell.checkOutTime) && (
                         <span className="att-cal-cell__times">
                           {fmtTime(cell.checkInTime)}
@@ -477,6 +486,7 @@ export default function Attendance() {
                             {cell?.status === 'partial' && 'I'}
                             {cell?.status === 'absent' && 'A'}
                             {cell?.status === 'holiday' && '·'}
+                            {cell?.status === 'paid_leave' && 'PL'}{cell?.status === 'unpaid_leave' && 'UL'}
                           </td>
                         );
                       })}

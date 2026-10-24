@@ -1,7 +1,7 @@
 const MODULES = {
   dashboard: 'Dashboard', customerListings: 'Customer listings', customers: 'Customers',
   attendance: 'Attendance', tracking: 'GPS tracking', callLogs: 'Call logs',
-  users: 'Users & permissions', branches: 'Branch Management', payslips: 'Pay slips',
+  users: 'Employee & Permission', branches: 'Branch Management', payslips: 'Pay slips',
 };
 const ACTIONS = { create: 'Create / submit', update: 'Edit / update', delete: 'Delete / reset', approve: 'Approve / assign', export: 'Export / download' };
 const MODULE_ACTIONS = { dashboard: [], customerListings: ['create','approve','export'], customers: ['create','export'],

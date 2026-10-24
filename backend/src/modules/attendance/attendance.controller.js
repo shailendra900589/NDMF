@@ -15,6 +15,33 @@ const {
 } = require('../../lib/faceMatch');
 const { checkAttendancePosition, workTypeOf } = require('../../lib/officeGeofence');
 const { attendanceDay: dateKey } = require('../../lib/attendanceDay');
+const {salaryUpdate}=require('../../lib/payrollCalculation');
+const canCorrect=(actor,target)=>isAdmin(actor) || (actor.role==='branchManager' && target?.role==='fieldOfficer' && sameBranch(actor,target.branch));
+
+exports.setSalary=async(req,res)=>{
+  const target=findById('users',req.params.userId);
+  if(!target || target.isDeleted)return error(res,'Employee not found',404);
+  if(!canCorrect(req.user,target))return error(res,'You cannot set this employee salary',403);
+  const {amount,month,reason}=req.body;
+  if(typeof reason!=='string' || reason.trim().length<3 || reason.length>500)return error(res,'Enter a salary change reason (3–500 characters)');
+  let updated;try{updated=salaryUpdate(target,amount,month,req.user.id);}catch(e){return error(res,e.message);}
+  upsert('users',updated,{single:true});upsert('platformAudit',{id:uuid(),companyId:req.user.companyId,actorId:req.user.id,action:'employee.salary.updated',targetId:target.id,amount:Number(amount),month,reason:reason.trim(),createdAt:new Date().toISOString()},{single:true});await flush();
+  return success(res,{userId:target.id,monthlySalary:updated.monthlySalary,salaryHistory:updated.salaryHistory},'Salary updated');
+};
+
+exports.adjust = async(req,res)=>{
+  const {userId,date,status,reason}=req.body;
+  const target=findById('users',userId);
+  if(!target || target.role==='admin' || target.isDeleted)return error(res,'Employee not found',404);
+  if(!canCorrect(req.user,target))return error(res,'You cannot correct this employee attendance',403);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !Number.isFinite(Date.parse(`${date}T00:00:00Z`)) || new Date(`${date}T00:00:00Z`).toISOString().slice(0,10)!==date || date>dateKey())return error(res,'Select a valid date, today or earlier');
+  if(!['present','absent','paid_leave','unpaid_leave','holiday','automatic'].includes(status) || typeof reason!=='string' || reason.trim().length<3 || reason.length>500)return error(res,'Choose a status and enter a reason (3–500 characters)');
+  const id=`ADJ_${target.id}_${date}`,previous=findById('attendanceAdjustments',id);
+  const record={id,userId,date,status,reason:reason.trim(),branch:target.branch,updatedAt:new Date().toISOString(),updatedBy:req.user.id};
+  upsert('attendanceAdjustments',record,{single:true});
+  upsert('platformAudit',{id:uuid(),companyId:req.user.companyId,actorId:req.user.id,action:'attendance.corrected',targetId:userId,date,previousStatus:previous?.status || 'automatic',status,reason:record.reason,createdAt:record.updatedAt},{single:true});
+  await flush();return success(res,record,'Attendance correction saved. Original GPS and biometric records are preserved.');
+};
 
 exports.getEnrollmentPhotos = (req, res) => {
   const target = findById('users', req.params.userId);
@@ -294,7 +321,8 @@ exports.getMonthly = (req, res) => {
 
   const prefix = `${year}-${String(month).padStart(2, '0')}`;
   const totalDays = daysInMonth(year, month);
-  const todayKey = now.toISOString().slice(0, 10);
+  const todayKey = dateKey(now);
+  const adjustments=getCollection('attendanceAdjustments').filter(a=>a.date.startsWith(prefix));
   const users = getCollection('users');
   const team = teamForActor(req.user, users, req.query.branch);
 
@@ -342,6 +370,11 @@ exports.getMonthly = (req, res) => {
       } else if (key === todayKey) {
         status = 'today';
       }
+      const adjustment=adjustments.find(a=>a.userId===u.id && a.date===key && a.status!=='automatic');
+      if(adjustment){
+        if(['present','partial'].includes(status)){present--;if(status==='partial')partial--;}
+        status=adjustment.status;if(status==='present')present++;
+      }
       days[day] = {
         date: key,
         status,
@@ -349,6 +382,7 @@ exports.getMonthly = (req, res) => {
         checkOutTime: rec?.checkOutTime || null,
         distanceFromBranch: rec?.distanceFromBranch ?? null,
         recordId: rec?.id || null,
+        correction:adjustment ? {status:adjustment.status,reason:adjustment.reason,updatedAt:adjustment.updatedAt,updatedBy:adjustment.updatedBy} : null,
       };
     }
     return {
@@ -359,8 +393,13 @@ exports.getMonthly = (req, res) => {
       role: u.role,
       branch: u.branch,
       workType: workTypeOf(u),
+      ...(canCorrect(req.user,u)?{monthlySalary:u.monthlySalary || null,salaryHistory:u.salaryHistory || []}:{}),
       presentDays: present,
       partialDays: partial,
+      paidLeaveDays:Object.values(days).filter(d=>d.status==='paid_leave').length,
+      unpaidLeaveDays:Object.values(days).filter(d=>d.status==='unpaid_leave').length,
+      absentDays:Object.values(days).filter(d=>d.status==='absent').length,
+      holidayDays:Object.values(days).filter(d=>d.status==='holiday').length,
       workingDaysSoFar: Object.values(days).filter((d) =>
         ['present', 'partial', 'absent'].includes(d.status)
       ).length,
@@ -368,7 +407,7 @@ exports.getMonthly = (req, res) => {
     };
   });
 
-  const dayNum = now.getDate();
+  const dayNum = Number(todayKey.slice(-2));
   const presentToday = employees.filter((e) => {
     if (!todayKey.startsWith(prefix)) return false;
     const d = e.days[dayNum];

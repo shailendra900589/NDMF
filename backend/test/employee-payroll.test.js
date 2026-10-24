@@ -1,0 +1,44 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const jwt=require('jsonwebtoken');
+const rows=new Map([['users:SENTINEL',{collection:'users',id:'SENTINEL',data:{id:'SENTINEL',role:'superAdmin'}}]]);
+async function query(sql,args){if(/SELECT collection/.test(sql))return{rows:[...rows.values()]};if(/INSERT INTO ndfa_docs/.test(sql))rows.set(`${args[0]}:${args[1]}`,{collection:args[0],id:args[1],data:JSON.parse(args[2])});return{rows:[]};}
+require.cache[require.resolve('../src/lib/pg')]={exports:{query,getPool:()=>({connect:async()=>({query,release(){}})})}};
+const db=require('../src/lib/db');
+test('employee mobile, audited attendance, payroll day records and history-preserving deletion',async t=>{
+ await db.initDb();
+ for(const id of ['ONE','TWO'])db.upsert('companies',{id,name:id,isActive:true});
+ db.upsert('branches',{id:'BR',companyId:'ONE',name:'Office',isActive:true});
+ for(const [id,role,companyId,mobile] of [['ADMIN','admin','ONE','9000000001'],['EMP','fieldOfficer','ONE','9000000002'],['OTHER','fieldOfficer','TWO','9000000003']])db.upsert('users',{id,employeeId:id,name:id,role,companyId,mobile,branch:'Office',isActive:true});
+ const server=require('../src/app').listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>new Promise(r=>server.close(r)));
+ const {jwtSecret}=require('../src/config/env');
+ async function call(path,method='GET',body,actor='ADMIN'){const r=await fetch(`http://127.0.0.1:${server.address().port}/api/v1${path}`,{method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${jwt.sign({userId:actor},jwtSecret)}`},body:body===undefined?undefined:JSON.stringify(body)});return{status:r.status,...await r.json()};}
+ assert.equal((await call('/users/EMP','PUT',{mobile:'bad'})).status,400);
+ assert.equal((await call('/users/EMP','PUT',{mobile:'9000000003'})).status,409);
+ assert.equal((await call('/users/EMP','PUT',{mobile:'9123456780'})).status,200);
+ assert.equal(db.findById('users','EMP').mobile,'9123456780');
+ const now=new Date(),date=require('../src/lib/attendanceDay').attendanceDay(now),year=Number(date.slice(0,4)),month=Number(date.slice(5,7));
+ db.upsert('attendance',{id:'ATT',companyId:'ONE',userId:'EMP',branch:'Office',date,checkInTime:now.toISOString()});
+ const adjustment={userId:'EMP',date,status:'absent',reason:'Approved correction'};
+ assert.equal((await call('/attendance/adjustment','PUT',adjustment,'EMP')).status,403);
+ assert.equal((await call('/attendance/adjustment','PUT',{...adjustment,userId:'OTHER'})).status,404);
+ assert.equal((await call('/attendance/adjustment','PUT',{...adjustment,reason:''})).status,400);
+ assert.equal((await call('/attendance/adjustment','PUT',adjustment)).status,200);
+ let calendar=await call(`/attendance/monthly?year=${year}&month=${month}`);
+ assert.equal(calendar.data.employees[0].days[Number(date.slice(-2))].status,'absent');assert.ok(db.findById('attendance','ATT').checkInTime);
+ assert.equal((await call('/attendance/adjustment','PUT',{...adjustment,status:'paid_leave'})).status,200);
+ calendar=await call(`/attendance/monthly?year=${year}&month=${month}`);assert.equal(calendar.data.employees[0].paidLeaveDays,1);
+ assert.ok(db.getCollection('platformAudit').some(a=>a.action==='attendance.corrected' && a.reason==='Approved correction'));
+ db.upsert('users',{id:'BM',role:'branchManager',companyId:'ONE',branch:'Office',isActive:true});
+ assert.equal((await call('/attendance/salary/EMP','PUT',{amount:31000,month:'2026-10',reason:'Approved salary'},'BM')).status,200);
+ assert.equal((await call('/attendance/salary/OTHER','PUT',{amount:31000,month:'2026-10',reason:'Approved salary'},'BM')).status,404);
+ assert.equal((await call('/attendance/adjustment','PUT',{...adjustment,status:'paid_leave'},'BM')).status,200);
+ const automatic=await call('/payslips/bulk','POST',{employeeName:'Test',employeeNo:'EMP',months:[{month:'2026-10',autoPayroll:true,earnings:{basic:999999},deductions:{}}]});
+ assert.equal(automatic.status,200,automatic.message);assert.equal(automatic.data[0].payroll.monthlySalary,31000);assert.notEqual(automatic.data[0].earnings.basic,999999);assert.equal(automatic.data[0].grossSalary,automatic.data[0].payroll.earnedSalary);
+ const slip={employeeName:'Test employee',employeeNo:'EMP',months:[{month:'2026-10',autoPayroll:false,earnings:{basic:20000},deductions:{},attendance:{presentDays:20,paidLeaveDays:1,weeklyOffDays:4,unpaidLeaveDays:2,absentDays:4}}]};
+ const saved=await call('/payslips/bulk','POST',slip);assert.equal(saved.status,200,saved.message);assert.equal(saved.data[0].attendance.calendarDays,31);assert.equal(saved.data[0].netPay,20000);
+ assert.equal((await call('/payslips/bulk','POST',{...slip,months:[{...slip.months[0],attendance:{presentDays:32}}]})).status,400);
+ assert.equal((await call('/users/ADMIN','DELETE')).status,409);
+ assert.equal((await call('/users/EMP','DELETE')).status,200);
+ assert.ok(db.findById('users','EMP').isDeleted);assert.ok(db.findById('attendance','ATT'));assert.equal((await call('/users')).data.some(u=>u.id==='EMP'),false);
+ assert.equal((await call('/auth/me','GET',undefined,'EMP')).status,403);
+ await db.flush();
+});

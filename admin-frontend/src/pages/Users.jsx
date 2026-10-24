@@ -37,6 +37,7 @@ export default function Users() {
   const [form, setForm] = useState(null);
   const [editId, setEditId] = useState(null);
   const [loadError, setLoadError] = useState('');
+  const [deleting,setDeleting]=useState(null),[busy,setBusy]=useState(false),[actionError,setActionError]=useState('');
 
   const load = async () => {
     setLoading(true);
@@ -74,6 +75,7 @@ export default function Users() {
     : creatableRoles;
 
   const openCreate = () => {
+    setActionError('');
     const role = creatableRoles[0] || 'fieldOfficer';
     setEditId(null);
     setForm({
@@ -91,6 +93,7 @@ export default function Users() {
   };
 
   const openEdit = (user) => {
+    setActionError('');
     setEditId(user.id);
     setForm({
       name: user.name,
@@ -124,10 +127,13 @@ export default function Users() {
   };
 
   const save = async () => {
+    if(!/^\d{10}$/.test(form.mobile || '')){setActionError('Enter a valid 10-digit mobile number');return;}
+    setBusy(true);setActionError('');
     try {
       if (editId) {
         await usersApi.update(editId, {
           name: form.name,
+          mobile:form.mobile,
           role: form.role,
           ...(isAdmin ? { branch: form.branch } : {}),
           permissions: form.permissions,
@@ -142,8 +148,8 @@ export default function Users() {
       setForm(null);
       load();
     } catch (err) {
-      alert(err.message || 'Save failed');
-    }
+      setActionError(err.response?.data?.message || err.message || 'Save failed');
+    }finally{setBusy(false);}
   };
 
   const togglePerm = (key) => {
@@ -160,7 +166,7 @@ export default function Users() {
   return (
     <div>
       <PageHeader
-        title={isAdmin ? 'Users & Permissions' : 'Team employees'}
+        title={isAdmin ? 'Employee & Permission' : 'Team employees'}
         description={
           isAdmin
             ? 'Manage company employees, roles and attendance settings. Super Admin controls page and function access.'
@@ -189,12 +195,11 @@ export default function Users() {
           <thead>
             <tr>
               <th>Name</th>
-              <th>Mobile</th>
+              <th>Actions</th><th>Mobile</th>
               <th>Role</th>
               <th>Location</th>
               <th>Attendance</th>
               <th>Status</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -208,16 +213,12 @@ export default function Users() {
             {users.map((u) => (
               <tr key={u.id}>
                 <td>{u.name}</td>
+                <td><div className="branch-actions"><button hidden={!canPerformStored('users','update')} type="button" className="btn btn-outline btn-sm" onClick={()=>openEdit(u)}>Edit employee</button><button hidden={!canPerformStored('users','delete') || u.id===me.id} type="button" className="btn btn-outline btn-sm" onClick={()=>{setActionError('');setDeleting(u);}}>Delete</button></div></td>
                 <td>{u.mobile}</td>
                 <td>{ROLE_LABELS[u.role] || u.role}</td>
                 <td>{displayLocation(u.branch)}</td>
                 <td>{attendanceLabel(u)}</td>
                 <td>{u.isActive === false ? 'Disabled' : 'Active'}</td>
-                <td>
-                  <button hidden={!canPerformStored('users', 'update')} type="button" className="btn btn-outline btn-sm" onClick={() => openEdit(u)}>
-                    Assign role / access
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
@@ -228,17 +229,15 @@ export default function Users() {
       {form && (
         <div className="modal-backdrop">
           <div className="card" style={{ width: 'min(520px, 94vw)' }}>
-            <h3>{editId ? 'Assign role & permissions' : 'Create user & assign role'}</h3>
+            <h3>{editId ? 'Edit employee & permissions' : 'Create employee & assign role'}</h3>
+            {actionError && <p role="alert" className="error-msg">{actionError}</p>}
+            <div className="form-group"><label htmlFor="employee-mobile">Mobile number</label><input id="employee-mobile" inputMode="numeric" maxLength={10} value={form.mobile || ''} onChange={e=>setForm({...form,mobile:e.target.value.replace(/\D/g,'')})}/></div>
             <div className="form-group">
               <label>Name</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             {!editId && (
               <>
-                <div className="form-group">
-                  <label>Mobile number</label>
-                  <input value={form.mobile} maxLength={10} onChange={(e) => setForm({ ...form, mobile: e.target.value.replace(/\D/g, '') })} />
-                </div>
                 <div className="form-group">
                   <label>Employee ID (Login ID)</label>
                   <input value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} />
@@ -392,12 +391,13 @@ export default function Users() {
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-              <button type="button" className="btn btn-primary" onClick={save}>Save</button>
-              <button type="button" className="btn btn-outline" onClick={() => setForm(null)}>Cancel</button>
+              <button type="button" className="btn btn-primary" disabled={busy} onClick={save}>{busy?'Saving…':'Save'}</button>
+              <button type="button" className="btn btn-outline" disabled={busy} onClick={() => setForm(null)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
+      {deleting && <div className="modal-backdrop"><div className="card" role="dialog" aria-modal="true" aria-labelledby="employee-delete-title" style={{width:'min(480px,94vw)'}}><h3 id="employee-delete-title">Delete employee?</h3><p>Remove {deleting.name} from the employee list and disable their login? Attendance and salary history will be retained.</p>{actionError && <p role="alert" className="error-msg">{actionError}</p>}<div className="branch-actions"><button type="button" className="btn btn-danger" disabled={busy} onClick={async()=>{setBusy(true);try{await usersApi.remove(deleting.id);setDeleting(null);load();}catch(e){setActionError(e.response?.data?.message || e.message);}finally{setBusy(false);}}}>{busy?'Deleting…':'Delete employee'}</button><button type="button" className="btn btn-outline" disabled={busy} onClick={()=>setDeleting(null)}>Cancel</button></div></div></div>}
     </div>
   );
 }

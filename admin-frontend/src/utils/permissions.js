@@ -41,7 +41,7 @@ export const PERMISSION_LABELS = {
   attendance: 'Attendance',
   tracking: 'Live GPS tracking (team map)',
   callLogs: 'Call Logs',
-  users: 'User management',
+  users: 'Employee & Permission',
   branches: 'Branch Management',
   payslips: 'Pay Slips',
 };

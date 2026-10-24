@@ -2,10 +2,20 @@
  * PAY SLIPS — admin only
  * Individual slips per employee per month (YYYY-MM).
  */
-const { getCollection, findById, upsert, removeById } = require('../../lib/db');
+const { getCollection, findById, upsert, removeById, flush } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 
 const { companyFor, actionAllowed } = require('../../lib/companyPolicy');
+const {calculatePayroll}=require('../../lib/payrollCalculation');
+function automaticCalculation(employeeNo,month){
+ const employee=getCollection('users').find(u=>String(u.employeeId || '').toLowerCase()===String(employeeNo || '').trim().toLowerCase() && u.role!=='superAdmin');
+ if(!employee)throw new Error('Employee ID not found in this company');
+ return {employee,calculation:calculatePayroll(employee,month,getCollection('attendance'),getCollection('attendanceAdjustments'))};
+}
+exports.calculation=(req,res)=>{
+ try{const {employee,calculation}=automaticCalculation(req.query.employeeNo,req.query.month);return success(res,{employeeName:employee.name,employeeNo:employee.employeeId,calculation});}
+ catch(e){return error(res,e.message);}
+};
 const DEFAULT_ADDRESS = '';
 
 function num(v) {
@@ -61,6 +71,24 @@ function validateBody(body) {
 function buildRecord(id, body, actorId, existing) {
   const v = validateBody(body);
   if (!v.ok) return { error: v.message };
+  let payroll=null;
+  if(body.autoPayroll){
+    try{const result=automaticCalculation(v.employeeNo,v.month);payroll=result.calculation;v.employeeName=result.employee.name;}catch(e){return {error:e.message};}
+    body={...body,earnings:{basic:payroll.earnedSalary},attendance:{...payroll,note:payroll.policy}};
+  }
+  const attendance=body.attendance ?? existing?.attendance ?? null;
+  let attendanceRecord=null;
+  if(attendance){
+    const totalDays=new Date(Number(v.month.slice(0,4)),Number(v.month.slice(5)),0).getDate();
+    attendanceRecord={};
+    for(const key of ['presentDays','paidLeaveDays','unpaidLeaveDays','weeklyOffDays','absentDays']){
+      const value=Number(attendance[key] ?? 0);
+      if(!Number.isFinite(value) || value<0 || value>totalDays || value*2!==Math.round(value*2))return {error:'Payroll days must be valid half/full days within the selected month'};
+      attendanceRecord[key]=value;
+    }
+    if(Object.values(attendanceRecord).reduce((a,b)=>a+b,0)>totalDays)return {error:'Total payroll days exceed calendar days in this month'};
+    attendanceRecord.calendarDays=totalDays;attendanceRecord.note=String(attendance.note || '').slice(0,500);
+  }
   const { earnings, deductions, grossSalary, totalDeductions, netPay } = compute(
     body.earnings,
     body.deductions
@@ -77,6 +105,9 @@ function buildRecord(id, body, actorId, existing) {
       bankName: String(body.bankName || '').trim(),
       accountNo: String(body.accountNo || '').trim(),
       month: v.month,
+      attendance:attendanceRecord,
+      autoPayroll:!!body.autoPayroll,
+      payroll,
       earnings,
       deductions,
       grossSalary,
@@ -123,7 +154,7 @@ exports.getById = (req, res) => {
   return success(res, slip);
 };
 
-exports.create = (req, res) => {
+exports.create = async (req, res) => {
   const id = `PS_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const built = buildRecord(id, req.body, req.user.id, null);
   if (built.error) return error(res, built.error);
@@ -137,11 +168,11 @@ exports.create = (req, res) => {
     return error(res, 'Pay slip already exists for this employee and month. Edit that slip or add next month.', 409);
   }
 
-  upsert('payslips', built.record);
+  upsert('payslips', built.record); await flush();
   return success(res, built.record, 'Pay slip created', 201);
 };
 
-exports.update = (req, res) => {
+exports.update = async (req, res) => {
   const existing = findById('payslips', req.params.id);
   if (!existing) return error(res, 'Pay slip not found', 404);
 
@@ -158,12 +189,12 @@ exports.update = (req, res) => {
     return error(res, 'Another pay slip already exists for this employee and month', 409);
   }
 
-  upsert('payslips', built.record);
+  upsert('payslips', built.record); await flush();
   return success(res, built.record, 'Pay slip updated');
 };
 
 /** Copy employee details into the next month (or specified month). */
-exports.addMonth = (req, res) => {
+exports.addMonth = async (req, res) => {
   const existing = findById('payslips', req.params.id);
   if (!existing) return error(res, 'Pay slip not found', 404);
 
@@ -185,6 +216,7 @@ exports.addMonth = (req, res) => {
     {
       ...existing,
       month: targetMonth,
+      attendance:null,
       earnings: copyEarnings ? existing.earnings : {},
       deductions: copyEarnings ? existing.deductions : {},
       companyAddress: existing.companyAddress,
@@ -194,14 +226,14 @@ exports.addMonth = (req, res) => {
   );
   if (built.error) return error(res, built.error);
 
-  upsert('payslips', built.record);
+  upsert('payslips', built.record); await flush();
   return success(res, built.record, `Pay slip created for ${targetMonth}`, 201);
 };
 
-exports.remove = (req, res) => {
+exports.remove = async (req, res) => {
   const existing = findById('payslips', req.params.id);
   if (!existing) return error(res, 'Pay slip not found', 404);
-  removeById('payslips', req.params.id);
+  removeById('payslips', req.params.id); await flush();
   return success(res, null, 'Pay slip deleted');
 };
 
@@ -209,7 +241,7 @@ exports.remove = (req, res) => {
  * Bulk upsert many months for one employee.
  * Body: { employee..., months: [{ month, earnings, deductions }] }
  */
-exports.bulkUpsert = (req, res) => {
+exports.bulkUpsert = async (req, res) => {
   const months = Array.isArray(req.body.months) ? req.body.months : [];
   if (!months.length) return error(res, 'At least one month required');
   if (months.length > 36) return error(res, 'Maximum 36 months per batch');
@@ -246,6 +278,8 @@ exports.bulkUpsert = (req, res) => {
         month,
         earnings: entry.earnings || {},
         deductions: entry.deductions || {},
+        attendance:entry.attendance ?? existing?.attendance ?? null,
+        autoPayroll:entry.autoPayroll ?? existing?.autoPayroll ?? false,
       },
       req.user.id,
       existing || null
@@ -254,7 +288,7 @@ exports.bulkUpsert = (req, res) => {
     saved.push(built.record);
   }
 
-  for (const record of saved) upsert('payslips', record);
+  for (const record of saved) upsert('payslips', record); await flush();
   saved.sort((a, b) => a.month.localeCompare(b.month));
   return success(res, saved, `${saved.length} pay slip(s) saved`);
 };

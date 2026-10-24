@@ -26,7 +26,7 @@ function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, jwtSecret);
     const user = findById('users', decoded.userId);
     if (!user) return error(res, 'User not found', 401);
-    if (user.isActive === false) return error(res, 'Account disabled', 403);
+    if (user.isActive === false || user.isDeleted) return error(res, 'Account disabled', 403);
     if (user.role !== 'superAdmin' && companyFor(user)?.isActive !== true) return error(res, 'Company is suspended or unavailable', 403);
     req.user = user;
     const proceed = () => enforceCompanyAccess(req, res, next);
