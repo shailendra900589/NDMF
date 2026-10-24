@@ -16,5 +16,14 @@ test('approved listings leave the queue, retain documents and expose scoped cust
  const detail=await call('/customers/C_EXISTING');assert.equal(detail.status,200);assert.equal(detail.headers,undefined);assert.equal(detail.data.listingId,'L');assert.equal(detail.data.loanHistory[0].id,'KEEP');assert.equal(detail.data.verification.photos.length,2);assert.match(detail.data.verification.photos[0].media.filePath,/signature=/);assert.equal(detail.data.verification.neighbors[0].remarks,'Verification note');
  assert.equal((await call('/customers/C_EXISTING','GET',undefined,'BM')).status,403);assert.equal((await call('/customers/C_EXISTING','GET',undefined,'OTHER')).status,404);
  assert.equal(db.getCollection('customers').filter(c=>c.mobile==='9000000000').length,1);assert.ok(db.findById('customerListings','L'));
+ db.upsert('customerListings',{...listing,id:'UNRELATED_NEWER',status:'listed',listedAt:'2099-01-01',aadhaar:'WRONG'});
+ db.upsert('customerListings',{...listing,id:'L',status:'listed',aadhaar:'123412341234',pan:'ABCDE1234F'});
+ const enriched=await call('/customers/C_EXISTING');
+ assert.equal(enriched.data.verification.listingId,'L','explicit listing wins over newer same-mobile records');
+ assert.equal(enriched.data.aadhaar,'123412341234');assert.equal(enriched.data.pan,'ABCDE1234F');
+ db.upsert('customers',{id:'LEGACY',companyId:'ONE',name:'Legacy',branch:'Office',customerPhoto:'/uploads/ONE_legacy.jpg',documentPaths:[]});
+ const legacy=await call('/customers/LEGACY');assert.equal(legacy.data.verification.photos.length,1);assert.match(legacy.data.verification.photos[0].media,/legacy.jpg/);
+ db.upsert('customers',{id:'WRONG_BRANCH',companyId:'ONE',name:'Other branch',mobile:'9000000000',branch:'Elsewhere',documentPaths:[]});
+ assert.equal((await call('/customers/WRONG_BRANCH')).data.verification.listingId,null,'phone fallback cannot attach a different branch application');
  await db.flush();
 });

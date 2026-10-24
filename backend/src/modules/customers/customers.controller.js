@@ -3,8 +3,14 @@ const { getCollection, findById, upsert } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { filterByBranch, sameBranch, isAdmin } = require('../../lib/rbac');
 const PHOTO_FIELDS=[['customerPhoto','Customer photo'],['aadhaarFront','Aadhaar front'],['aadhaarBack','Aadhaar back'],['panFront','PAN front'],['shopPhoto1','Shop photo 1'],['shopPhoto2','Shop photo 2'],['shopPhoto3','Shop photo 3'],['shopPhoto4','Shop photo 4']];
-function linkedListing(customer,actor){return getCollection('customerListings').filter(l=>l.status==='listed' && (l.id===customer.listingId || l.mobile===customer.mobile) && (isAdmin(actor) || sameBranch(actor,l.branch)))
- .sort((a,b)=>String(b.listedAt || b.createdAt || '').localeCompare(String(a.listedAt || a.createdAt || '')))[0];}
+function linkedListing(customer,actor){
+ const available=getCollection('customerListings').filter(l=>l.status==='listed' && (isAdmin(actor) || sameBranch(actor,l.branch)));
+ const explicit=available.find(l=>l.id===customer.listingId);
+ if(explicit)return explicit;
+ const linked=available.filter(l=>(customer.listingIds || []).includes(l.id));
+ const candidates=linked.length ? linked : available.filter(l=>customer.mobile && l.mobile===customer.mobile && sameBranch({branch:customer.branch},l.branch));
+ return candidates.sort((a,b)=>String(b.listedAt || b.createdAt || '').localeCompare(String(a.listedAt || a.createdAt || '')))[0];
+}
 
 exports.getAll = (req, res) => {
   let customers = getCollection('customers');
@@ -27,7 +33,7 @@ exports.getAll = (req, res) => {
         (c.address || '').toLowerCase().includes(q)
     );
   }
-  const hasDocuments=c=>{if((c.documentPaths || []).length>0)return true;const listing=linkedListing(c,req.user);return PHOTO_FIELDS.some(([key])=>listing?.[key]);};
+  const hasDocuments=c=>{if((c.documentPaths || []).length>0 || PHOTO_FIELDS.some(([key])=>c[key]))return true;const listing=linkedListing(c,req.user);return PHOTO_FIELDS.some(([key])=>listing?.[key]);};
   if (hasDocs === 'yes') {
     customers = customers.filter(hasDocuments);
   } else if (hasDocs === 'no') {
@@ -45,11 +51,11 @@ exports.getById = (req, res) => {
     return error(res, 'Forbidden', 403);
   }
   const listing=linkedListing(customer,req.user);
-  const photos=listing ? PHOTO_FIELDS.filter(([key])=>listing[key]).map(([key,label])=>({key,label,media:listing[key]})) : [];
+  const photos=PHOTO_FIELDS.filter(([key])=>listing?.[key] || customer[key]).map(([key,label])=>({key,label,media:listing?.[key] || customer[key]}));
   const paths=new Set(photos.map(p=>typeof p.media==='string'?p.media:p.media?.filePath));
   (customer.documentPaths || []).forEach((media,index)=>{const path=typeof media==='string'?media:media?.filePath;if(path && !paths.has(path)){photos.push({key:`document-${index}`,label:`Additional document ${index+1}`,media});paths.add(path);}});
   res.set('Cache-Control','private, no-store');
-  return success(res,{...customer,verification:{listingId:listing?.id || null,status:listing?'listed':'not_recorded',submittedAt:listing?.createdAt || null,listedAt:listing?.listedAt || null,submittedBy:listing?.createdBy || '',assignedToName:listing?.assignedToName || '',
+  return success(res,{...customer,aadhaar:customer.aadhaar || listing?.aadhaar || '',pan:customer.pan || listing?.pan || '',address:customer.address || listing?.shopFullAddress || '',verification:{listingId:listing?.id || null,status:listing?'listed':'not_recorded',submittedAt:listing?.createdAt || null,listedAt:listing?.listedAt || null,submittedBy:listing?.createdBy || '',submittedByRole:listing?.submittedByRole || '',assignedToName:listing?.assignedToName || '',assignedToEmployeeId:listing?.assignedToEmployeeId || '',assignedAt:listing?.assignedAt || null,
     shopAddress:listing?.shopFullAddress || customer.address,latitude:listing?.shopLatitude ?? customer.latitude,longitude:listing?.shopLongitude ?? customer.longitude,photos,neighbors:listing?.neighbors || []}});
 };
 

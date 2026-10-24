@@ -3,8 +3,8 @@ import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { callLogsApi, listingsApi, uploadMedia } from '../api/api';
 import StatusBadge from '../components/StatusBadge';
-import RecordingPlayer from '../components/RecordingPlayer';
-import { mediaUrl } from '../utils/mediaUrl';
+import VerificationDetails from '../components/VerificationDetails';
+
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { displayLocation } from '../utils/displayLabels';
@@ -40,15 +40,6 @@ const EMPTY_FORM = {
   neighbors: EMPTY_NEIGHBORS(),
 };
 
-function photoMeta(photo) {
-  if (!photo || typeof photo !== 'object') return '';
-  const lat = Number(photo.latitude);
-  const lng = Number(photo.longitude);
-  const when = photo.capturedAt ? new Date(photo.capturedAt).toLocaleString() : '';
-  const gps = lat && lng ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '';
-  return [gps, when].filter(Boolean).join(' · ');
-}
-
 async function stampPhoto(file, lat, lng) {
   const bitmap = await createImageBitmap(file);
   const bar = 72;
@@ -81,6 +72,16 @@ export default function CustomerListings() {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [calls, setCalls] = useState([]);
+  const [callsError,setCallsError]=useState('');
+  const [detailLoading,setDetailLoading]=useState(false);
+  const [detailError,setDetailError]=useState('');
+  const [detailAttempt,setDetailAttempt]=useState(0);
+  useEffect(()=>{
+    if(!selected?.id)return;
+    let active=true;setDetailLoading(true);setDetailError('');
+    listingsApi.getById(selected.id).then(res=>{if(active)setSelected(res.data);}).catch(err=>{if(active)setDetailError(err.message || 'Unable to load full application');}).finally(()=>{if(active)setDetailLoading(false);});
+    return()=>{active=false;};
+  },[selected?.id,detailAttempt]);
 
   const load = async () => {
     setLoading(true);
@@ -107,6 +108,7 @@ export default function CustomerListings() {
       setCalls([]);
       return;
     }
+    let active=true;setCalls([]);setCallsError('');
     const digits = String(selected.mobile).replace(/\D/g, '').slice(-10);
     callLogsApi
       .getAll()
@@ -114,10 +116,11 @@ export default function CustomerListings() {
         const rows = (res.data || []).filter(
           (row) => String(row.mobile || '').replace(/\D/g, '').slice(-10) === digits
         );
-        setCalls(rows);
+        if(active)setCalls(rows);
       })
-      .catch(() => setCalls([]));
-  }, [selected]);
+      .catch(() => {if(active)setCallsError('Call history could not load. Reopen the details to retry.');});
+    return()=>{active=false;};
+  }, [selected?.id,selected?.mobile]);
 
   const filtered = useMemo(() => {
     let list = listings.filter(l=>l.status!=='listed');
@@ -255,19 +258,6 @@ export default function CustomerListings() {
 
   if (loading && !listings.length) return <PageLoader label="Loading listings..." />;
 
-  const photos = selected
-    ? [
-        ['Customer', selected.customerPhoto],
-        ['Aadhaar Front', selected.aadhaarFront],
-        ['Aadhaar Back', selected.aadhaarBack],
-        ['PAN', selected.panFront],
-        ['Shop 1', selected.shopPhoto1],
-        ['Shop 2', selected.shopPhoto2],
-        ['Shop 3', selected.shopPhoto3],
-        ['Shop 4', selected.shopPhoto4],
-      ].filter(([, p]) => p)
-    : [];
-
   return (
     <div>
       <PageHeader
@@ -379,7 +369,7 @@ export default function CustomerListings() {
       </div>
 
       {selected && (
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="card listing-detail-card" style={{ marginTop: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <h3>{selected.name} — Details</h3>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -436,105 +426,8 @@ export default function CustomerListings() {
               </button>
             </div>
           </div>
-          <p>
-            <strong>Mobile:</strong>{' '}
-            <a href={`tel:${selected.mobile}`}>{selected.mobile}</a>
-          </p>
-          <p>
-            <strong>Aadhaar:</strong> {selected.aadhaar || '—'} | <strong>PAN:</strong> {selected.pan || '—'}
-          </p>
-          <p>
-            <strong>Shop address:</strong> {selected.shopFullAddress || '—'}
-          </p>
-          <p>
-            <strong>Branch:</strong> {displayLocation(selected.branch)}
-          </p>
-          <p>
-            <strong>Saved GPS:</strong>{' '}
-            {Number(selected.shopLatitude)
-              ? `${Number(selected.shopLatitude).toFixed(6)}, ${Number(selected.shopLongitude).toFixed(6)}`
-              : '—'}
-          </p>
-          {Number(selected.shopLatitude) ? (
-            <div style={{ marginTop: 8 }}>
-              <iframe
-                title="Shop map"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(selected.shopLongitude) - 0.01}%2C${Number(selected.shopLatitude) - 0.01}%2C${Number(selected.shopLongitude) + 0.01}%2C${Number(selected.shopLatitude) + 0.01}&layer=mapnik&marker=${selected.shopLatitude}%2C${selected.shopLongitude}`}
-                style={{ width: '100%', height: 220, border: 0, borderRadius: 8 }}
-              />
-              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                <a
-                  className="btn btn-outline btn-sm"
-                  href={`https://www.google.com/maps/search/?api=1&query=${selected.shopLatitude},${selected.shopLongitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  View map
-                </a>
-                <a
-                  className="btn btn-primary btn-sm"
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${selected.shopLatitude},${selected.shopLongitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Get directions
-                </a>
-              </div>
-            </div>
-          ) : null}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-              gap: 12,
-              marginTop: 16,
-            }}
-          >
-            {photos.map(([label, p]) => (
-              <div key={label}>
-                <p style={{ fontSize: 12, fontWeight: 600 }}>{label}</p>
-                <a href={mediaUrl(p)} target="_blank" rel="noreferrer">
-                  <img
-                    src={mediaUrl(p)}
-                    alt={label}
-                    style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 8 }}
-                  />
-                </a>
-                {photoMeta(p) ? <p style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{photoMeta(p)}</p> : null}
-              </div>
-            ))}
-          </div>
-          {selected.neighbors?.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <h4 style={{ marginBottom: 8 }}>Neighbor shops</h4>
-              {selected.neighbors
-                .filter((n) => n.shopName || n.remarks)
-                .map((n, i) => (
-                  <div key={i} className="recording-row">
-                    <p>
-                      <strong>{n.shopName || 'Shop'}</strong>
-                    </p>
-                    <p>{n.remarks || '—'}</p>
-                    {n.voiceRecordingPath && <RecordingPlayer url={n.voiceRecordingPath} compact />}
-                  </div>
-                ))}
-            </div>
-          )}
-          <div style={{ marginTop: 16 }}>
-            <h4 style={{ marginBottom: 8 }}>Calls</h4>
-            {calls.length === 0 && <p style={{ color: 'var(--color-text-muted)' }}>No calls saved for this mobile yet.</p>}
-            {calls.map((call) => (
-              <div key={call.id} className="recording-row">
-                <p>
-                  <strong>{call.customerName || selected.name}</strong> · {call.duration || '—'} · {call.callStatus || '—'}
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  {call.date ? new Date(call.date).toLocaleString() : ''} {call.callSummary ? `· ${call.callSummary}` : ''}
-                </p>
-                {call.recordingUrl && <RecordingPlayer url={call.recordingUrl} compact />}
-              </div>
-            ))}
-          </div>
+          {detailLoading ? <p role="status">Loading complete application...</p> : detailError ? <div role="alert"><p className="error-msg">{detailError}</p><button className="btn btn-outline btn-sm" onClick={()=>setDetailAttempt(a=>a+1)}>Retry details</button></div> : <VerificationDetails key={selected.id} data={selected} isListing calls={calls} callsError={callsError} refresh={()=>setDetailAttempt(a=>a+1)}/>}
+
         </div>
       )}
 
