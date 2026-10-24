@@ -4,21 +4,25 @@ import '../../utils/api_errors.dart';
 import '../../widgets/session_expired_dialog.dart';
 import 'api_constants.dart';
 import 'storage_service.dart';
+import '../../utils/session_policy.dart';
 
 class ApiService extends GetxService {
+  ApiService({Dio? client}) : _client = client;
+  final Dio? _client;
   late Dio _dio;
   StorageService get _storage => Get.find<StorageService>();
 
   Future<ApiService> init() async {
-    _dio = Dio(BaseOptions(
-      baseUrl: ApiConstants.baseUrl,
-      connectTimeout: ApiConstants.connectTimeout,
-      receiveTimeout: ApiConstants.receiveTimeout,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    ));
+    _dio = _client ??
+        Dio(BaseOptions(
+          baseUrl: ApiConstants.baseUrl,
+          connectTimeout: ApiConstants.connectTimeout,
+          receiveTimeout: ApiConstants.receiveTimeout,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ));
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
@@ -55,10 +59,6 @@ class ApiService extends GetxService {
           message = data['message'];
         } else if (statusCode == 401) {
           message = apiErrorMessage(error);
-          if (_storage.getToken()?.isNotEmpty ?? false) {
-            _storage.clearAuthSession();
-            showSessionExpiredDialog();
-          }
         } else if (statusCode == 403) {
           message = 'Access denied.';
         } else if (statusCode == 404) {
@@ -74,9 +74,16 @@ class ApiService extends GetxService {
       // ignore: avoid_print
       print('API Error: $message');
     }
+    if (shouldExpireSession(
+            error.response?.statusCode, error.requestOptions.path, message) &&
+        (_storage.getToken()?.isNotEmpty ?? false)) {
+      _storage.clearAuthSession();
+      showSessionExpiredDialog();
+    }
   }
 
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<Response> get(String path,
+      {Map<String, dynamic>? queryParameters}) async {
     try {
       return await _dio.get(path, queryParameters: queryParameters);
     } on DioException catch (e) {
@@ -85,9 +92,11 @@ class ApiService extends GetxService {
     }
   }
 
-  Future<Response> post(String path, {dynamic data, Map<String, dynamic>? queryParameters}) async {
+  Future<Response> post(String path,
+      {dynamic data, Map<String, dynamic>? queryParameters}) async {
     try {
-      return await _dio.post(path, data: data, queryParameters: queryParameters);
+      return await _dio.post(path,
+          data: data, queryParameters: queryParameters);
     } on DioException catch (e) {
       if (!path.contains('/auth/login') && !path.contains('/auth/otp')) {
         _handleError(e);

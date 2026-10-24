@@ -52,6 +52,7 @@ def patch(text, hostname, web_root, public_root='/var/www/ndmf-public'):
         # Keep the public website separate from the staff SPA on every active
         # HTTP/HTTPS vhost, without replacing certificates or API proxy rules.
         public_locations = [
+            (['location', '^~', '/downloads/'], f'alias {public_root}/downloads/;\n    types {{ application/vnd.android.package-archive apk; application/json json; text/plain sha256; }}\n    default_type application/octet-stream;\n    add_header X-Content-Type-Options nosniff always;\n    expires 1h;'),
             (['location', '=', '/'], f'root {public_root};\n    try_files /index.html =404;\n    {HEADER}'),
             (['location', '^~', '/brand/'], f'alias {public_root}/brand/;\n    expires 1h;'),
             (['location', '=', '/brand/developers.html'], f'alias {public_root}/brand/developers.html;\n    {HEADER}'),

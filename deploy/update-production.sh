@@ -15,6 +15,7 @@ echo 'Building the staff console'
 (cd admin-frontend && npm ci && npm run build)
 
 echo 'Publishing public website and developer onboarding'
+python3 deploy/verify-mobile-release.py public-site/downloads
 [[ "$PUBLIC_ROOT" = /* && "$PUBLIC_ROOT" != / ]] || { echo 'PUBLIC_WEB_ROOT must be an absolute website directory'; exit 1; }
 sudo mkdir -p "$PUBLIC_ROOT"
 sudo rsync -a --exclude=_preview_server.py --exclude=index.html public-site/ "$PUBLIC_ROOT/"
@@ -79,6 +80,13 @@ if ! grep -Eiq '^cache-control:.*no-store' <<< "$HOME_HEADERS"; then
   exit 1
 fi
 curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/brand/site.js?v=2" >/dev/null
+APK_FILE=$(python3 -c 'import json; print(json.load(open("public-site/downloads/release.json"))["file"])')
+APK_HEADERS=$(curl -fsSI --connect-timeout 10 --max-time 30 "$SITE_URL/downloads/$APK_FILE")
+if ! grep -Eiq '^content-type:.*application/vnd.android.package-archive' <<< "$APK_HEADERS"; then
+  echo 'ERROR: Android download is not being served as an APK; inspect the /downloads/ Nginx route.'
+  exit 1
+fi
+python3 deploy/verify-mobile-release.py "$PUBLIC_ROOT/downloads"
 curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/brand/styles.css?v=20261023-2" >/dev/null
 
 echo 'Verifying developer documentation and onboarding API'

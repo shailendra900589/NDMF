@@ -42,8 +42,9 @@ class UploadService extends GetxService {
       return fullUrl(photo.filePath);
     }
     final file = File(photo.filePath);
-    if (!await file.exists())
+    if (!await file.exists()) {
       throw Exception('File not found: ${photo.filePath}');
+    }
 
     final formData = FormData.fromMap({
       'file':
@@ -56,8 +57,9 @@ class UploadService extends GetxService {
 
     final res = await _http.upload(ApiConstants.uploadSingle, formData);
     final body = res.data as Map<String, dynamic>;
-    if (body['success'] != true)
+    if (body['success'] != true) {
       throw Exception(body['message'] ?? 'Upload failed');
+    }
     final data = body['data'] as Map<String, dynamic>;
     return fullUrl(data['fileUrl'] as String);
   }
@@ -104,8 +106,9 @@ class UploadService extends GetxService {
 
     final res = await _http.upload(ApiConstants.uploadSingle, formData);
     final body = res.data as Map<String, dynamic>;
-    if (body['success'] != true)
+    if (body['success'] != true) {
       throw Exception(body['message'] ?? 'Upload failed');
+    }
     final data = body['data'] as Map<String, dynamic>;
     final url = data['fileUrl']?.toString() ?? '';
     if (!url.contains('/uploads/')) {
@@ -116,8 +119,9 @@ class UploadService extends GetxService {
 
   Future<String?> uploadPlainFile(String? path, {String type = 'photo'}) async {
     if (path == null || path.isEmpty) return null;
-    if (path.startsWith('http') || path.startsWith('/uploads'))
+    if (path.startsWith('http') || path.startsWith('/uploads')) {
       return fullUrl(path);
+    }
 
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(path),
@@ -130,8 +134,9 @@ class UploadService extends GetxService {
     }
     final data = body['data'] as Map<String, dynamic>;
     final url = data['fileUrl']?.toString() ?? '';
-    if (!url.contains('/uploads/'))
+    if (!url.contains('/uploads/')) {
       throw Exception('Server did not confirm the photo upload');
+    }
     return fullUrl(url);
   }
 }

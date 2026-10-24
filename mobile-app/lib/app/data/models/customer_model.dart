@@ -13,6 +13,7 @@ class CustomerModel {
   final List<String> documentPaths;
   final List<LoanModel> loanHistory;
   final DateTime createdAt;
+  final Map<String, dynamic> verification;
 
   CustomerModel({
     required this.id,
@@ -27,6 +28,7 @@ class CustomerModel {
     this.documentPaths = const [],
     this.loanHistory = const [],
     required this.createdAt,
+    this.verification = const {},
   });
 
   factory CustomerModel.fromJson(Map<String, dynamic> json) {
@@ -40,7 +42,13 @@ class CustomerModel {
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       listingId: json['listingId'],
-      documentPaths: List<String>.from(json['documentPaths'] ?? []),
+      documentPaths: (json['documentPaths'] as List? ?? [])
+          .map((p) => p is Map ? p['filePath'] : p)
+          .whereType<String>()
+          .toList(),
+      verification: json['verification'] is Map
+          ? Map<String, dynamic>.from(json['verification'])
+          : {},
       loanHistory: (json['loanHistory'] as List<dynamic>?)
               ?.map((e) => LoanModel.fromJson(e))
               .toList() ??
@@ -62,5 +70,6 @@ class CustomerModel {
         'documentPaths': documentPaths,
         'loanHistory': loanHistory.map((e) => e.toJson()).toList(),
         'createdAt': createdAt.toIso8601String(),
+        'verification': verification,
       };
 }

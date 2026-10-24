@@ -17,11 +17,13 @@ class TrackingService extends GetxService {
   NdfaApiService get _api => Get.find<NdfaApiService>();
 
   static const Duration _pingInterval = Duration(seconds: 15);
+
   /// A fix older than this is replaced by asking the GPS directly.
   static const Duration _staleFix = Duration(seconds: 25);
   static const String _pendingKey = 'pending_track_fixes';
   static const String _batteryPromptKey = 'tracking_battery_prompted';
   static const int _maxPending = 3000;
+
   /// Only clear fixes are drawn on the phone's own route map.
   static const double _maxDrawAccuracy = 35;
   static const double _minDrawStep = 20;
@@ -53,7 +55,10 @@ class TrackingService extends GetxService {
       final history = await _api.getAttendanceHistory();
       final today = DateTime.now();
       final todayAtt = history.firstWhereOrNull(
-        (a) => a.date.year == today.year && a.date.month == today.month && a.date.day == today.day,
+        (a) =>
+            a.date.year == today.year &&
+            a.date.month == today.month &&
+            a.date.day == today.day,
       );
       await syncWithAttendanceState(todayAtt);
     } catch (_) {}
@@ -69,7 +74,10 @@ class TrackingService extends GetxService {
     }
     final today = DateTime.now();
     final todayReport = _getAllReports().firstWhereOrNull(
-      (r) => r.date.year == today.year && r.date.month == today.month && r.date.day == today.day,
+      (r) =>
+          r.date.year == today.year &&
+          r.date.month == today.month &&
+          r.date.day == today.day,
     );
     if (todayReport != null) {
       totalKmToday.value = todayReport.totalKm;
@@ -80,8 +88,9 @@ class TrackingService extends GetxService {
   void _applyServerReport(Map<String, dynamic> data) {
     totalKmToday.value = (data['totalKm'] ?? 0).toDouble();
     final pts = data['routePoints'];
-    if (pts is List && pts.isNotEmpty) {
-      routePoints.assignAll(pts.map((e) => RoutePoint.fromJson(Map<String, dynamic>.from(e as Map))));
+    if (pts is List) {
+      routePoints.assignAll(pts.map(
+          (e) => RoutePoint.fromJson(Map<String, dynamic>.from(e as Map))));
     }
   }
 
@@ -93,7 +102,8 @@ class TrackingService extends GetxService {
   void _saveReport(TravelReport report) {
     final reports = _getAllReports();
     final index = reports.indexWhere(
-      (r) => r.date.year == report.date.year &&
+      (r) =>
+          r.date.year == report.date.year &&
           r.date.month == report.date.month &&
           r.date.day == report.date.day,
     );
@@ -128,7 +138,8 @@ class TrackingService extends GetxService {
         intervalDuration: _pingInterval,
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: 'On duty — location sharing',
-          notificationText: 'Smartstaff plus shares your location with your branch until you check out.',
+          notificationText:
+              'Smartstaff plus shares your location with your branch until you check out.',
           notificationChannelName: 'Duty location',
           enableWakeLock: true,
           setOngoing: true,
@@ -143,12 +154,16 @@ class TrackingService extends GetxService {
         pauseLocationUpdatesAutomatically: false,
       );
     }
-    return const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 0);
+    return const LocationSettings(
+        accuracy: LocationAccuracy.high, distanceFilter: 0);
   }
 
   /// Keeps Android from pausing duty GPS to save battery. Asked once.
   Future<void> _askBatteryExemption() async {
-    if (!GetPlatform.isAndroid || _storage.read<bool>(_batteryPromptKey) == true) return;
+    if (!GetPlatform.isAndroid ||
+        _storage.read<bool>(_batteryPromptKey) == true) {
+      return;
+    }
     _storage.write(_batteryPromptKey, true);
     try {
       if (!await Permission.ignoreBatteryOptimizations.isGranted) {
@@ -175,7 +190,9 @@ class TrackingService extends GetxService {
     isTracking.value = true;
     final now = DateTime.now();
 
-    _positionStream = Geolocator.getPositionStream(locationSettings: _streamSettings()).listen(
+    _positionStream =
+        Geolocator.getPositionStream(locationSettings: _streamSettings())
+            .listen(
       _onPosition,
       onError: (_) {},
     );
@@ -187,7 +204,8 @@ class TrackingService extends GetxService {
     _trackingTimer = Timer.periodic(_pingInterval, (_) => _tick());
 
     if (!silent) {
-      Get.snackbar('Duty tracking on', 'Your location is shared every 15 seconds until check-out');
+      Get.snackbar('Duty tracking on',
+          'Your location is shared every 15 seconds until check-out');
     }
 
     _saveReport(TravelReport(
@@ -223,7 +241,8 @@ class TrackingService extends GetxService {
 
   Future<void> _tick() async {
     final latest = _latest;
-    if (latest == null || DateTime.now().difference(latest.timestamp) > _staleFix) {
+    if (latest == null ||
+        DateTime.now().difference(latest.timestamp) > _staleFix) {
       final fix = await _freshFix();
       if (fix != null) _onPosition(fix);
     }
@@ -257,12 +276,16 @@ class TrackingService extends GetxService {
         _storage.remove(_pendingKey);
         _applyServerReport(data);
       }
-      if (data['totalKm'] != null) totalKmToday.value = (data['totalKm'] as num).toDouble();
+      if (data['totalKm'] != null) {
+        totalKmToday.value = (data['totalKm'] as num).toDouble();
+      }
     } catch (_) {
       final pending = _storage.readList(_pendingKey)..add(fix);
       _storage.writeList(
         _pendingKey,
-        pending.length > _maxPending ? pending.sublist(pending.length - _maxPending) : pending,
+        pending.length > _maxPending
+            ? pending.sublist(pending.length - _maxPending)
+            : pending,
       );
     } finally {
       _lastSentFix = p.timestamp;
@@ -284,10 +307,12 @@ class TrackingService extends GetxService {
     if (p.accuracy > _maxDrawAccuracy) return;
     if (routePoints.isNotEmpty) {
       final last = routePoints.last;
-      final step = _locationService.calculateDistance(last.latitude, last.longitude, p.latitude, p.longitude);
+      final step = _locationService.calculateDistance(
+          last.latitude, last.longitude, p.latitude, p.longitude);
       if (step < _minDrawStep) return;
     }
-    routePoints.add(RoutePoint(latitude: p.latitude, longitude: p.longitude, timestamp: p.timestamp));
+    routePoints.add(RoutePoint(
+        latitude: p.latitude, longitude: p.longitude, timestamp: p.timestamp));
     if (!ApiConstants.useRemoteApi) _recalculateDistance();
   }
 
@@ -329,7 +354,8 @@ class TrackingService extends GetxService {
     ));
 
     if (!silent) {
-      Get.snackbar('Tracking ended', 'Total: ${totalKmToday.value.toStringAsFixed(2)} KM');
+      Get.snackbar('Tracking ended',
+          'Total: ${totalKmToday.value.toStringAsFixed(2)} KM');
     }
   }
 
@@ -340,7 +366,10 @@ class TrackingService extends GetxService {
   TravelReport? getTodayReport() {
     final today = DateTime.now();
     return _getAllReports().firstWhereOrNull(
-      (r) => r.date.year == today.year && r.date.month == today.month && r.date.day == today.day,
+      (r) =>
+          r.date.year == today.year &&
+          r.date.month == today.month &&
+          r.date.day == today.day,
     );
   }
 

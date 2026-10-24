@@ -7,12 +7,15 @@ import '../../../data/models/enums/app_enums.dart';
 import '../../../data/repositories/customer_repository.dart';
 import '../../../data/services/call_service.dart';
 import '../../../routes/app_routes.dart';
+import '../../../data/services/data_refresh_service.dart';
 
 enum CustomerFilter { all, recent, withLocation }
 
 enum CallLogFilter { all, outgoing, incoming, missed }
 
 class CustomersController extends GetxController {
+  Worker? _refreshWorker;
+  int _loadVersion = 0;
   final CustomerRepository _repo = CustomerRepository();
   final CallService _callService = Get.find<CallService>();
 
@@ -36,6 +39,8 @@ class CustomersController extends GetxController {
 
   @override
   void onClose() {
+    _refreshWorker?.dispose();
+    _loadVersion++;
     addNameCtrl.dispose();
     addMobileCtrl.dispose();
     addAddressCtrl.dispose();
@@ -69,7 +74,8 @@ class CustomersController extends GetxController {
     try {
       final customer = await _repo.createCustomer(
         name: name,
-        mobile: mobile.length > 10 ? mobile.substring(mobile.length - 10) : mobile,
+        mobile:
+            mobile.length > 10 ? mobile.substring(mobile.length - 10) : mobile,
         address: addAddressCtrl.text.trim(),
         aadhaar: addAadhaarCtrl.text.trim(),
         pan: addPanCtrl.text.trim().toUpperCase(),
@@ -91,6 +97,12 @@ class CustomersController extends GetxController {
   void onInit() {
     super.onInit();
     loadCustomers();
+    if (Get.isRegistered<DataRefreshService>()) {
+      _refreshWorker =
+          ever<DateTime?>(Get.find<DataRefreshService>().lastRefreshAt, (_) {
+        if (!isLoading.value) loadCustomers();
+      });
+    }
     loadCallLogs();
     ever<List<CallLogModel>>(_callService.recentLogs, (_) {
       if (!isLoadingLogs.value) _refreshFromCallService();
@@ -111,16 +123,19 @@ class CustomersController extends GetxController {
   }
 
   Future<void> loadCustomers() async {
+    final version = ++_loadVersion;
     isLoading.value = true;
     try {
-      _allCustomers = await _repo.getCustomers(
+      final result = await _repo.getCustomers(
         search: searchQuery.value.isEmpty ? null : searchQuery.value,
       );
+      if (version != _loadVersion) return;
+      _allCustomers = result;
       _applyFilter();
     } catch (e) {
       Get.snackbar('Error', e.toString());
     } finally {
-      isLoading.value = false;
+      if (version == _loadVersion) isLoading.value = false;
     }
   }
 
@@ -137,7 +152,9 @@ class CustomersController extends GetxController {
         result = result.where((c) => c.createdAt.isAfter(cutoff)).toList();
         break;
       case CustomerFilter.withLocation:
-        result = result.where((c) => c.latitude != null && c.longitude != null).toList();
+        result = result
+            .where((c) => c.latitude != null && c.longitude != null)
+            .toList();
         break;
       case CustomerFilter.all:
         break;
@@ -150,13 +167,25 @@ class CustomersController extends GetxController {
     loadCustomers();
   }
 
-  void viewCustomer(CustomerModel customer) {
-    Get.toNamed(AppRoutes.customerDetail, arguments: customer);
+  Future<void> viewCustomer(CustomerModel customer) async {
+    try {
+      final details = await _repo.getCustomerById(customer.id);
+      Get.toNamed(AppRoutes.customerDetail, arguments: details);
+    } catch (e) {
+      Get.snackbar('Customer details',
+          'Could not load verification details. Please retry.');
+    }
   }
 
   Future<void> whatsappCustomer(String mobile) async {
     final uri = Uri.parse('https://wa.me/91$mobile');
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> callCustomer(String name, String mobile) async {
+    await _callService.placeCustomerCall(mobile: mobile, customerName: name);
   }
 
   Future<void> smsCustomer(String mobile) async {

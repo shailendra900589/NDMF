@@ -25,6 +25,8 @@ server {
         self.assertIn('ssl_certificate /etc/cert.pem;', result)
         self.assertIn('root /var/www/ndmf-public;', result)
         self.assertIn('location ^~ /brand/', result)
+        self.assertIn('location ^~ /downloads/', result)
+        self.assertIn('application/vnd.android.package-archive apk;', result)
         self.assertIn('alias /var/www/ndmf-public/brand/;', result)
         self.assertIn('location = /brand/developers.html', result)
         self.assertIn('proxy_pass http://127.0.0.1:5000;', result)

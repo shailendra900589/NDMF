@@ -6,10 +6,12 @@ import '../../../data/repositories/customer_listing_repository.dart';
 import '../../../utils/access_control.dart';
 import '../../../utils/api_errors.dart';
 import '../../../utils/view_load_state.dart';
+import '../../../data/services/data_refresh_service.dart';
 
-enum ListingUiFilter { all, newApp, inProgress, approved, pending }
+enum ListingUiFilter { all, newApp, inProgress, rejected, pending }
 
 class CustomerApplicationHubController extends GetxController {
+  Worker? _refreshWorker;
   final CustomerListingRepository _repo = CustomerListingRepository();
 
   final listings = <CustomerListingModel>[].obs;
@@ -22,7 +24,8 @@ class CustomerApplicationHubController extends GetxController {
   bool get showApprovalsTab => AccessControl.isBranchManager;
 
   List<CustomerListingModel> get visibleListings {
-    Iterable<CustomerListingModel> list = listings;
+    Iterable<CustomerListingModel> list =
+        listings.where((l) => l.status != CustomerListingStatus.listed);
     if (listingFilter.value == ListingUiFilter.pending && showApprovalsTab) {
       list = approvals;
     } else {
@@ -35,8 +38,8 @@ class CustomerApplicationHubController extends GetxController {
               l.status == CustomerListingStatus.branchPending ||
               l.status == CustomerListingStatus.adminPending);
           break;
-        case ListingUiFilter.approved:
-          list = list.where((l) => l.status == CustomerListingStatus.listed);
+        case ListingUiFilter.rejected:
+          list = list.where((l) => l.status == CustomerListingStatus.rejected);
           break;
         case ListingUiFilter.pending:
           list = approvals;
@@ -56,7 +59,7 @@ class CustomerApplicationHubController extends GetxController {
   }
 
   List<String> get filterLabels {
-    final base = ['All', 'New', 'In Progress', 'Approved'];
+    final base = ['All', 'New', 'In Progress', 'Rejected'];
     if (showApprovalsTab) return [...base, 'Pending'];
     return base;
   }
@@ -71,8 +74,8 @@ class CustomerApplicationHubController extends GetxController {
       case 'In Progress':
         listingFilter.value = ListingUiFilter.inProgress;
         break;
-      case 'Approved':
-        listingFilter.value = ListingUiFilter.approved;
+      case 'Rejected':
+        listingFilter.value = ListingUiFilter.rejected;
         break;
       case 'Pending':
         listingFilter.value = ListingUiFilter.pending;
@@ -88,7 +91,7 @@ class CustomerApplicationHubController extends GetxController {
         return 1;
       case ListingUiFilter.inProgress:
         return 2;
-      case ListingUiFilter.approved:
+      case ListingUiFilter.rejected:
         return 3;
       case ListingUiFilter.pending:
         return showApprovalsTab ? 4 : 0;
@@ -101,6 +104,18 @@ class CustomerApplicationHubController extends GetxController {
   void onInit() {
     super.onInit();
     refresh();
+    if (Get.isRegistered<DataRefreshService>()) {
+      _refreshWorker =
+          ever<DateTime?>(Get.find<DataRefreshService>().lastRefreshAt, (_) {
+        if (loadState.value != ViewLoadState.loading) refresh();
+      });
+    }
+  }
+
+  @override
+  void onClose() {
+    _refreshWorker?.dispose();
+    super.onClose();
   }
 
   Future<void> openNewApplication() async {
@@ -129,7 +144,8 @@ class CustomerApplicationHubController extends GetxController {
       }
     } catch (e) {
       loadState.value = ViewLoadState.error;
-      Get.snackbar('Error', '${apiErrorMessage(e)}\nPull to refresh or tap Retry on screen.');
+      Get.snackbar('Error',
+          '${apiErrorMessage(e)}\nPull to refresh or tap Retry on screen.');
     }
   }
 

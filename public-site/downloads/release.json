@@ -1,0 +1,14 @@
+{
+  "version": "1.2.2",
+  "versionCode": 18,
+  "file": "smartstaff-plus-1.2.2.apk",
+  "sizeBytes": 41512787,
+  "sha256": "fa64d9d1b78f4a416333b35db277cd7c61ddf2364d6ae91f36c13d2f4d5a2278",
+  "apiBaseUrl": "https://ndclients.co.in/api/v1",
+  "minSdk": 24,
+  "architectures": [
+    "armeabi-v7a",
+    "arm64-v8a"
+  ],
+  "signingCertificateSha256": "a393e670948c7ae76da6c4aae1f1862fe0386479c3d4665ef0be4da1c7225fbf"
+}

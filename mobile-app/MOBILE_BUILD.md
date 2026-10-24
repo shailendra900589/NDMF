@@ -1,49 +1,23 @@
-# Smartstaff plus — Android build
+# Smartstaff plus Android 1.2.2 (18)
 
-## Live API
+Production API: https://ndclients.co.in/api/v1
+Distribution artifact: public-site/downloads/smartstaff-plus-1.2.2.apk (ARMv7 + ARM64, Android 7/API 24 or later).
 
-App is configured for production:
-
-`https://ndclients.co.in/api/v1`
-
-(`mobile-app/lib/app/data/services/api_constants.dart` → `useProduction = true`)
-
-Live sync: every **45s** + on app resume (listings, customers, attendance, pending uploads).
-
-## Install APK
-
-**Recommended (lightweight, most phones):**
-
-`mobile-app/Smartstaff-plus-v1.2.1-arm64.apk` (~21 MB)
-
-This release artifact targets ARM64 phones. For older 32-bit devices, build separately with `--target-platform android-arm --split-per-abi`.
-
-Gradle output:
-
-`mobile-app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
-
-Phone pe install: transfer file → Allow unknown apps → Install.
-
-## Login and attendance
-
-Use the employee ID/mobile and password issued for your company. Demo logins and demo OTP are not production credentials.
-
-After deploying the backend, install/update the APK, sign in, and open Profile → Face enrollment. Existing valid registration is retained. If the server reports a saved-photo problem, retake three different reference photos and wait for server confirmation. Attendance still requires a matching live selfie and GPS when policy is enabled.
-
-## Rebuild
+Build from mobile-app:
 
 ```powershell
-$env:ANDROID_HOME = "C:\Users\uuu\Android\Sdk"
-$env:Path = "C:\Users\uuu\flutter\bin;$env:ANDROID_HOME\platform-tools;$env:Path"
-cd D:\Laravel\NDFA\mobile-app
 flutter pub get
-flutter build apk --release --split-per-abi
-copy build\app\outputs\flutter-apk\app-arm64-v8a-release.apk Smartstaff-plus-v1.2.1-arm64.apk
+flutter analyze --no-pub
+flutter test --no-pub
+flutter build apk --release --no-pub --target-platform android-arm,android-arm64
 ```
 
-`--split-per-abi` builds one APK per CPU (smaller than a single fat APK).
+Output: build/app/outputs/flutter-apk/app-release.apk. Copy to the versioned public-site/downloads filename and regenerate release.json and the SHA256 sidecar before committing. The production updater validates the artifact and publishes it without building Flutter.
 
-## Logo
+Feature headers no longer contain profile/logout duplicates; use Home → Profile for account/logout. Customer listings retain the main + action. Approved customers have a detail/verification view. The customer screen supports pull-to-refresh.
 
-- App UI: `assets/images/logo.png`
-- Launcher icon: `android/app/src/main/res/mipmap-*/ic_launcher.png`
+Refresh: GPS ping approximately every 15 seconds while duty service runs; data polling every 45 seconds and on resume. Offline and Android background restrictions can delay updates; this is polling rather than a WebSocket guarantee.
+
+Existing signing identity is retained for update compatibility. This project currently uses its existing debug signing configuration for release builds; this is not a Play Store signing setup. Install over the prior app when signatures match. Never commit private signing keys.
+
+Physical-device acceptance still required: camera and live face matching, GPS/background permission and battery handling, actual call/recording behavior and Android installation. Automated tests do not emulate these hardware features.

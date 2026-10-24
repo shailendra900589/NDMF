@@ -1,30 +1,16 @@
-# Production sync — API on server, mobile app local only
+# Mobile and production update
 
-## Rule
+Flutter runs on Android phones. The server serves a prebuilt APK; it does not need Flutter or the Android SDK.
 
-| Part | Where it runs |
-|------|----------------|
-| **Backend API** | EC2 / https://ndclients.co.in/api/v1 |
-| **Admin web** | EC2 / https://ndclients.co.in |
-| **Mobile Flutter** | Your phone / PC only — **never copy to server** |
-
-## On EC2 (API + admin only)
+On Ubuntu, from the existing repository checkout:
 
 ```bash
-cd ~/NDMF
-git pull origin main
-chmod +x deploy/sync-api.sh
-bash deploy/sync-api.sh
+git pull --ff-only origin main
+bash deploy/update-production.sh
 ```
 
-## On your PC (mobile app)
+The updater installs dependencies, builds the console, validates the APK checksum and architectures, publishes public-site (including downloads), preserves the active TLS/API configuration, restarts PM2 and verifies local/public API health and APK content type. A plain git pull updates source files only; run the updater to publish them.
 
-```bash
-cd mobile-app
-git pull
-flutter pub get
-flutter run
-```
-
-API base (already set): `https://ndclients.co.in/api/v1`  
-Login: **9000000003** / **ndfa1234**
+Download: https://ndclients.co.in/downloads/smartstaff-plus-1.2.2.apk
+Production API: https://ndclients.co.in/api/v1
+Use company-issued employee credentials. Production OTP demo authentication is disabled.

@@ -16,14 +16,16 @@ import '../../../widgets/skeleton_loaders.dart';
 import '../../../widgets/application_detail_sheet.dart';
 import '../controllers/customer_application_hub_controller.dart';
 
-class CustomerApplicationHubView extends GetView<CustomerApplicationHubController> {
+class CustomerApplicationHubView
+    extends GetView<CustomerApplicationHubController> {
   const CustomerApplicationHubView({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const CustomAppBar(title: 'Customer Listing', subtitle: 'Branch approval, then admin'),
+      appBar: const CustomAppBar(
+          title: 'Customer Listing', subtitle: 'Branch approval, then admin'),
       floatingActionButton: FloatingActionButton(
         onPressed: () => controller.openNewApplication(),
         backgroundColor: AppColors.accent,
@@ -59,7 +61,8 @@ class CustomerApplicationHubView extends GetView<CustomerApplicationHubControlle
                 onRefresh: controller.refresh,
                 child: _ApplicationList(
                   listings: controller.visibleListings,
-                  isPendingMode: controller.listingFilter.value == ListingUiFilter.pending,
+                  isPendingMode:
+                      controller.listingFilter.value == ListingUiFilter.pending,
                 ),
               ),
             ),
@@ -83,12 +86,11 @@ class _ApplicationList extends GetView<CustomerApplicationHubController> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SizedBox(height: 48),
-          EmptyState(
+          const EmptyState(
             title: 'No customer listings',
-            message: 'Tap + to capture a customer with live photos, shop GPS and neighbor notes.',
+            message:
+                'Tap + to capture a customer with live photos, shop GPS and neighbor notes.',
             icon: Icons.assignment_outlined,
-            actionLabel: 'New customer listing',
-            onAction: () => controller.openNewApplication(),
           ),
         ],
       );
@@ -105,7 +107,9 @@ class _ApplicationList extends GetView<CustomerApplicationHubController> {
           onTap: isPendingMode
               ? () async {
                   final action = await showListingApprovalSheet(listing);
-                  if (action != null) await controller.actOnApproval(listing.id, action);
+                  if (action != null) {
+                    await controller.actOnApproval(listing.id, action);
+                  }
                 }
               : () => ApplicationDetailSheet.show(listing),
         );
@@ -122,13 +126,15 @@ class _ApplicationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = listing.name.isNotEmpty ? listing.name[0].toUpperCase() : '?';
+    final initials =
+        listing.name.isNotEmpty ? listing.name[0].toUpperCase() : '?';
     return Material(
       color: AppColors.surface,
       borderRadius: AppRadii.card,
       elevation: 0,
       child: DecoratedBox(
-        decoration: BoxDecoration(borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+        decoration: BoxDecoration(
+            borderRadius: AppRadii.card, boxShadow: AppShadows.card),
         child: InkWell(
           onTap: onTap,
           borderRadius: AppRadii.card,
@@ -140,16 +146,25 @@ class _ApplicationCard extends StatelessWidget {
                 Row(
                   children: [
                     CircleAvatar(
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                      child: Text(initials, style: const TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w800)),
+                      backgroundColor:
+                          AppColors.primary.withValues(alpha: 0.12),
+                      child: Text(initials,
+                          style: const TextStyle(
+                              color: AppColors.primaryDark,
+                              fontWeight: FontWeight.w800)),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(listing.id, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                          Text(listing.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                          Text(listing.id,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary)),
+                          Text(listing.name,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w800, fontSize: 15)),
                         ],
                       ),
                     ),
@@ -157,10 +172,13 @@ class _ApplicationCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text('Mobile: ${listing.mobile}', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                Text('Mobile: ${listing.mobile}',
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary)),
                 Text(
                   'Created: ${DateFormat('dd MMM yyyy').format(listing.createdAt)}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 8),
                 ListingApprovalTimeline(status: listing.status),

@@ -18,15 +18,16 @@ class ProfileView extends GetView<ProfileController> {
       appBar: const CustomAppBar(
         title: 'Profile',
         subtitle: 'Account & security',
-        showProfile: false,
-        showLogout: false,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Container(
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+              decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: AppRadii.card,
+                  boxShadow: AppShadows.card),
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -37,12 +38,17 @@ class ProfileView extends GetView<ProfileController> {
                           final path = controller.photoPath.value;
                           return CircleAvatar(
                             radius: 48,
-                            backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                            backgroundImage: path != null ? FileImage(File(path)) : null,
+                            backgroundColor:
+                                AppColors.primary.withValues(alpha: 0.15),
+                            backgroundImage:
+                                path != null ? FileImage(File(path)) : null,
                             child: path == null
                                 ? Text(
-                                    controller.name.isNotEmpty ? controller.name[0] : 'U',
-                                    style: const TextStyle(fontSize: 36, color: AppColors.primary),
+                                    controller.name.isNotEmpty
+                                        ? controller.name[0]
+                                        : 'U',
+                                    style: const TextStyle(
+                                        fontSize: 36, color: AppColors.primary),
                                   )
                                 : null,
                           );
@@ -54,7 +60,8 @@ class ProfileView extends GetView<ProfileController> {
                             radius: 16,
                             backgroundColor: AppColors.accent,
                             child: IconButton(
-                              icon: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                              icon: const Icon(Icons.camera_alt,
+                                  size: 16, color: Colors.white),
                               onPressed: () => controller.updatePhoto(context),
                             ),
                           ),
@@ -62,17 +69,23 @@ class ProfileView extends GetView<ProfileController> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Text(controller.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                    Text(controller.role, style: const TextStyle(color: AppColors.textSecondary)),
+                    Text(controller.name,
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold)),
+                    Text(controller.role,
+                        style: const TextStyle(color: AppColors.textSecondary)),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 12),
             _tile(Icons.badge, 'Employee ID', controller.employeeId),
-            _tile(Icons.fingerprint, 'User ID', controller.userId.isEmpty ? '—' : controller.userId),
-            _tile(Icons.business, 'Branch', controller.branch.isEmpty ? '—' : controller.branch),
-            _tile(Icons.phone, 'Mobile', controller.mobile.isEmpty ? '—' : controller.mobile),
+            _tile(Icons.fingerprint, 'User ID',
+                controller.userId.isEmpty ? '—' : controller.userId),
+            _tile(Icons.business, 'Branch',
+                controller.branch.isEmpty ? '—' : controller.branch),
+            _tile(Icons.phone, 'Mobile',
+                controller.mobile.isEmpty ? '—' : controller.mobile),
             if (AccessControl.isFieldOfficer || AccessControl.isBranchManager)
               _tile(
                 Icons.face_retouching_natural,
@@ -80,25 +93,35 @@ class ProfileView extends GetView<ProfileController> {
                 controller.faceEnrollmentComplete ? 'Completed' : 'Pending',
               ),
             _permissionsSection(),
-            _menuTile(Icons.lock, 'Change Password', controller.navigateToChangePassword),
+            _menuTile(Icons.lock, 'Change Password',
+                controller.navigateToChangePassword),
             Obx(() {
-              if (!(AccessControl.isFieldOfficer || AccessControl.isBranchManager)) {
+              if (!(AccessControl.isFieldOfficer ||
+                  AccessControl.isBranchManager)) {
                 return const SizedBox.shrink();
               }
               if (!controller.faceAttendanceRequired.value) {
                 return const SizedBox.shrink();
               }
-              return _menuTile(Icons.face, 'Face enrollment', () => Get.toNamed(AppRoutes.faceEnrollment));
+              return _menuTile(Icons.face, 'Face enrollment',
+                  () => Get.toNamed(AppRoutes.faceEnrollment));
             }),
-            _menuTile(Icons.phone_android, 'Device Info', controller.navigateToDeviceInfo),
-            _menuTile(Icons.security, 'App Lock (PIN)', () => Get.toNamed(AppRoutes.appLock, arguments: 'setup')),
+            _menuTile(Icons.phone_android, 'Device Info',
+                controller.navigateToDeviceInfo),
+            _menuTile(Icons.security, 'App Lock (PIN)',
+                () => Get.toNamed(AppRoutes.appLock, arguments: 'setup')),
             Container(
               margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+              decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: AppRadii.card,
+                  boxShadow: AppShadows.card),
               child: Obx(() => SwitchListTile(
-                    secondary: const Icon(Icons.screenshot_monitor, color: AppColors.primary),
+                    secondary: const Icon(Icons.screenshot_monitor,
+                        color: AppColors.primary),
                     title: const Text('Screenshot Protection'),
-                    subtitle: const Text('Prevent screenshots on sensitive screens'),
+                    subtitle:
+                        const Text('Prevent screenshots on sensitive screens'),
                     value: controller.screenshotProtection.value,
                     onChanged: controller.toggleScreenshotProtection,
                   )),
@@ -107,16 +130,22 @@ class ProfileView extends GetView<ProfileController> {
               final confirm = await Get.dialog<bool>(
                 AlertDialog(
                   title: const Text('Logout All Sessions'),
-                  content: const Text('This will clear all local data. Continue?'),
+                  content:
+                      const Text('This will clear all local data. Continue?'),
                   actions: [
-                    TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
-                    ElevatedButton(onPressed: () => Get.back(result: true), child: const Text('Logout')),
+                    TextButton(
+                        onPressed: () => Get.back(result: false),
+                        child: const Text('Cancel')),
+                    ElevatedButton(
+                        onPressed: () => Get.back(result: true),
+                        child: const Text('Logout')),
                   ],
                 ),
               );
               if (confirm == true) await controller.logoutAllSessions();
             }),
-            _menuTile(Icons.info_outline, 'App Version', () {}, trailing: Obx(() => Text('v${controller.appVersion.value}'))),
+            _menuTile(Icons.info_outline, 'App Version', () {},
+                trailing: Obx(() => Text('v${controller.appVersion.value}'))),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: controller.logout,
@@ -140,20 +169,26 @@ class ProfileView extends GetView<ProfileController> {
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+      decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: AppRadii.card,
+          boxShadow: AppShadows.card),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.verified_user_outlined, color: AppColors.primary, size: 22),
+              Icon(Icons.verified_user_outlined,
+                  color: AppColors.primary, size: 22),
               SizedBox(width: 8),
-              Text('Module access', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              Text('Module access',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ],
           ),
           const SizedBox(height: 12),
           if (labels.isEmpty)
-            const Text('No modules assigned', style: TextStyle(color: AppColors.textSecondary))
+            const Text('No modules assigned',
+                style: TextStyle(color: AppColors.textSecondary))
           else
             Wrap(
               spacing: 8,
@@ -162,8 +197,10 @@ class ProfileView extends GetView<ProfileController> {
                   .map(
                     (l) => Chip(
                       label: Text(l, style: const TextStyle(fontSize: 12)),
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.08),
-                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.2)),
+                      backgroundColor:
+                          AppColors.primary.withValues(alpha: 0.08),
+                      side: BorderSide(
+                          color: AppColors.primary.withValues(alpha: 0.2)),
                     ),
                   )
                   .toList(),
@@ -176,15 +213,25 @@ class ProfileView extends GetView<ProfileController> {
   Widget _tile(IconData icon, String label, String value) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
-      child: ListTile(leading: Icon(icon, color: AppColors.primary), title: Text(label), subtitle: Text(value)),
+      decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: AppRadii.card,
+          boxShadow: AppShadows.card),
+      child: ListTile(
+          leading: Icon(icon, color: AppColors.primary),
+          title: Text(label),
+          subtitle: Text(value)),
     );
   }
 
-  Widget _menuTile(IconData icon, String label, VoidCallback onTap, {Widget? trailing}) {
+  Widget _menuTile(IconData icon, String label, VoidCallback onTap,
+      {Widget? trailing}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: AppRadii.card, boxShadow: AppShadows.card),
+      decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: AppRadii.card,
+          boxShadow: AppShadows.card),
       child: ListTile(
         leading: Icon(icon, color: AppColors.primary),
         title: Text(label),

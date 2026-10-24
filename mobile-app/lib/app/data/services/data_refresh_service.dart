@@ -49,6 +49,9 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
 
     isRefreshing.value = true;
     try {
+      // Refresh role, company policy and face enrollment before background work.
+      await _api.syncSession();
+      if (!_storage.isLoggedIn) return;
       if (Get.isRegistered<SyncService>()) {
         await Get.find<SyncService>().syncPendingRecords(silent: silent);
       }
@@ -71,6 +74,7 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
   }
 
   Future<void> _pullCustomersCache() async {
+    if (_storage.getPermissions()['customers'] != true) return;
     try {
       final list = await _api.getCustomers();
       _storage.writeList(
@@ -81,6 +85,7 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
   }
 
   Future<void> _pullAttendanceCache() async {
+    if (_storage.getPermissions()['attendance'] != true) return;
     try {
       final list = await _api.getAttendanceHistory();
       _storage.writeList(
