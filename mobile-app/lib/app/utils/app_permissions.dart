@@ -5,6 +5,7 @@ class AppPermissions {
   AppPermissions._();
 
   static const labels = <String, String>{
+    'notices': 'Notice & Announcement', 'visits': 'Visit schedules',
     'dashboard': 'Dashboard',
     'customerListings': 'Customer listing',
     'customers': 'Customers',
@@ -17,6 +18,7 @@ class AppPermissions {
   };
 
   static const keys = [
+    'notices', 'visits',
     'dashboard',
     'customerListings',
     'customers',
@@ -32,6 +34,7 @@ class AppPermissions {
     switch (role) {
       case UserRole.admin:
         return {
+          'notices': true, 'visits': true,
           'dashboard': true,
           'customerListings': true,
           'customers': true,
@@ -44,6 +47,7 @@ class AppPermissions {
         };
       case UserRole.branchManager:
         return {
+          'notices': true, 'visits': true,
           'dashboard': true,
           'customerListings': true,
           'customers': true,
@@ -56,6 +60,7 @@ class AppPermissions {
         };
       case UserRole.fieldOfficer:
         return {
+          'notices': true, 'visits': true,
           'dashboard': true,
           'customerListings': true,
           'customers': true,

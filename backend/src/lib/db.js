@@ -13,6 +13,7 @@ const { context, GLOBAL_COLLECTIONS } = require('./tenantContext');
 const JSON_FALLBACK_PATH = path.join(__dirname, '../../data/db.json');
 
 const COLLECTIONS = [
+  'notices', 'visits',
   'companies',
   'platformAudit',
   'apiApplications',
@@ -35,6 +36,7 @@ const COLLECTIONS = [
 ];
 
 const defaultDb = () => ({
+  notices: [], visits: [],
   companies: [],
   platformAudit: [],
   apiApplications: [],

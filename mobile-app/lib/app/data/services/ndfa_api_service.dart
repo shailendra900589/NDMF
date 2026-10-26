@@ -116,9 +116,9 @@ class NdfaApiService extends GetxService {
   Future<List<AttendanceModel>> getAttendanceHistory() =>
       _api.getAttendanceHistory();
 
-  Future<bool> verifyAttendanceFace(String imagePath) async {
+  Future<bool> verifyAttendanceFace(String imagePath, {String purpose = 'checkin'}) async {
     if (!ApiConstants.useRemoteApi) return true;
-    return Get.find<RemoteApiService>().verifyAttendanceFace(imagePath);
+    return Get.find<RemoteApiService>().verifyAttendanceFace(imagePath, purpose: purpose);
   }
 
   Future<Map<String, dynamic>> getFaceEnrollmentStatus() async {

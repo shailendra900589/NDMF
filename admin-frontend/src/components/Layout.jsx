@@ -10,6 +10,8 @@ import { filterNavByPermissions } from '../utils/permissions';
 import { displayLocation, displayRole, displayPersonName } from '../utils/displayLabels';
 
 const NAV_ITEMS = [
+  { to: '/notices', label: 'Notice & Announcement', permission: 'notices', icon: 'listing' },
+  { to: '/visits', label: 'Visit schedules', permission: 'visits', icon: 'tracking' },
   { to: '/', label: 'Dashboard', end: true, permission: 'dashboard', icon: 'dashboard' },
   { to: '/customer-listings', label: 'Customer Listing', permission: 'customerListings', icon: 'listing' },
   { to: '/customers', label: 'Customers', permission: 'customers', icon: 'customers' },
@@ -116,7 +118,7 @@ export default function Layout() {
   const groups = isSuperAdmin ? [['Platform', navItems]] : [
     ['Overview', navItems.filter(i => i.to === '/')],
     ['Customers & applications', navItems.filter(i => ['/customer-listings', '/customers'].includes(i.to))],
-    ['Team operations', navItems.filter(i => ['/attendance', '/tracking', '/call-logs'].includes(i.to))],
+    ['Team operations', navItems.filter(i => ['/attendance', '/tracking', '/call-logs', '/notices', '/visits'].includes(i.to))],
     ['Administration', navItems.filter(i => ['/users', '/branches', '/payroll'].includes(i.to))],
   ];
   const currentPage = onProfile ? 'My Profile' : location.pathname.startsWith('/tracking/employee') ? 'Employee route history' : navItems.find(i => i.to === location.pathname)?.label || 'Workspace';

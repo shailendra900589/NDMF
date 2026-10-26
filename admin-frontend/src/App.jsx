@@ -15,6 +15,7 @@ import Users from './pages/Users';
 import Branches from './pages/Branches';
 import PaySlips from './pages/PaySlips';
 import Profile from './pages/Profile';
+import TeamWorkspace from './pages/TeamWorkspace';
 import { canAccess } from './utils/permissions';
 import VerifiedSession, { useSession } from './auth/Session';
 import ConsoleScope from './auth/ConsoleScope';
@@ -55,6 +56,8 @@ export default function App() {
         <Route path="payroll" element={<PermissionRoute permission="payslips"><PaySlips /></PermissionRoute>} />
         <Route path="payslips" element={<Navigate to="/payroll" replace />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="notices" element={<PermissionRoute permission="notices"><TeamWorkspace key="notices" kind="notices" /></PermissionRoute>} />
+        <Route path="visits" element={<PermissionRoute permission="visits"><TeamWorkspace key="visits" kind="visits" /></PermissionRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -9,6 +9,7 @@ import '../../../data/services/tracking_service.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../routes/app_routes.dart';
 import '../../../utils/api_errors.dart';
+import '../../../utils/business_time.dart';
 
 class AttendanceController extends GetxController {
   NdfaApiService get _api => Get.find<NdfaApiService>();
@@ -39,15 +40,16 @@ class AttendanceController extends GetxController {
     isLoading.value = true;
     try {
       history.value = await _api.getAttendanceHistory();
-      final today = DateTime.now();
+      final instant = DateTime.now();
+      final today = indiaTime(instant);
       final activeShift = history.firstWhereOrNull((a) {
         if (a.checkInTime == null || a.checkOutTime != null) return false;
-        final age = today.difference(a.checkInTime!.toLocal());
+        final age = instant.difference(a.checkInTime!);
         return !age.isNegative && age <= const Duration(hours: 20);
       });
       todayRecord = activeShift ??
           history.firstWhereOrNull((a) {
-            final localDate = a.date.toLocal();
+            final localDate = indiaTime(a.date);
             return localDate.year == today.year &&
                 localDate.month == today.month &&
                 localDate.day == today.day;
@@ -101,6 +103,10 @@ class AttendanceController extends GetxController {
     if (isProcessing.value || !canCheckOut) return;
     isProcessing.value = true;
     try {
+      await _api.syncSession();
+      if (_roleNeedsFaceWhenEnabled) {
+        if (!await _verifyLiveFace(purpose: 'checkout')) return;
+      }
       final loc = await _location.getCurrentLocation();
       if (loc == null) {
         Get.snackbar('GPS Required', 'Location is mandatory for attendance');
@@ -130,7 +136,7 @@ class AttendanceController extends GetxController {
       todayRecord!.isCheckedIn &&
       !todayRecord!.isCheckedOut;
 
-  Future<bool> _verifyLiveFace() async {
+  Future<bool> _verifyLiveFace({String purpose = 'checkin'}) async {
     final status = await _api.getFaceEnrollmentStatus();
     if (status['complete'] != true) {
       Get.snackbar(
@@ -152,7 +158,7 @@ class AttendanceController extends GetxController {
       Get.snackbar('Cancelled', 'Live selfie required for attendance');
       return false;
     }
-    final ok = await _api.verifyAttendanceFace(file.path);
+    final ok = await _api.verifyAttendanceFace(file.path, purpose: purpose);
     if (!ok) {
       final reset = await Get.dialog<bool>(
         AlertDialog(

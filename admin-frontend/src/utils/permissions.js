@@ -1,5 +1,6 @@
 const ROLE_DEFAULTS = {
   admin: {
+    notices: true, visits: true,
     dashboard: true,
     customerListings: true,
     customers: true,
@@ -11,6 +12,7 @@ const ROLE_DEFAULTS = {
     payslips: true,
   },
   branchManager: {
+    notices: true, visits: true,
     dashboard: true,
     customerListings: true,
     customers: true,
@@ -22,6 +24,7 @@ const ROLE_DEFAULTS = {
     payslips: false,
   },
   fieldOfficer: {
+    notices: true, visits: true,
     dashboard: true,
     customerListings: true,
     customers: true,
@@ -35,6 +38,7 @@ const ROLE_DEFAULTS = {
 };
 
 export const PERMISSION_LABELS = {
+  notices: 'Notice & Announcement', visits: 'Visit schedules',
   dashboard: 'Dashboard',
   customerListings: 'Customer Listing',
   customers: 'Customers',

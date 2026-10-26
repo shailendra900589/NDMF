@@ -429,6 +429,7 @@ export default function CustomerListings() {
               </button>
             </div>
           </div>
+          {selected.reverificationReason && <div className="card" style={{padding:16,marginBottom:16}}><strong>Customer re-verification requested</strong><p>{selected.reverificationReason}</p>{selected.status==='draft' && <p>Capture a new listing with this customer's same mobile number and branch. Fresh photos, GPS and neighbor checks will be attached to this request; previous proofs remain preserved.</p>}</div>}
           {detailLoading ? <p role="status">Loading complete application...</p> : detailError ? <div role="alert"><p className="error-msg">{detailError}</p><button className="btn btn-outline btn-sm" onClick={()=>setDetailAttempt(a=>a+1)}>Retry details</button></div> : <VerificationDetails key={selected.id} data={selected} isListing calls={calls} callsError={callsError} refresh={()=>setDetailAttempt(a=>a+1)}/>}
 
         </div>

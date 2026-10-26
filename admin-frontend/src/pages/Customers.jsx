@@ -1,49 +1,49 @@
-import SearchableSelect from '../components/SearchableSelect';
-import { canPerformStored } from '../utils/permissions';
-import { useEffect, useMemo, useState } from 'react';
-import { customersApi, branchesApi } from '../api/api';
-import PageHeader from '../components/PageHeader';
-import PageLoader from '../components/PageLoader';
-import { displayLocation } from '../utils/displayLabels';
-import { downloadExcel } from '../utils/exportExcel';
-import CustomerDetails from '../components/CustomerDetails';
+import { useEffect, useMemo, useState } from "react";
+import { branchesApi, customersApi } from "../api/api";
+import CustomerDetails from "../components/CustomerDetails";
+import PageHeader from "../components/PageHeader";
+import PageLoader from "../components/PageLoader";
+import SearchableSelect from "../components/SearchableSelect";
+import { displayLocation } from "../utils/displayLabels";
+import { downloadExcel } from "../utils/exportExcel";
+import { canPerformStored } from "../utils/permissions";
 
 const EMPTY_FORM = {
-  name: '',
-  mobile: '',
-  address: '',
-  aadhaar: '',
-  pan: '',
-  branch: '',
+  name: "",
+  mobile: "",
+  address: "",
+  aadhaar: "",
+  pan: "",
+  branch: "",
 };
 
 export default function Customers() {
-  const me = JSON.parse(localStorage.getItem('ndfa_user') || '{}');
-  const isAdmin = me.role === 'admin';
+  const me = JSON.parse(localStorage.getItem("ndfa_user") || "{}");
+  const isAdmin = me.role === "admin";
 
   const [customers, setCustomers] = useState([]);
   const [locations, setLocations] = useState([]);
-  const [search, setSearch] = useState('');
-  const [locationFilter, setLocationFilter] = useState('all');
-  const [docsFilter, setDocsFilter] = useState('all');
+  const [search, setSearch] = useState("");
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [docsFilter, setDocsFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [detailId,setDetailId]=useState(null);
+  const [error, setError] = useState("");
+  const [detailId, setDetailId] = useState(null);
 
   const load = async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
       const params = {};
       if (search.trim()) params.search = search.trim();
-      if (locationFilter !== 'all') params.branch = locationFilter;
-      if (docsFilter !== 'all') params.hasDocs = docsFilter;
+      if (locationFilter !== "all") params.branch = locationFilter;
+      if (docsFilter !== "all") params.hasDocs = docsFilter;
       const res = await customersApi.getAll(params);
       setCustomers(res.data || []);
     } catch (err) {
-      setError(err.message || 'Failed to load customers');
+      setError(err.message || "Failed to load customers");
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,9 @@ export default function Customers() {
   }, []);
 
   const locationOptions = useMemo(() => {
-    const fromData = [...new Set(customers.map((c) => c.branch).filter(Boolean))];
+    const fromData = [
+      ...new Set(customers.map((c) => c.branch).filter(Boolean)),
+    ];
     const fromApi = locations.map((l) => l.name).filter(Boolean);
     return [...new Set([...fromApi, ...fromData])].sort();
   }, [customers, locations]);
@@ -70,33 +72,42 @@ export default function Customers() {
   const openAdd = () => {
     setForm({
       ...EMPTY_FORM,
-      branch: isAdmin ? locations[0]?.name || me.branch || '' : me.branch || '',
+      branch: isAdmin ? locations[0]?.name || me.branch || "" : me.branch || "",
     });
-    setError('');
+    setError("");
   };
 
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError('');
+    setError("");
     try {
       await customersApi.create({
         ...form,
-        mobile: form.mobile.replace(/\D/g, '').slice(0, 10),
+        mobile: form.mobile.replace(/\D/g, "").slice(0, 10),
         branch: isAdmin ? form.branch : me.branch,
       });
       setForm(null);
       await load();
     } catch (err) {
-      setError(err.message || 'Failed to create customer');
+      setError(err.message || "Failed to create customer");
     } finally {
       setSaving(false);
     }
   };
 
   const download = async () => {
-    await downloadExcel('customers.xlsx', {
-      headers: ['Name', 'Mobile', 'Address', 'Aadhaar', 'PAN', 'Location', 'GPS Lat', 'GPS Lng'],
+    await downloadExcel("customers.xlsx", {
+      headers: [
+        "Name",
+        "Mobile",
+        "Address",
+        "Aadhaar",
+        "PAN",
+        "Location",
+        "GPS Lat",
+        "GPS Lng",
+      ],
       rows: customers.map((c) => [
         c.name,
         c.mobile,
@@ -104,16 +115,17 @@ export default function Customers() {
         c.aadhaar,
         c.pan,
         displayLocation(c.branch),
-        c.latitude || '',
-        c.longitude || '',
+        c.latitude || "",
+        c.longitude || "",
       ]),
-      title: 'Customers report',
-      subtitle: `${customers.length} approved customer${customers.length === 1 ? '' : 's'}`,
-      sheetName: 'Customers',
+      title: "Customers report",
+      subtitle: `${customers.length} approved customer${customers.length === 1 ? "" : "s"}`,
+      sheetName: "Customers",
     });
   };
 
-  if (loading && !customers.length) return <PageLoader label="Loading customers..." />;
+  if (loading && !customers.length)
+    return <PageLoader label="Loading customers..." />;
 
   return (
     <div>
@@ -121,12 +133,17 @@ export default function Customers() {
         title="Customers"
         description="Approved / listed customers — filter, add, and export."
       >
-        <button hidden={!canPerformStored('customers', 'export')} type="button" className="btn btn-outline btn-sm" onClick={download}>
+        <button
+          hidden={!canPerformStored("customers", "export")}
+          type="button"
+          className="btn btn-outline btn-sm"
+          onClick={download}
+        >
           Download Excel
         </button>
-        <button hidden={!canPerformStored('customers', 'create')} type="button" className="btn btn-primary" onClick={openAdd}>
+        {/* <button hidden={!canPerformStored('customers', 'create')} type="button" className="btn btn-primary" onClick={openAdd}>
           + Add customer
-        </button>
+        </button> */}
       </PageHeader>
 
       <div className="att-filters card">
@@ -172,15 +189,19 @@ export default function Customers() {
               type="button"
               className="btn btn-outline btn-sm"
               onClick={() => {
-                setSearch('');
-                setLocationFilter('all');
-                setDocsFilter('all');
+                setSearch("");
+                setLocationFilter("all");
+                setDocsFilter("all");
                 setTimeout(() => load(), 0);
               }}
             >
               Clear
             </button>
-            <button type="button" className="btn btn-primary btn-sm" onClick={load}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={load}
+            >
               Apply filters
             </button>
           </div>
@@ -210,14 +231,30 @@ export default function Customers() {
                   <td>
                     <strong>{c.name}</strong>
                   </td>
-                  <td><button type="button" className="btn btn-outline btn-sm" aria-label={`View details for ${c.name}`} onClick={()=>setDetailId(c.id)}>View details</button></td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      aria-label={`View details for ${c.name}`}
+                      onClick={() => setDetailId(c.id)}
+                    >
+                      View details
+                    </button>
+                    {isAdmin && canPerformStored('customers','create') && canPerformStored('customerListings','create') && <button className="btn btn-outline btn-sm" disabled={saving} onClick={async()=>{
+                      const reason=window.prompt(`Send ${c.name} for fresh verification. Previous records will be preserved. Enter reason:`);
+                      if (!reason) return;
+                      setSaving(true); try { await customersApi.reverify(c.id,reason); await load(); } catch(e) { setError(e.message); } finally { setSaving(false); }
+                    }}>Re-verify</button>}
+                  </td>
                   <td>{c.mobile}</td>
-                  <td>{c.address || '—'}</td>
-                  <td>{c.aadhaar || '—'}</td>
-                  <td>{c.pan || '—'}</td>
+                  <td>{c.address || "—"}</td>
+                  <td>{c.aadhaar || "—"}</td>
+                  <td>{c.pan || "—"}</td>
                   <td>{displayLocation(c.branch)}</td>
                   <td style={{ fontSize: 12 }}>
-                    {c.latitude ? `${Number(c.latitude).toFixed(4)}, ${Number(c.longitude || 0).toFixed(4)}` : '—'}
+                    {c.latitude
+                      ? `${Number(c.latitude).toFixed(4)}, ${Number(c.longitude || 0).toFixed(4)}`
+                      : "—"}
                   </td>
                 </tr>
               ))}
@@ -252,7 +289,10 @@ export default function Customers() {
                   maxLength={10}
                   value={form.mobile}
                   onChange={(e) =>
-                    setForm({ ...form, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })
+                    setForm({
+                      ...form,
+                      mobile: e.target.value.replace(/\D/g, "").slice(0, 10),
+                    })
                   }
                 />
               </div>
@@ -260,7 +300,9 @@ export default function Customers() {
                 <label>Address</label>
                 <input
                   value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, address: e.target.value })
+                  }
                 />
               </div>
               <div className="form-row-2">
@@ -268,14 +310,18 @@ export default function Customers() {
                   <label>Aadhaar</label>
                   <input
                     value={form.aadhaar}
-                    onChange={(e) => setForm({ ...form, aadhaar: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, aadhaar: e.target.value })
+                    }
                   />
                 </div>
                 <div className="form-group">
                   <label>PAN</label>
                   <input
                     value={form.pan}
-                    onChange={(e) => setForm({ ...form, pan: e.target.value.toUpperCase() })}
+                    onChange={(e) =>
+                      setForm({ ...form, pan: e.target.value.toUpperCase() })
+                    }
                   />
                 </div>
               </div>
@@ -285,7 +331,9 @@ export default function Customers() {
                   <SearchableSelect
                     required
                     value={form.branch}
-                    onChange={(e) => setForm({ ...form, branch: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, branch: e.target.value })
+                    }
                   >
                     <option value="">Select location</option>
                     {locationOptions.map((name) => (
@@ -297,14 +345,24 @@ export default function Customers() {
                 </div>
               )}
               {!isAdmin && (
-                <p className="field-hint">Location: {displayLocation(me.branch)}</p>
+                <p className="field-hint">
+                  Location: {displayLocation(me.branch)}
+                </p>
               )}
               {error && <div className="alert alert--error">{error}</div>}
               <div className="modal-actions">
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Saving…' : 'Save customer'}
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={saving}
+                >
+                  {saving ? "Saving…" : "Save customer"}
                 </button>
-                <button type="button" className="btn btn-outline" onClick={() => setForm(null)}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setForm(null)}
+                >
                   Cancel
                 </button>
               </div>
@@ -312,7 +370,12 @@ export default function Customers() {
           </div>
         </div>
       )}
-      {detailId && <CustomerDetails customerId={detailId} onClose={()=>setDetailId(null)}/>}
+      {detailId && (
+        <CustomerDetails
+          customerId={detailId}
+          onClose={() => setDetailId(null)}
+        />
+      )}
     </div>
   );
 }

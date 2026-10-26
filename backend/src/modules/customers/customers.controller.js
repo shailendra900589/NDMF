@@ -13,7 +13,7 @@ function linkedListing(customer,actor){
 }
 
 exports.getAll = (req, res) => {
-  let customers = getCollection('customers');
+  let customers = getCollection('customers').filter(c => !c.reverificationPending);
   customers = filterByBranch(customers, req.user, 'branch');
 
   const { search, branch, hasDocs } = req.query;
@@ -101,4 +101,24 @@ exports.create = (req, res) => {
 
   upsert('customers', record);
   return success(res, record, 'Customer created', 201);
+};
+
+exports.reverify = async (req, res) => {
+  if (!isAdmin(req.user)) return error(res, 'Only admin can request re-verification', 403);
+  if (!require('../../lib/rbac').hasPermission(req.user,'customerListings') || !require('../../lib/companyPolicy').actionAllowed(req.user,'customerListings','create')) return error(res,'Customer Listing creation is disabled by Super Admin',403);
+  const customer = findById('customers', req.params.id);
+  if (!customer) return error(res, 'Customer not found', 404);
+  if (customer.reverificationPending) return error(res, 'Re-verification is already pending in Customer Listing', 409);
+  const reason = String(req.body.reason || '').trim();
+  if (reason.length < 3 || reason.length > 500) return error(res, 'Enter a reason (3–500 characters)');
+  const prior = linkedListing(customer, req.user);
+  const now = new Date().toISOString();
+  const listing = { id: `L_${uuid()}`, name: customer.name, mobile: customer.mobile, aadhaar: customer.aadhaar || '', pan: customer.pan || '', branch: customer.branch, shopFullAddress: customer.address || '', shopLatitude: customer.latitude, shopLongitude: customer.longitude, status: 'branchPending', createdAt: now, createdBy: req.user.id, submittedByRole: req.user.role, customerId: customer.id, previousListingId: prior?.id || null, reverificationReason: reason, neighbors: [] };
+  // Previous proofs remain on the customer; a new verification must collect fresh evidence.
+  listing.status = 'draft';
+  upsert('customerListings', listing);
+  upsert('customers', { ...customer, reverificationPending: listing.id });
+  upsert('platformAudit', { id: uuid(), companyId: req.user.companyId, actorId: req.user.id, action: 'customer.reverification.requested', targetId: customer.id, listingId: listing.id, reason, createdAt: now });
+  await require('../../lib/db').flush();
+  return success(res, listing, 'Customer sent to Customer Listing for fresh verification', 201);
 };

@@ -1,10 +1,11 @@
 const MODULES = {
+  notices: 'Notice & Announcement', visits: 'Visit schedules',
   dashboard: 'Dashboard', customerListings: 'Customer listings', customers: 'Customers',
   attendance: 'Attendance', tracking: 'GPS tracking', callLogs: 'Call logs',
   users: 'Employee & Permission', branches: 'Branch Management', payslips: 'Payroll',
 };
 const ACTIONS = { create: 'Create / submit', update: 'Edit / update', delete: 'Delete / reset', approve: 'Approve / assign', export: 'Export / download' };
-const MODULE_ACTIONS = { dashboard: [], customerListings: ['create','approve','export'], customers: ['create','export'],
+const MODULE_ACTIONS = { notices: ['create'], visits: ['create','update'], dashboard: [], customerListings: ['create','approve','export'], customers: ['create','export'],
   attendance: ['create','update','export'], tracking: ['create'], callLogs: ['create','update'],
   users: ['create','update','delete'], branches: ['create','update','delete'], payslips: ['create','update','delete','export'] };
 const allModules = () => Object.fromEntries(Object.keys(MODULES).map(k => [k, true]));

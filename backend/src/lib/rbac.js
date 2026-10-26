@@ -2,6 +2,7 @@
  * RBAC — branch scope + module permissions
  */
 const PERMISSION_KEYS = [
+  'notices', 'visits',
   'dashboard',
   'customerListings',
   'customers',
@@ -15,6 +16,7 @@ const PERMISSION_KEYS = [
 
 const ROLE_DEFAULTS = {
   admin: {
+    notices: true, visits: true,
     dashboard: true,
     customerListings: true,
     customers: true,
@@ -26,6 +28,7 @@ const ROLE_DEFAULTS = {
     payslips: true,
   },
   branchManager: {
+    notices: true, visits: true,
     dashboard: true,
     customerListings: true,
     customers: true,
@@ -37,6 +40,7 @@ const ROLE_DEFAULTS = {
     payslips: false,
   },
   fieldOfficer: {
+    notices: true, visits: true,
     dashboard: true,
     customerListings: true,
     customers: true,

@@ -8,6 +8,7 @@ import '../../../theme/app_tokens.dart';
 import '../../../routes/app_routes.dart';
 import '../../../data/services/tracking_service.dart';
 import '../controllers/attendance_controller.dart';
+import '../../../utils/business_time.dart';
 
 class AttendanceView extends GetView<AttendanceController> {
   const AttendanceView({super.key});
@@ -78,7 +79,7 @@ class _CheckTab extends GetView<AttendanceController> {
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                   ),
                   Text(
-                    DateFormat('EEEE, dd MMM yyyy • hh:mm a').format(DateTime.now()),
+                    '${DateFormat('EEEE, dd MMM yyyy • hh:mm a').format(indiaTime(DateTime.now()))} IST',
                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   ),
                   const SizedBox(height: 20),
@@ -153,10 +154,10 @@ class _HistoryTab extends GetView<AttendanceController> {
               backgroundColor: a.status == 'Present' ? AppColors.success.withValues(alpha: 0.15) : AppColors.error.withValues(alpha: 0.15),
               child: Icon(a.status == 'Present' ? Icons.check : Icons.close, color: a.status == 'Present' ? AppColors.success : AppColors.error),
             ),
-            title: Text(DateFormat('dd MMM yyyy').format(a.date)),
+            title: Text(DateFormat('dd MMM yyyy').format(indiaTime(a.date))),
             subtitle: Text(
-              'In: ${a.checkInTime != null ? DateFormat('hh:mm a').format(a.checkInTime!) : '-'} | '
-              'Out: ${a.checkOutTime != null ? DateFormat('hh:mm a').format(a.checkOutTime!) : '-'}',
+              'In: ${a.checkInTime != null ? DateFormat('hh:mm a').format(a.checkInTime!.toUtc().add(const Duration(hours: 5, minutes: 30))) : '-'} | '
+              'Out: ${a.checkOutTime != null ? DateFormat('hh:mm a').format(a.checkOutTime!.toUtc().add(const Duration(hours: 5, minutes: 30))) : 'Checkout not recorded'} (IST)',
             ),
           ),
         );

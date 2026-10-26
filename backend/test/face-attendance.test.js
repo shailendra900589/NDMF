@@ -62,7 +62,12 @@ test('registered phone attendance survives persistence, signed URLs and concurre
     const checked=await call('/attendance/check-in','POST',{lat:26.7,lng:83.4});assert.equal(checked.status,200,checked.message);assert.equal(checked.data.faceVerified,true);
     assert.equal((await call('/attendance/check-in','POST',{lat:26.7,lng:83.4})).status,400);
     assert.equal((await call('/attendance/check-out','POST',{lat:0,lng:'NaN'})).status,400);
+    assert.equal((await call('/attendance/check-out','POST',{lat:26.7,lng:83.4})).status,400,'check-in verification cannot be reused for checkout');
+    await call('/settings/attendance-face','PUT',{enabled:false},admin);
+    const checkoutSelfie=selfie();checkoutSelfie.append('purpose','checkout');
+    assert.equal((await call('/attendance/verify-face','POST',checkoutSelfie)).data.verified,true,'checkout still verifies a selfie when check-in policy is disabled');
     assert.equal((await call('/attendance/check-out','POST',{lat:26.7,lng:83.4})).status,200);
+    await call('/settings/attendance-face','PUT',{enabled:true},admin);
     assert.equal((await call('/attendance/check-out','POST',{lat:26.7,lng:83.4})).status,400);
   });
   await t.test('bad live selfies never erase an existing valid registration',async()=>{

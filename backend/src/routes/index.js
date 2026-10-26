@@ -22,6 +22,7 @@ router.use('/developer', require('../modules/platform/developer.routes'));
 router.use('/super-admin', require('../modules/platform/platform.routes'));
 router.use('/auth', authRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/workspace', require('../modules/workspace/workspace.routes'));
 router.use('/dashboard', dashboardRoutes);
 router.use('/customers', customersRoutes);
 router.use('/customer-listings', customerListingsRoutes);

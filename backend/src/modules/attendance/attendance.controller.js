@@ -105,6 +105,9 @@ function activeShift(record, userId) {
 }
 
 exports.checkIn = async (req, res) => {
+  const policy = getAppSettings().attendanceTiming;
+  const timing = require('../../lib/attendanceTiming').timingAt(policy);
+  if (!timing.allowed) return error(res, `Check-in is available ${policy.opensAt}–${policy.closesAt} IST. Contact your administrator for an attendance correction.`, 403);
   const { lat, lng, accuracy } = req.body;
   if (lat == null || lng == null) return error(res, 'GPS location required');
   if (!validPosition(lat, lng)) {
@@ -157,6 +160,8 @@ exports.checkIn = async (req, res) => {
   };
 
   record.checkInTime = new Date().toISOString();
+  record.attendanceTiming = policy;
+  record.lateMinutes = timing.lateMinutes;
   record.checkInLat = Number(lat);
   record.checkInLng = Number(lng);
   record.distanceFromBranch = place.distanceMeters;
@@ -193,7 +198,23 @@ exports.checkOut = async (req, res) => {
     return error(res, 'Already checked out today');
   }
 
+  const user = findById('users', req.user.id) || req.user;
+  let facePass = null;
+  if (['fieldOfficer', 'branchManager'].includes(user.role)) {
+    if (!isEnrollmentComplete(user)) return enrollmentError(res, user);
+    facePass = user.faceVerification;
+    if (!facePass || facePass.usedAt || !(new Date(facePass.expiresAt).getTime() > Date.now())) {
+      return error(res, 'Fresh live face verification required for check-out', 400);
+    }
+    facePass.usedAt = new Date().toISOString();
+    upsert('users', user);
+  }
+  record.checkOutFaceVerified = !!facePass;
+  record.checkOutFaceVerifiedAt = facePass?.verifiedAt || null;
+  record.checkOutFaceMatchScore = facePass?.matchScore ?? null;
+
   record.checkOutTime = new Date().toISOString();
+  record.earlyDepartureMinutes = require('../../lib/attendanceTiming').timingAt(record.attendanceTiming || getAppSettings().attendanceTiming).earlyDepartureMinutes;
   record.checkOutLat = Number(lat);
   record.checkOutLng = Number(lng);
 
@@ -212,7 +233,7 @@ function recentFailures(user) {
  * The image is NOT stored (processed in memory).
  */
 exports.verifyLiveFace = async (req, res) => {
-  if (!requiresFaceVerification(req.user)) {
+  if (!requiresFaceVerification(req.user) && !(req.body.purpose === 'checkout' && ['fieldOfficer','branchManager'].includes(req.user.role))) {
     return success(res, { verified: true, matchScore: 1, skipped: true, message: 'Face not required' });
   }
   if (!req.file) return error(res, 'Live photo required');
@@ -380,6 +401,8 @@ exports.getMonthly = (req, res) => {
         status,
         checkInTime: rec?.checkInTime || null,
         checkOutTime: rec?.checkOutTime || null,
+        lateMinutes: rec?.lateMinutes || 0,
+        earlyDepartureMinutes: rec?.earlyDepartureMinutes || 0,
         distanceFromBranch: rec?.distanceFromBranch ?? null,
         recordId: rec?.id || null,
         correction:adjustment ? {status:adjustment.status,reason:adjustment.reason,updatedAt:adjustment.updatedAt,updatedBy:adjustment.updatedBy} : null,

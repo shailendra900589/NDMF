@@ -1,4 +1,5 @@
 import SearchableSelect from '../components/SearchableSelect';
+import AttendanceTiming from '../components/AttendanceTiming';
 import { canPerformStored } from '../utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { attendanceApi } from '../api/api';
@@ -13,6 +14,7 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString('en-IN', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Asia/Kolkata',
   });
 }
 
@@ -21,7 +23,7 @@ function statusLabel(status) {
     case 'present':
       return 'Present';
     case 'partial':
-      return 'Checked in';
+      return 'Checkout not recorded';
     case 'absent':
       return 'Absent';
     case 'holiday':
@@ -196,8 +198,8 @@ export default function Attendance() {
           displayLocation(emp.branch),
           cell.date,
           statusLabel(cell.status),
-          cell.checkInTime ? new Date(cell.checkInTime).toLocaleString('en-IN') : '',
-          cell.checkOutTime ? new Date(cell.checkOutTime).toLocaleString('en-IN') : '',
+          cell.checkInTime ? new Date(cell.checkInTime).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}) : '',
+          cell.checkOutTime ? new Date(cell.checkOutTime).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}) : cell.checkInTime ? 'Checkout not recorded' : '',
           cell.distanceFromBranch ?? '',
           emp.presentDays,
         ]);
@@ -227,6 +229,7 @@ export default function Attendance() {
         description="Review your team, correct a day when needed, and export a clear monthly attendance report."
       />
 
+      {me.role === 'admin' && canPerformStored('attendance','update') && <AttendanceTiming />}
       <section className="att-toolbar card" aria-label="Attendance report period">
         <div className="att-toolbar__period">
           <span className="att-toolbar__eyebrow">Report period</span>
@@ -434,7 +437,9 @@ export default function Attendance() {
                       {(cell.checkInTime || cell.checkOutTime) && (
                         <span className="att-cal-cell__times">
                           {fmtTime(cell.checkInTime)}
-                          {cell.checkOutTime ? `–${fmtTime(cell.checkOutTime)}` : ''}
+                          {cell.checkOutTime ? `–${fmtTime(cell.checkOutTime)}` : ' · Checkout not recorded'}
+                          {cell.lateMinutes > 0 && ` · Late ${cell.lateMinutes} min`}
+                          {cell.earlyDepartureMinutes > 0 && ` · Early checkout ${cell.earlyDepartureMinutes} min`}
                         </span>
                       )}
                     </div>

@@ -79,6 +79,12 @@ function validateBody(body) {
 }
 
 function buildRecord(id, body, actor, existing) {
+  if (existing?.salaryReleasedAt || existing?.slipReleasedAt) return {error:'Released payroll is locked. Create a documented adjustment in a subsequent month.'};
+  for (const section of ['earnings','deductions']) {
+    for (const value of Object.values(body[section] || {})) {
+      if (!Number.isFinite(Number(value)) || Number(value)<0) return {error:'Salary amounts and deductions must be valid non-negative numbers'};
+    }
+  }
   const v = validateBody(body);
   if (!v.ok) return { error: v.message };
   const employee=employeeFor(v.employeeNo);
@@ -105,6 +111,7 @@ function buildRecord(id, body, actor, existing) {
     body.earnings,
     body.deductions
   );
+  if (netPay < 0) return {error:'Deductions cannot exceed earnings'};
   return {
     record: {
       id,
@@ -249,9 +256,27 @@ exports.addMonth = async (req, res) => {
 exports.remove = async (req, res) => {
   const existing = findById('payslips', req.params.id);
   if (!existing) return error(res, 'Pay slip not found', 404);
+  if (existing.salaryReleasedAt || existing.slipReleasedAt) return error(res,'Released payroll cannot be deleted',409);
   if (!canAccessSlip(req.user, existing)) return error(res, 'You can only manage payroll in your branch', 403);
   removeById('payslips', req.params.id); await flush();
   return success(res, null, 'Pay slip deleted');
+};
+
+exports.release = async(req,res)=>{
+  const slip=findById('payslips',req.params.id);
+  if (!slip) return error(res,'Pay slip not found',404);
+  if (!canAccessSlip(req.user,slip)) return error(res,'Forbidden',403);
+  const kind=req.body.kind;
+  if (!['salary','slip'].includes(kind)) return error(res,'Choose salary or slip release');
+  const field=kind==='salary'?'salaryReleasedAt':'slipReleasedAt';
+  if (slip[field]) return success(res,slip,'Already released');
+  const reference=String(req.body.reference || '').trim();
+  if (reference.length<3 || reference.length>500) return error(res,'Enter a payment reference or release reason (3–500 characters)');
+  if (!Number.isFinite(slip.netPay) || slip.netPay<0) return error(res,'Fix invalid payroll amounts before release');
+  const next={...slip,[field]:new Date().toISOString(),[kind+'ReleaseReference']:reference,[kind+'ReleasedBy']:req.user.id};
+  upsert('payslips',next,{single:true});
+  upsert('platformAudit',{id:require('crypto').randomUUID(),companyId:req.user.companyId,actorId:req.user.id,action:`payroll.${kind}.released`,targetId:slip.id,amount:slip.netPay,reference,createdAt:next[field]},{single:true});
+  await flush();return success(res,next,kind==='salary'?'Salary payment recorded (no bank transfer is initiated)':'Salary slip released');
 };
 
 /**

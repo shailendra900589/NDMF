@@ -585,6 +585,11 @@ export default function PaySlips() {
                     <td>₹ {formatAmount(p.netPay) || '0'}</td>
                     <td>
                       <div className="row-actions">
+                        {canPerformStored('payslips','update') && ['salary','slip'].map(kind=><button key={kind} className="btn btn-sm btn-outline" type="button" disabled={!!p[kind==='salary'?'salaryReleasedAt':'slipReleasedAt']} onClick={async()=>{
+                          const reference=window.prompt(kind==='salary'?'Record salary already paid. Enter payment reference (this does not transfer money). Released amounts will be locked.':'Release this salary slip. Enter reason / reference. Released amounts will be locked.');
+                          if(!reference)return;
+                          try{await payslipsApi.release(p.id,{kind,reference});await load();}catch(e){setError(e.message);}
+                        }}>{p[kind==='salary'?'salaryReleasedAt':'slipReleasedAt']?(kind==='salary'?'Salary paid':'Slip released'):(kind==='salary'?'Record salary payment':'Release salary slip')}</button>)}
                         <button hidden={!canPerformStored('payslips', 'update')} type="button" className="btn btn-sm btn-outline" onClick={() => openEdit(p)}>
                           View / edit
                         </button>

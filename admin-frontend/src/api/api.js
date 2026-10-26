@@ -68,6 +68,7 @@ export const branchesApi = {
 };
 
 export const customersApi = {
+  reverify: (id, reason) => api.post(`/customers/${id}/reverify`, { reason }),
   getAll: (params) => api.get('/customers', { params }),
   getById: (id) => api.get(`/customers/${id}`),
   create: (data) => api.post('/customers', data),
@@ -114,6 +115,7 @@ export const listingsApi = {
 };
 
 export const payslipsApi = {
+  release: (id,data)=>api.put(`/payslips/${id}/release`,data),
   calculation:params=>api.get('/payslips/calculation',{params}),
   runPayroll: data => api.post('/payslips/run', data),
   getAll: (params) => api.get('/payslips', { params }),

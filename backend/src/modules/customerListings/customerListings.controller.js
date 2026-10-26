@@ -16,7 +16,7 @@ function advanceOnApprove(actor, listing) {
 
 function createCustomerFromListing(listing) {
   const customers = getCollection('customers');
-  const existing=customers.find(c=>c.mobile===listing.mobile);
+  const existing=customers.find(c=>c.id===listing.customerId) || customers.find(c=>c.mobile===listing.mobile);
 
   const photoPaths = [
     listing.customerPhoto,
@@ -33,6 +33,7 @@ function createCustomerFromListing(listing) {
 
   upsert('customers', {
     ...existing,
+    reverificationPending: null,
     id: existing?.id || `C_${listing.id}`,
     name: listing.name,
     mobile: listing.mobile,
@@ -104,7 +105,7 @@ function hasPhoto(value) {
 
 exports.submit = (req, res) => {
   const body = req.body;
-  const existing = body.id ? findById('customerListings', body.id) : null;
+  const existing = body.id ? findById('customerListings', body.id) || getCollection('customerListings').find(l=>l.submissionId===body.id) : null;
   if (existing) {
     // Offline clients may retry the same upload; never reset its approval stage.
     if (existing.userId !== req.user.id) return error(res, 'A listing with this ID already exists', 409);
@@ -173,6 +174,15 @@ exports.submit = (req, res) => {
     submittedByRole: req.user.role,
     userId: req.user.id,
   };
+  const reverify = getCollection('customerListings').find(l => l.customerId && l.status === 'draft' && l.mobile === listing.mobile && l.branch === listing.branch);
+  if (reverify) {
+    listing.submissionId = body.id || null;
+    listing.id = reverify.id;
+    listing.customerId = reverify.customerId;
+    listing.previousListingId = reverify.previousListingId;
+    listing.reverificationReason = reverify.reverificationReason;
+    listing.requestedAt = reverify.createdAt;
+  }
   if (listing.status === 'listed') {
     listing.listedAt = new Date().toISOString();
     createCustomerFromListing(listing);

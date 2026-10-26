@@ -224,8 +224,9 @@ class RemoteApiService extends GetxService {
     return AttendanceModel.fromJson(_unwrapMap(res));
   }
 
-  Future<bool> verifyAttendanceFace(String imagePath) async {
+  Future<bool> verifyAttendanceFace(String imagePath, {String purpose = 'checkin'}) async {
     final formData = FormData.fromMap({
+      'purpose': purpose,
       'file':
           await MultipartFile.fromFile(imagePath, filename: 'live_face.jpg'),
     });

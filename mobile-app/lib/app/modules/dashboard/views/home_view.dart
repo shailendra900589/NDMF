@@ -9,6 +9,7 @@ import '../../../widgets/home/home_premium_header.dart';
 import '../../../widgets/home/home_quick_actions.dart';
 import '../../../widgets/home/quick_action_banner_tile.dart';
 import '../../../widgets/offline_banner.dart';
+import '../../../widgets/team_inbox.dart';
 import '../controllers/dashboard_controller.dart';
 import 'dashboard_view.dart';
 
@@ -34,6 +35,7 @@ class HomeView extends GetView<DashboardController> {
           body: Column(
             children: [
               const OfflineBanner(),
+              const TeamInboxButton(),
               Expanded(
                 child: showDashboard ? const DashboardView() : const _QuickActionsOnly(),
               ),
