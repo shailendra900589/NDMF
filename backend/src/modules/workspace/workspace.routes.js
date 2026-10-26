@@ -6,7 +6,7 @@ const { success, error } = require('../../lib/response');
 const { isAdmin, sameBranch } = require('../../lib/rbac');
 const wrap = fn => (req,res,next) => Promise.resolve(fn(req,res)).catch(next);
 const manager = user => ['admin','branchManager'].includes(user.role);
-const visible = (record,user) => isAdmin(user) || record.recipientIds.includes(user.id) || (user.role === 'branchManager' && record.branch === user.branch);
+const visible = (record,user) => isAdmin(user) || record.recipientIds.includes(user.id) || (user.role === 'branchManager' && sameBranch(user, record.branch));
 router.use(authMiddleware);
 router.get('/:kind', (req,res) => {
   const kind = req.params.kind;
@@ -21,19 +21,27 @@ router.post('/:kind', wrap(async(req,res)=>{
   const title=String(body.title || '').trim(), description=String(body.description || '').trim();
   if (!title || title.length>150 || !description || description.length>4000) return error(res,'Enter a title (up to 150 characters) and details (up to 4000 characters)');
   const branch=isAdmin(req.user) ? String(body.branch || '') : req.user.branch;
-  let people=getCollection('users').filter(u=>u.isActive!==false && !u.isDeleted && u.role!=='superAdmin' && (!branch || u.branch===branch));
+  let people=getCollection('users').filter(u=>u.isActive!==false && !u.isDeleted && u.role!=='superAdmin' && (!branch || sameBranch(u, branch)));
   if (body.userId) people=people.filter(u=>u.id===body.userId);
   if (!people.length) return error(res,'No active employees match this audience');
   const record={id:randomUUID(),title,description,branch,recipientIds:people.map(u=>u.id),recipientNames:people.map(u=>u.name),createdAt:new Date().toISOString(),createdBy:req.user.id};
   if (kind==='notices') { record.important=body.important===true; record.acknowledgements={}; }
   else {
     if (!body.userId || people.length!==1) return error(res,'Select one employee for a visit');
-    record.branch=people[0].branch;
+    record.branch=branch || people[0].branch;
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(body.scheduledAt || '') || !Number.isFinite(Date.parse(body.scheduledAt))) return error(res,'Choose a valid visit date and time');
     record.scheduledAt=new Date(body.scheduledAt).toISOString(); record.location=String(body.location || '').trim();
     if (!record.location || record.location.length>500) return error(res,'Enter visit location (up to 500 characters)');
-    if (body.customerId) { const customer=findById('customers',body.customerId); if (!customer || !sameBranch(people[0],customer.branch)) return error(res,'Customer must belong to the employee branch'); record.customerId=customer.id; }
+    const customerIds=[...new Set([body.customerId,...(Array.isArray(body.customerIds)?body.customerIds:[])].filter(Boolean))];
+    const leadIds=[...new Set((Array.isArray(body.leadIds)?body.leadIds:[]).filter(Boolean))];
+    const targets=[];
+    for (const id of customerIds) { const customer=findById('customers',id); if (!customer || !sameBranch(people[0],customer.branch)) return error(res,'Every customer must be in the employee’s assigned branch'); targets.push({customerId:customer.id,targetType:'customer',targetName:customer.name,location:customer.address || record.location}); }
+    for (const id of leadIds) { const lead=findById('leads',id); if (!lead || !sameBranch(people[0],lead.branch)) return error(res,'Every lead must be in the employee’s assigned branch'); targets.push({leadId:lead.id,targetType:'lead',targetName:lead.name || lead.mobile || 'Lead',location:lead.address || record.location}); }
     record.status='scheduled'; record.completionNote='';
+    if (!targets.length) targets.push({targetType:'general',targetName:'General visit',location:record.location});
+    const visits=targets.map(target=>({...record,...target,id:randomUUID(),location:target.location || record.location}));
+    visits.forEach(visit=>upsert('visits',visit,{single:true})); await flush();
+    return success(res,visits.length === 1 ? visits[0] : visits,`${visits.length} visit${visits.length===1?'':'s'} scheduled`,201);
   }
   upsert(kind,record,{single:true}); await flush(); return success(res,record,kind==='notices'?'Notice published':'Visit scheduled',201);
 }));

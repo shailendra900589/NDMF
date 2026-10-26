@@ -73,11 +73,13 @@ function hasPermission(user, key) {
   return effectivePermissions(user)[key] === true;
 }
 
-/** Admin: all branches. Others: same branch only. */
+/** Admin: all branches. Other staff may have a primary branch plus assigned branches. */
 function sameBranch(user, recordBranch) {
   if (isAdmin(user)) return true;
-  if (!user?.branch || !recordBranch) return false;
-  return String(user.branch).trim() === String(recordBranch).trim();
+  if (!recordBranch) return false;
+  const allowed = [user?.branch, ...(Array.isArray(user?.branches) ? user.branches : [])]
+    .filter(Boolean).map(value => String(value).trim().toLowerCase());
+  return allowed.includes(String(recordBranch).trim().toLowerCase());
 }
 
 function filterByBranch(records, user, branchKey = 'branch') {
@@ -87,14 +89,13 @@ function filterByBranch(records, user, branchKey = 'branch') {
 
 function filterByBranchViaUser(records, user, users) {
   if (isAdmin(user)) return records;
-  const branch = user.branch;
   const userBranch = (uid) => {
     const u = users.find((x) => x.id === uid || x.employeeId === uid);
     return u?.branch;
   };
   return records.filter((r) => {
     const b = r.branch || userBranch(r.userId) || userBranch(r.employeeId) || userBranch(r.createdBy);
-    return b === branch;
+    return sameBranch(user, b);
   });
 }
 

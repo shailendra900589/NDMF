@@ -52,6 +52,17 @@ function attendanceSettings(body) {
   return { fields: out };
 }
 
+function branchAssignments(body, role, actor, primaryBranch) {
+  if (role === 'admin') return { branches: [] };
+  const supplied = Array.isArray(body.branches) ? body.branches : [];
+  const values = [...new Set([primaryBranch, ...supplied].filter(Boolean).map(v => String(v).trim()))];
+  if (!values.length) return { error: 'Choose at least one location' };
+  if (!isAdmin(actor) && values.some(branch => !sameBranch(actor, branch))) return { error: 'You can only assign employees to your branch' };
+  const active = getCollection('branches').filter(b => b.isActive !== false).map(b => b.name);
+  if (values.some(branch => !active.includes(branch))) return { error: 'Choose active company locations' };
+  return { branches: values };
+}
+
 exports.getFaceEnrollment = (req, res) => {
   const user = findById('users', req.user.id);
   if (!user) return error(res, 'User not found', 404);
@@ -197,6 +208,8 @@ exports.create = async (req, res) => {
   }
   const attendance = attendanceSettings(req.body);
   if (attendance.error) return error(res, attendance.error);
+  const assignments = branchAssignments(req.body, role, req.user, branch);
+  if (assignments.error) return error(res, assignments.error);
 
   let user = {
     id: `U_${uuid().slice(0, 8)}`,
@@ -204,6 +217,7 @@ exports.create = async (req, res) => {
     mobile: mobile.trim(),
     employeeId: employeeId.trim(),
     branch: branch ? branch.trim() : null,
+    branches: assignments.branches,
     role,
     password: bcrypt.hashSync(password, 10),
     permissions: Object.keys(perm).length ? perm : undefined,
@@ -277,9 +291,11 @@ exports.update = async (req, res) => {
   if (branch !== undefined && isAdmin(req.user)) {
     target.branch = String(branch || '').trim() || null;
   }
-  if (target.role !== 'admin' && !getCollection('branches').some(b => b.name === target.branch && b.isActive !== false)) {
-    return error(res, 'Choose an active company location');
-  }
+  const assignments = (req.body.branch !== undefined || req.body.branches !== undefined || target.role !== stored.role)
+    ? branchAssignments(req.body, target.role, req.user, target.branch)
+    : { branches: Array.isArray(target.branches) && target.branches.length ? target.branches : [target.branch].filter(Boolean) };
+  if (assignments.error) return error(res, assignments.error);
+  target.branches = assignments.branches;
 
   if (permissions && typeof permissions === 'object') {
     const next = { ...(target.permissions || {}) };

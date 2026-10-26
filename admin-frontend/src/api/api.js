@@ -73,6 +73,7 @@ export const customersApi = {
   getById: (id) => api.get(`/customers/${id}`),
   create: (data) => api.post('/customers', data),
 };
+export const leadsApi = { getAll: (params) => api.get('/leads', { params }) };
 
 export const attendanceApi = {
   setSalary:(userId,data)=>api.put(`/attendance/salary/${userId}`,data),

@@ -77,6 +77,9 @@ exports.update = async (req, res) => {
     for(const collection of LINKED_COLLECTIONS)for(const record of getCollection(collection).filter(r=>linkedTo(r,branch))){
       upsert(collection,{...record,branch:nextName},{single:true});
     }
+    for (const user of getCollection('users').filter(user => Array.isArray(user.branches) && user.branches.some(value => String(value).trim() === branch.name.trim()))) {
+      upsert('users', { ...user, branches: user.branches.map(value => String(value).trim() === branch.name.trim() ? nextName : value) }, { single: true });
+    }
     branch.name=nextName;
   }
   if (address !== undefined) branch.address = address;
@@ -96,7 +99,7 @@ exports.update = async (req, res) => {
 exports.remove = async (req,res) => {
   const branch=findById('branches',req.params.id);
   if(!branch)return error(res,'Branch not found',404);
-  const links=LINKED_COLLECTIONS.filter(collection=>getCollection(collection).some(r=>linkedTo(r,branch)));
+  const links=LINKED_COLLECTIONS.filter(collection=>getCollection(collection).some(r=>linkedTo(r,branch) || (collection==='users' && Array.isArray(r.branches) && r.branches.some(value=>String(value).trim()===branch.name.trim()))));
   if(links.length)return error(res,'Cannot delete this branch because it has linked employees, customers or operational records. Existing records must be preserved.',409);
   removeById('branches',branch.id);await flush();
   return success(res,{id:branch.id},'Branch deleted');

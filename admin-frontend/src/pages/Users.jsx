@@ -93,6 +93,7 @@ export default function Users() {
       employeeId: '',
       role,
       branch: isAdmin ? branches[0]?.name || '' : me.branch,
+      branches: isAdmin ? (branches[0]?.name ? [branches[0].name] : []) : [me.branch].filter(Boolean),
       password: 'ndfa1234',
       permissions: { ...(schema.roleDefaults?.[role] || {}) },
       isActive: true,
@@ -114,6 +115,7 @@ export default function Users() {
       employeeId: user.employeeId,
       role: user.role,
       branch: user.branch,
+      branches: user.branches?.length ? user.branches : [user.branch].filter(Boolean),
       password: '',
       permissions: { ...(user.permissions || {}) },
       isActive: user.isActive !== false,
@@ -153,6 +155,7 @@ export default function Users() {
           mobile:form.mobile,
           role: form.role,
           ...(isAdmin ? { branch: form.branch } : {}),
+          ...(isAdmin ? { branches: form.branches } : {}),
           permissions: form.permissions,
           isActive: form.isActive,
           ...(form.password ? { password: form.password } : {}),
@@ -261,7 +264,7 @@ export default function Users() {
                 <td><div className="branch-actions"><button hidden={!canPerformStored('users','update')} type="button" className="btn btn-outline btn-sm" onClick={()=>openEdit(u)}>Edit employee</button><button hidden={!canPerformStored('users','delete') || u.id===me.id} type="button" className="btn btn-outline btn-sm" onClick={()=>{setActionError('');setDeleting(u);}}>Delete</button></div></td>
                 <td>{u.mobile}</td>
                 <td>{ROLE_LABELS[u.role] || u.role}</td>
-                <td>{displayLocation(u.branch)}</td>
+                <td>{[u.branch, ...(u.branches || []).filter(b=>b!==u.branch)].filter(Boolean).map(displayLocation).join(', ') || '—'}</td>
                 <td>{u.role === 'admin' ? '—' : formatSalary(u.monthlySalary)}</td>
                 <td>{attendanceLabel(u)}</td>
                 <td>{u.isActive === false ? 'Disabled' : 'Active'}</td>
@@ -351,11 +354,11 @@ export default function Users() {
               </>
             )}
             <div className="form-group">
-              <label>Location</label>
+              <label>Primary location</label>
               <SearchableSelect
                 value={form.branch || ''}
                 disabled={!isAdmin}
-                onChange={(e) => setForm({ ...form, branch: e.target.value })}
+                onChange={(e) => setForm({ ...form, branch: e.target.value, branches: [...new Set([e.target.value, ...(form.branches || [])].filter(Boolean))] })}
               >
                 <option value="">{form.role === 'admin' ? 'All company locations' : 'Choose a location'}</option>
                 {branches.map((b) => (
@@ -363,6 +366,7 @@ export default function Users() {
                 ))}
               </SearchableSelect>
             </div>
+            {form.role !== 'admin' && isAdmin && <div className="form-group employee-branches"><label>Additional branch access</label><p className="field-hint">This employee can be assigned customers, leads and visits in every selected branch. Primary location remains used for office attendance.</p><div className="employee-branches__list">{branches.map(b=><label key={b.id || b.name}><input type="checkbox" checked={(form.branches || []).includes(b.name)} onChange={e=>{const next=e.target.checked?[...(form.branches || []),b.name]:(form.branches || []).filter(x=>x!==b.name);setForm({...form,branches:[...new Set(next)],branch:next.includes(form.branch)?form.branch:(next[0] || '')});}}/>{b.name}</label>)}</div></div>}
             {form.role !== 'admin' && (
               <div className="form-group">
                 <label>Attendance type</label>
