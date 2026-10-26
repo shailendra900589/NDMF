@@ -17,10 +17,10 @@ There is deliberately no public password-reset endpoint. On the server, reset on
 
 ```bash
 cd /home/ubuntu/NDMF/backend
-RESET_LOGIN='administrator-mobile-or-employee-id' RESET_PASSWORD='choose-a-new-strong-password' node src/scripts/reset-admin-password.js
+RESET_LOGIN='administrator-mobile-or-employee-id' RESET_PASSWORD='choose-a-new-strong-password' RESTART_API=true VERIFY_LOGIN=true node src/scripts/reset-admin-password.js
 ```
 
-The command only updates that exact login when it is an existing company administrator. It refuses to create accounts or reset other demo users.
+The command only updates that exact login when it is an existing company administrator. It refuses to create accounts or reset other demo users, restarts the API cache, and confirms the running API accepts the new login before reporting success.
 
 ## Customer re-verification
 
