@@ -11,6 +11,17 @@ Late minutes and early departure are informational, not automatic salary deducti
 
 Employees and branch managers must pass a fresh, one-use face check before checkout, including when the optional check-in face policy is disabled. Failed/cancelled selfies never submit checkout. Administrators can still correct attendance with a reason.
 
+## Administrator password recovery
+
+There is deliberately no public password-reset endpoint. On the server, reset one exact existing administrator account without changing any other employee:
+
+```bash
+cd /home/ubuntu/NDMF/backend
+RESET_LOGIN='administrator-mobile-or-employee-id' RESET_PASSWORD='choose-a-new-strong-password' node src/scripts/reset-admin-password.js
+```
+
+The command only updates that exact login when it is an existing company administrator. It refuses to create accounts or reset other demo users.
+
 ## Customer re-verification
 
 Customers → Re-verify requires an administrator and a reason. The existing customer and old proofs are retained; a new draft is shown in Customer Listing. Capture a new listing using the same mobile number and branch to submit fresh photos, shop GPS and neighbor verification into that request. It then follows branch and final admin approval. Draft requests cannot be approved without fresh submission. Previous loan history and proofs are retained after approval.
