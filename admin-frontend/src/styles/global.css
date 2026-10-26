@@ -632,6 +632,7 @@ a { text-decoration: none; color: inherit; }
   box-shadow: none;
 }
 .route-stop-label::before { display: none; }
+.route-map__overview{border:1px solid #0f766e!important;border-radius:7px!important;background:#fff!important;color:#0f5f56!important;padding:7px 10px!important;font:700 12px/1.2 inherit!important;box-shadow:0 2px 8px #0f172a2b!important;cursor:pointer}.route-map__overview:hover{background:#ecfdf5!important}
 
 @media (max-width: 1100px) {
   .rt-main { grid-template-columns: 1fr; }

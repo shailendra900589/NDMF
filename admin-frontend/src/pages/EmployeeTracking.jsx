@@ -244,7 +244,7 @@ export default function EmployeeTracking({ embedded = false }) {
             ]
           : []),
         { label: 'Avg speed', value: s.avgSpeedKmh ? `${s.avgSpeedKmh} km/h` : '—', tone: 'violet' },
-        { label: 'No signal', value: s.signalLostMinutes ? fmtDuration(s.signalLostMinutes) : 'None', tone: 'slate' },
+        { label: 'GPS sync delay', value: s.signalLostMinutes ? fmtDuration(s.signalLostMinutes) : 'None', tone: 'slate' },
       ]
     : [];
 
@@ -304,9 +304,9 @@ export default function EmployeeTracking({ embedded = false }) {
       <section className="card route-month-report">
         <h2>Monthly travel report</h2><p className="muted">Choose a month for day-wise kilometres and every recorded shift, journey and stop. Times use India Standard Time.</p>
         <div className="route-month-fields"><label htmlFor="route-month">Report month<input id="route-month" type="month" value={month} max={todayKey().slice(0,7)} onChange={e=>{if(e.target.value)setMonth(e.target.value);}}/></label><div><strong>{monthDays.reduce((sum,d)=>sum+d.totalKm,0).toFixed(2)} km</strong><p>{monthDays.length} recorded days · {monthDays.reduce((sum,d)=>sum+d.stopCount,0)} stops</p><button className="btn btn-primary" disabled={!monthDays.length || daysLoading || !!daysError || exporting} onClick={exportMonth}>{exporting ? 'Preparing report…' : 'Download monthly Excel report'}</button></div></div>
-        <p className="muted">Includes retained GPS data only ({retentionDays} days). Missing dates mean no recorded duty, not zero travel. Place names appear when available; coordinates are always included. GPS gaps are not confirmed stops.</p>
+        <p className="muted">Includes retained GPS data only ({retentionDays} days). Missing dates mean no recorded duty, not zero travel. Place names appear when available; coordinates are always included. Delayed updates are not counted as confirmed stops.</p>
         {reportError && <p role="alert" className="error-msg">{reportError}</p>}
-        {daysLoading ? <p role="status">Loading history…</p> : daysError ? <p role="alert" className="error-msg">{daysError}</p> : monthDays.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Distance</th><th>Duty time</th><th>Stops</th><th>Route details</th></tr></thead><tbody>{monthDays.map(d=><tr key={d.date}><td>{fmtDay(d.date)}</td><td>{d.totalKm.toFixed(2)} km{!d.pointCount && <small> · No GPS route</small>}</td><td>{fmtDuration(d.dutyMinutes)}</td><td>{d.stopCount}</td><td>{d.shifts.map((shift,i)=><button key={shift.attendanceId} type="button" className="btn btn-outline btn-sm" onClick={()=>update({date:d.date,attendanceId:shift.attendanceId})}>View {d.shifts.length>1?`shift ${i+1}`:'day'}</button>)}</td></tr>)}</tbody></table></div> : <p>No retained shifts for this month.</p>}
+        {daysLoading ? <p role="status">Loading history…</p> : daysError ? <p role="alert" className="error-msg">{daysError}</p> : monthDays.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Distance</th><th>Duty time</th><th>Stops</th><th>Route details</th></tr></thead><tbody>{monthDays.map(d=><tr key={d.date}><td>{fmtDay(d.date)}</td><td>{d.totalKm.toFixed(2)} km{!d.pointCount && <small> · Route points not received</small>}</td><td>{fmtDuration(d.dutyMinutes)}</td><td>{d.stopCount}</td><td>{d.shifts.map((shift,i)=><button key={shift.attendanceId} type="button" className="btn btn-outline btn-sm" onClick={()=>update({date:d.date,attendanceId:shift.attendanceId})}>View {d.shifts.length>1?`shift ${i+1}`:'day'}</button>)}</td></tr>)}</tbody></table></div> : <p>No retained shifts for this month.</p>}
       </section>
 
       {error && <div className="card"><p style={{ color: '#b91c1c', margin: 0 }}>{error}</p></div>}
@@ -420,9 +420,9 @@ export default function EmployeeTracking({ embedded = false }) {
                           {e.from && <span>From <StopPlace lat={e.from.lat} lng={e.from.lng}/></span>}{e.to && <span>To <StopPlace lat={e.to.lat} lng={e.to.lng}/></span>}
                         </>
                       )}
-                      {e.type === 'gap' && (
+                        {e.type === 'sync_delay' && (
                         <>
-                          <strong>No GPS signal</strong>
+                          <strong>GPS update delayed</strong>
                           <span>{fmtTime(e.at)} – {fmtTime(e.until)} · {fmtDuration(e.minutes)}</span>
                         </>
                       )}

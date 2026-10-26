@@ -27,6 +27,7 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
   const map = useRef(null);
   const group = useRef(null);
   const replay = useRef(null);
+  const overviewControl = useRef(null);
 
   useEffect(() => {
     if (!el.current || map.current) return undefined;
@@ -51,6 +52,8 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
     if (!m) return;
     const g = group.current;
     g.clearLayers();
+    overviewControl.current?.remove();
+    overviewControl.current = null;
     replay.current = null;
     const pts = (route?.points || []).map((p) => [p.lat, p.lng]);
     if (!pts.length) {
@@ -74,7 +77,7 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
       .addTo(g);
 
     if (showStops) {
-      (route.stops || []).forEach((s) => {
+      (route.stops || []).forEach((s, index) => {
         const icon = pin(`<div class="route-pin route-pin--stop">${s.number}</div>`, 28);
         const label = document.createElement('div');
         const duration = document.createElement('strong');duration.textContent=`Stop ${s.number} · ${fmtDuration(s.minutes)}`;
@@ -82,8 +85,10 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
         const place = document.createElement('div');place.className='route-stop-place';place.textContent=cachedAddress(s.lat,s.lng) || `${Number(s.lat).toFixed(5)}, ${Number(s.lng).toFixed(5)}`;
         label.append(duration,times,place);
         lookup(s.lat,s.lng).then(name=>{if(name) place.textContent=name;}).catch(()=>{});
+        const side = index % 2 === 0 ? 'right' : 'left';
+        const vertical = index % 3 === 0 ? -32 : index % 3 === 1 ? 18 : -6;
         L.marker([s.lat, s.lng], { icon, zIndexOffset: 700 })
-          .bindTooltip(label, { permanent: true, direction: 'auto', className: 'route-stop-label', offset: [12, 0] })
+          .bindTooltip(label, { permanent: true, direction: side, className: 'route-stop-label', offset: [side === 'right' ? 28 : -28, vertical], opacity: 0.96 })
           .bindPopup(
             `<div class="live-pop"><strong>Stop ${s.number}${s.isStart ? ' · start' : ''}</strong>` +
               `<span>${fmtTime(s.arrivedAt)} – ${fmtTime(s.leftAt)} IST</span>` +
@@ -93,8 +98,13 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
           .addTo(g);
       });
     }
+    const bounds = L.latLngBounds(pts);
+    const fit = () => m.fitBounds(bounds, { paddingTopLeft: [90, 90], paddingBottomRight: [260, 110], maxZoom: 18, animate: false });
     m.invalidateSize();
-    m.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 17 });
+    requestAnimationFrame(fit);
+    const overview = L.control({ position: 'topleft' });
+    overview.onAdd = () => { const button = L.DomUtil.create('button', 'route-map__overview'); button.type='button'; button.textContent='Fit complete route'; button.title='Show the full recorded route'; L.DomEvent.disableClickPropagation(button); L.DomEvent.on(button, 'click', fit); return button; };
+    overview.addTo(m); overviewControl.current = overview;
   }, [route, showStops]);
 
   useEffect(() => {

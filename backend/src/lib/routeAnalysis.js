@@ -113,11 +113,13 @@ function analyzeShift(report, att, { minStopMinutes = DEFAULT_MIN_STOP_MIN, now 
     })
   );
   legs.forEach((l) => timeline.push({ type: 'travel', at: iso(l.startAt), until: iso(l.endAt), from:l.from, to:l.to, km: l.km, minutes: l.minutes }));
-  gaps.forEach((g) => timeline.push({ type: 'gap', at: iso(g.from), until: iso(g.to), minutes: g.minutes }));
+  // A stored gap means an upload was delayed; it does not prove that the phone
+  // had no GPS. Keep it for audit without falsely reporting a GPS outage.
+  gaps.forEach((g) => timeline.push({ type: 'sync_delay', at: iso(g.from), until: iso(g.to), minutes: g.minutes }));
   if (checkOut) {
     timeline.push({ type: 'checkout', at: iso(checkOut), lat: att?.checkOutLat ?? null, lng: att?.checkOutLng ?? null });
   }
-  const order = { checkin: 0, stop: 1, travel: 2, gap: 3, checkout: 4 };
+  const order = { checkin: 0, stop: 1, travel: 2, sync_delay: 3, checkout: 4 };
   timeline.sort((a, b) => Date.parse(a.at) - Date.parse(b.at) || order[a.type] - order[b.type]);
 
   return {

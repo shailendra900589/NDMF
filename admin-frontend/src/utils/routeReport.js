@@ -14,13 +14,13 @@ export function routeReport(routes,address) {
     total.km+=Number(route.summary?.totalKm ?? route.totalKm ?? 0);total.minutes+=Number(route.summary?.dutyMinutes || 0);total.points+=Number(route.summary?.pointCount || 0);total.shifts++;
     totals.set(key,total);
   }
-  for(const {route,km,minutes,shifts,points} of totals.values())rows.push([route.name,route.employeeId || route.userId,route.date,'','Daily total','','',minutes,Number(km.toFixed(2)),'','',`${shifts} recorded shift(s); ${points} GPS points${!points ? '; no GPS route recorded' : ''}`]);
+  for(const {route,km,minutes,shifts,points} of totals.values())rows.push([route.name,route.employeeId || route.userId,route.date,'','Daily total','','',minutes,Number(km.toFixed(2)),'','',`${shifts} recorded shift(s); ${points} GPS points${!points ? '; route points not received' : ''}`]);
   for (const route of routes) {
     const prefix=[route.name,route.employeeId || route.userId,route.date,route.attendanceId];
     const s=route.summary || {};
     rows.push([...prefix,'Shift summary',reportTime(route.checkInTime),reportTime(route.checkOutTime),s.dutyMinutes ?? '',s.totalKm ?? route.totalKm ?? '',
       reportPlace(route.points?.[0] || route.checkIn,address),reportPlace(route.points?.at(-1) || route.checkOut,address),
-      `${s.pointCount || 0} GPS points; ${s.stopCount || 0} stops; ${s.stoppedMinutes || 0} stopped min; ${s.signalLostMinutes || 0} signal-gap min${!s.pointCount ? '; no GPS route recorded' : ''}`]);
+      `${s.pointCount || 0} GPS points; ${s.stopCount || 0} stops; ${s.stoppedMinutes || 0} stopped min; ${s.signalLostMinutes || 0} delayed-sync min${!s.pointCount ? '; route points not received' : ''}`]);
     for (const e of route.timeline || []) rows.push([...prefix,e.type==='stop'?`Stop ${e.number}`:e.type,reportTime(e.at),reportTime(e.until),e.minutes ?? '',e.km ?? '',
       reportPlace(e.from || e,address),reportPlace(e.to,address),e.ongoing?'Observed through latest GPS fix; not proof of current presence':'']);
   }
