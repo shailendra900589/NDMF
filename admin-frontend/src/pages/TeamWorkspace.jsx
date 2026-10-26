@@ -39,23 +39,24 @@ export default function TeamWorkspace({kind}) {
       await refresh();
     }catch(e){setMessage(e.message);}finally{setBusy(false);}
   }
-  return <div><PageHeader title={notices?'Notice & Announcement':'Visit schedules'} description={notices?'Publish team updates and track explicit read acknowledgements.':'Plan staff location and shop visits, record outcomes, and schedule repeat visits.'}>
+  return <div className="team-workspace"><PageHeader title={notices?'Notice & Announcement':'Visit schedules'} description={notices?'Publish targeted team updates and track read acknowledgements.':'Plan staff and shop visits, record outcomes, and schedule repeat visits.'}>
     {canCreate && <button className="btn btn-primary" onClick={()=>{setForm({...blank});setEditing(true);}}>{notices?'+ Publish notice':'+ Schedule visit'}</button>}
   </PageHeader>
   {message && <p role="status">{message}</p>}
-  {editing && <form className="card" onSubmit={save} style={{padding:24,marginBottom:24}}>
-    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:20}}>
+  {editing && <form className="card team-workspace__form" onSubmit={save}>
+    <div className="team-workspace__formhead"><div><span className="eyebrow">{notices?'New communication':'New planned visit'}</span><h2>{notices?'Publish a clear staff notice':'Schedule a field visit'}</h2><p>{notices?'Choose who receives it and whether an acknowledgement is needed.':'Assign one employee, capture the purpose, location and exact planned time.'}</p></div></div>
+    <div className="team-workspace__grid">
       <label>Title<input className="form-input" required maxLength={150} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>
       <label>Branch<SearchableSelect value={form.branch} onChange={e=>setForm({...form,branch:e.target.value,userId:''})}><option value="">{user.role==='admin'?'All branches':'Your branch'}</option>{branches.map(b=><option key={b.id} value={b.name}>{b.name}</option>)}</SearchableSelect></label>
       <label>{notices?'Audience':'Employee'}<SearchableSelect required={!notices} value={form.userId} onChange={e=>setForm({...form,userId:e.target.value})}><option value="">{notices?'All employees in selected branches':'Select employee'}</option>{people.filter(p=>!form.branch || p.branch===form.branch).map(p=><option key={p.id} value={p.id}>{p.name} · {p.employeeId}</option>)}</SearchableSelect></label>
       {!notices && <><label>Scheduled time (IST)<input className="form-input" type="datetime-local" required value={form.scheduledAt} onChange={e=>setForm({...form,scheduledAt:e.target.value})}/></label><label>Shop / staff location<input className="form-input" required maxLength={500} value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/></label></>}
     </div>
-    <label>Details<textarea className="form-input" rows={4} required maxLength={4000} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
-    {notices && <label><input type="checkbox" checked={form.important} onChange={e=>setForm({...form,important:e.target.checked})}/> Important · request read acknowledgement</label>}
-    <div className="row-actions" style={{marginTop:20}}><button disabled={busy} className="btn btn-primary">{notices?'Publish notice':'Save visit'}</button><button type="button" className="btn btn-outline" onClick={()=>setEditing(false)}>Cancel</button></div>
+    <label className="team-workspace__details">Details<textarea className="form-input" rows={4} required maxLength={4000} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
+    {notices && <label className="team-workspace__important"><input type="checkbox" checked={form.important} onChange={e=>setForm({...form,important:e.target.checked})}/><span><strong>Important notice</strong><small>Employees must acknowledge they have read it.</small></span></label>}
+    <div className="row-actions team-workspace__actions"><button disabled={busy} className="btn btn-primary">{notices?'Publish notice':'Save visit'}</button><button type="button" className="btn btn-outline" onClick={()=>setEditing(false)}>Cancel</button></div>
   </form>}
-  {!records.length && <div className="card" style={{padding:24}}>No {notices?'announcements':'visits'} yet.</div>}
-  {records.map(r=><article className="card" key={r.id} style={{padding:24,marginBottom:16}}>
+  {!records.length && <div className="card team-workspace__empty">No {notices?'announcements':'visits'} yet.</div>}
+  {records.map(r=><article className="card team-workspace__record" key={r.id}>
     <small>{notices?(r.important?'Important · acknowledgement requested':'Team update'):r.status} · {new Date(r.scheduledAt || r.createdAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})} IST</small>
     <h3>{r.title}</h3><p style={{whiteSpace:'pre-wrap'}}>{r.description}</p>
     {!notices && <p><strong>Location:</strong> {r.location} · {r.recipientNames?.join(', ')}<br/>{r.completionNote}</p>}

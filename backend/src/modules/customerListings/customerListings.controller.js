@@ -1,5 +1,5 @@
 const { v4: uuid } = require('uuid');
-const { getCollection, findById, upsert, flush } = require('../../lib/db');
+const { getCollection, findById, upsert, removeById, flush } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { filterByBranch, sameBranch, isAdmin } = require('../../lib/rbac');
 const { initialListingStatus, canActorApprove } = require('../../lib/listingWorkflow');
@@ -75,6 +75,18 @@ exports.getById = (req, res) => {
     return error(res, 'Forbidden', 403);
   }
   return success(res, listing);
+};
+
+exports.removeDraft = async (req, res) => {
+  const listing = findById('customerListings', req.params.id);
+  if (!listing) return error(res, 'Listing not found', 404);
+  if (listing.status !== 'draft') return error(res, 'Only incomplete draft applications can be deleted', 409);
+  const own = listing.userId === req.user.id;
+  const manager = ['admin','branchManager'].includes(req.user.role) && (isAdmin(req.user) || sameBranch(req.user, listing.branch));
+  if (!own && !manager) return error(res, 'You cannot delete this draft', 403);
+  removeById('customerListings', listing.id);
+  await flush();
+  return success(res, null, 'Incomplete draft deleted');
 };
 
 exports.getForApproval = (req, res) => {

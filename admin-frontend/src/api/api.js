@@ -80,6 +80,11 @@ export const attendanceApi = {
   getEnrollment: userId => api.get(`/attendance/enrollment/${encodeURIComponent(userId)}`),
   getHistory: () => api.get('/attendance/history'),
   getMonthly: (params) => api.get('/attendance/monthly', { params }),
+  getOperations: () => api.get('/attendance/operations'),
+  saveSchedule: data => api.put('/attendance/schedules', data),
+  removeSchedule: id => api.delete(`/attendance/schedules/${id}`),
+  saveFestival: data => api.post('/attendance/festivals', data),
+  removeFestival: id => api.delete(`/attendance/festivals/${id}`),
 };
 
 export const trackingApi = {
@@ -112,6 +117,7 @@ export const listingsApi = {
   getById: (id) => api.get(`/customer-listings/${id}`),
   create: (data) => api.post('/customer-listings', data),
   approve: (data) => api.post('/customer-listings/approve', data),
+  remove: (id) => api.delete(`/customer-listings/${id}`),
 };
 
 export const payslipsApi = {

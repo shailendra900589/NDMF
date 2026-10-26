@@ -407,6 +407,7 @@ export default function Attendance() {
                   <span className="att-dot att-dot--partial" /> In only
                   <span className="att-dot att-dot--absent" /> Absent
                   <span className="att-dot att-dot--holiday" /> Sunday
+                  <span className="att-dot att-dot--paid_leave" /> Festival / paid leave
                 </div>
               </div>
 
@@ -423,7 +424,7 @@ export default function Attendance() {
                     <div
                       key={cell.date}
                       className={`att-cal-cell att-cal-cell--${cell.status}${isToday ? ' is-today' : ''}`}
-                      title={`${cell.date}: ${statusLabel(cell.status)}`}
+                      title={`${cell.date}: ${statusLabel(cell.status)}${cell.festival ? ` · ${cell.festival.name}` : ''}`}
                     >
                       <span className="att-cal-cell__day">{cell.day}</span>
                       <span className="att-cal-cell__mark">
@@ -434,6 +435,7 @@ export default function Attendance() {
                         {cell.status === 'holiday' && 'S'}
                       </span>
                       {cell.correction && <small title={cell.correction.reason}>Admin corrected</small>}
+                      {cell.festival && <small title={cell.festival.leaveType}>{cell.festival.name}</small>}
                       {(cell.checkInTime || cell.checkOutTime) && (
                         <span className="att-cal-cell__times">
                           {fmtTime(cell.checkInTime)}

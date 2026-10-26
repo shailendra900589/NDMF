@@ -10,5 +10,6 @@ router.get('/:id', authMiddleware, listings.getById);
 router.post('/', authMiddleware, listings.submit);
 router.post('/approve', authMiddleware, requireRole('branchManager', 'admin'), wrap(listings.processApproval));
 router.put('/:id/assign', authMiddleware, requireRole('branchManager', 'admin'), listings.assignOfficer);
+router.delete('/:id', authMiddleware, wrap(listings.removeDraft));
 
 module.exports = router;

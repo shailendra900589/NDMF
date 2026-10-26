@@ -240,6 +240,13 @@ export default function CustomerListings() {
       setActionLoading(false);
     }
   };
+  const deleteDraft = async (id) => {
+    if (!window.confirm('Delete this incomplete draft application? This cannot be undone.')) return;
+    setActionLoading(true); setError('');
+    try { await listingsApi.remove(id); setSelected(null); await load(); }
+    catch (err) { setError(err.message || 'Draft could not be deleted'); }
+    finally { setActionLoading(false); }
+  };
 
   const download = async () => {
     await downloadExcel('customer-listings.xlsx', {
@@ -358,6 +365,7 @@ export default function CustomerListings() {
                     <button type="button" className="btn btn-primary btn-sm" onClick={() => setSelected(l)}>
                       View
                     </button>
+                    {l.status === 'draft' && <button type="button" className="btn btn-outline btn-sm" disabled={actionLoading} onClick={() => deleteDraft(l.id)}>Delete draft</button>}
                   </td>
                 </tr>
               ))}
@@ -424,6 +432,7 @@ export default function CustomerListings() {
                   </button>
                 </>
               )}
+              {selected.status === 'draft' && <button type="button" className="btn btn-outline btn-sm" disabled={actionLoading} onClick={() => deleteDraft(selected.id)}>Delete incomplete draft</button>}
               <button type="button" className="btn btn-outline btn-sm" onClick={() => setSelected(null)}>
                 Close
               </button>

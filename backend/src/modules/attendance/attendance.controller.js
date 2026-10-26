@@ -1,5 +1,5 @@
 const { v4: uuid } = require('uuid');
-const { getCollection, findById, upsert, flush } = require('../../lib/db');
+const { getCollection, findById, upsert, removeById, flush } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { filterByBranchViaUser, isAdmin, sameBranch } = require('../../lib/rbac');
 const { getAppSettings } = require('../../lib/appSettings');
@@ -16,6 +16,7 @@ const {
 const { checkAttendancePosition, workTypeOf } = require('../../lib/officeGeofence');
 const { attendanceDay: dateKey } = require('../../lib/attendanceDay');
 const {salaryUpdate}=require('../../lib/payrollCalculation');
+const { validateSchedule, resolveSchedule, resolveFestival, validateFestival } = require('../../lib/attendanceOperations');
 const canCorrect=(actor,target)=>isAdmin(actor) || (actor.role==='branchManager' && target?.role==='fieldOfficer' && sameBranch(actor,target.branch));
 
 exports.setSalary=async(req,res)=>{
@@ -105,7 +106,11 @@ function activeShift(record, userId) {
 }
 
 exports.checkIn = async (req, res) => {
-  const policy = getAppSettings().attendanceTiming;
+  const user = findById('users', req.user.id) || req.user;
+  const festival = resolveFestival(user);
+  if (festival && festival.leaveType !== 'working_day') return error(res, `${festival.name} is scheduled as ${festival.leaveType === 'paid_leave' ? 'paid' : 'unpaid'} leave`, 403);
+  const schedule = resolveSchedule(user);
+  const policy = schedule.policy;
   const timing = require('../../lib/attendanceTiming').timingAt(policy);
   if (!timing.allowed) return error(res, `Check-in is available ${policy.opensAt}–${policy.closesAt} IST. Contact your administrator for an attendance correction.`, 403);
   const { lat, lng, accuracy } = req.body;
@@ -119,7 +124,6 @@ exports.checkIn = async (req, res) => {
   if (existing?.checkInTime) return error(res, 'Already checked in today');
   if (attendance.some(a => activeShift(a,req.user.id))) return error(res, 'Check out from your current shift before checking in again');
 
-  const user = findById('users', req.user.id) || req.user;
   const faceRequired = requiresFaceVerification(user);
   let facePass = null;
   if (faceRequired) {
@@ -161,6 +165,7 @@ exports.checkIn = async (req, res) => {
 
   record.checkInTime = new Date().toISOString();
   record.attendanceTiming = policy;
+  record.attendanceSchedule = { id: schedule.id, name: schedule.name, scope: schedule.scope };
   record.lateMinutes = timing.lateMinutes;
   record.checkInLat = Number(lat);
   record.checkInLng = Number(lng);
@@ -222,6 +227,41 @@ exports.checkOut = async (req, res) => {
   await flush();
   return success(res, record, 'Checked out successfully');
 };
+
+function canManageOperations(actor) { return isAdmin(actor) || actor.role === 'branchManager'; }
+function operationUsers(actor) { return teamForActor(actor, getCollection('users')); }
+exports.getOperations = (req, res) => {
+  if (!canManageOperations(req.user)) return error(res, 'Only administrators and branch managers can view attendance operations', 403);
+  const users = operationUsers(req.user);
+  const branches = [...new Set(users.map(u => u.branch).filter(Boolean))].sort();
+  let schedules = getCollection('attendanceSchedules'); let festivals = getCollection('attendanceFestivals');
+  if (!isAdmin(req.user)) { schedules = schedules.filter(s => s.scope === 'employee' ? users.some(u => u.id === s.userId) : s.scope === 'branch' ? s.branch === req.user.branch : true); festivals = festivals.filter(f => f.scope === 'employee' ? users.some(u => u.id === f.userId) : f.scope === 'branch' ? f.branch === req.user.branch : true); }
+  return success(res, { defaultTiming: getAppSettings().attendanceTiming, schedules, festivals, users: users.map(u => ({id:u.id,name:u.name,employeeId:u.employeeId,branch:u.branch,role:u.role})), branches });
+};
+exports.saveSchedule = async (req, res) => {
+  if (!canManageOperations(req.user)) return error(res, 'Only administrators and branch managers can manage timings', 403);
+  let item; try { item = validateSchedule(req.body); } catch (e) { return error(res, e.message); }
+  const users = operationUsers(req.user);
+  if (item.scope === 'default' && !isAdmin(req.user)) return error(res, 'Only admin can change the default shift', 403);
+  if (item.scope === 'branch' && (!isAdmin(req.user) && item.branch !== req.user.branch)) return error(res, 'You can only manage your branch', 403);
+  if (item.scope === 'employee' && !users.some(u => u.id === item.userId)) return error(res, 'Employee is outside your team', 403);
+  if (item.scope === 'default') { require('../../lib/appSettings').setAttendanceTiming(item.policy); await flush(); return success(res, { ...item, id:'default' }, 'Default timing saved'); }
+  item.id = item.scope === 'branch' ? `SHIFT_BRANCH_${Buffer.from(item.branch).toString('base64url')}` : `SHIFT_EMPLOYEE_${item.userId}`;
+  item.updatedAt = new Date().toISOString(); item.updatedBy = req.user.id; upsert('attendanceSchedules', item); await flush(); return success(res, item, 'Shift assignment saved');
+};
+exports.removeSchedule = async (req, res) => {
+  const row = findById('attendanceSchedules', req.params.id); if (!row) return error(res, 'Shift assignment not found', 404);
+  if (!canManageOperations(req.user) || (!isAdmin(req.user) && row.branch !== req.user.branch)) return error(res, 'You cannot remove this assignment', 403);
+  removeById('attendanceSchedules', row.id); await flush(); return success(res, null, 'Shift assignment removed');
+};
+exports.saveFestival = async (req, res) => {
+  if (!canManageOperations(req.user)) return error(res, 'Only administrators and branch managers can manage festivals', 403);
+  let item; try { item = validateFestival(req.body); } catch (e) { return error(res, e.message); }
+  const users = operationUsers(req.user);
+  if ((item.scope === 'company' && !isAdmin(req.user)) || (item.scope === 'branch' && !isAdmin(req.user) && item.branch !== req.user.branch) || (item.scope === 'employee' && !users.some(u => u.id === item.userId))) return error(res, 'Festival audience is outside your authority', 403);
+  item.id = `FEST_${uuid().slice(0, 10)}`; item.createdAt = new Date().toISOString(); item.createdBy = req.user.id; upsert('attendanceFestivals', item); await flush(); return success(res, item, 'Festival calendar updated');
+};
+exports.removeFestival = async (req, res) => { const row=findById('attendanceFestivals',req.params.id); if(!row)return error(res,'Festival not found',404); if(!canManageOperations(req.user)||(!isAdmin(req.user)&&row.branch!==req.user.branch))return error(res,'You cannot remove this festival',403); removeById('attendanceFestivals',row.id);await flush();return success(res,null,'Festival removed'); };
 
 function recentFailures(user) {
   const since = Date.now() - FACE_FAIL_WINDOW_MS;
@@ -391,6 +431,10 @@ exports.getMonthly = (req, res) => {
       } else if (key === todayKey) {
         status = 'today';
       }
+      const festival = resolveFestival(u, key);
+      if (festival && festival.leaveType !== 'working_day' && !rec?.checkInTime) {
+        status = festival.leaveType;
+      }
       const adjustment=adjustments.find(a=>a.userId===u.id && a.date===key && a.status!=='automatic');
       if(adjustment){
         if(['present','partial'].includes(status)){present--;if(status==='partial')partial--;}
@@ -406,6 +450,7 @@ exports.getMonthly = (req, res) => {
         distanceFromBranch: rec?.distanceFromBranch ?? null,
         recordId: rec?.id || null,
         correction:adjustment ? {status:adjustment.status,reason:adjustment.reason,updatedAt:adjustment.updatedAt,updatedBy:adjustment.updatedBy} : null,
+        festival: festival ? { id: festival.id, name: festival.name, leaveType: festival.leaveType, scope: festival.scope } : null,
       };
     }
     return {
