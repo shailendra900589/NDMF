@@ -17,6 +17,7 @@ import '../data/services/voice_recording_service.dart';
 import '../data/services/upload_service.dart';
 import '../data/services/call_service.dart';
 import '../data/services/data_refresh_service.dart';
+import '../data/services/visit_sync_service.dart';
 
 /// Fast cold start: only storage/connectivity/API before first frame.
 /// Network sync & notifications run after UI is visible.
@@ -41,6 +42,7 @@ class AppInitializer {
     Get.put<UploadService>(UploadService(), permanent: true);
 
     await Get.putAsync<ApiService>(() => ApiService().init(), permanent: true);
+    Get.put<VisitSyncService>(VisitSyncService(), permanent: true);
 
     Get.put<DummyApiService>(DummyApiService(), permanent: true);
     Get.put<RemoteApiService>(RemoteApiService(), permanent: true);

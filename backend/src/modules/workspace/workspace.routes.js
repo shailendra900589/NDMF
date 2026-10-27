@@ -4,9 +4,19 @@ const { authMiddleware } = require('../../middleware/authMiddleware');
 const { getCollection, findById, upsert, flush } = require('../../lib/db');
 const { success, error } = require('../../lib/response');
 const { isAdmin, sameBranch } = require('../../lib/rbac');
+const { ownsUpload } = require('../../lib/uploadOwnership');
+const fs = require('node:fs');
+const path = require('node:path');
 const wrap = fn => (req,res,next) => Promise.resolve(fn(req,res)).catch(next);
 const manager = user => ['admin','branchManager'].includes(user.role);
 const visible = (record,user) => isAdmin(user) || record.recipientIds.includes(user.id) || (user.role === 'branchManager' && sameBranch(user, record.branch));
+const isoDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0,10) === value;
+const validPosition = value => value && typeof value.lat === 'number' && typeof value.lng === 'number' && Number.isFinite(value.lat) && Number.isFinite(value.lng) && Math.abs(value.lat) <= 90 && Math.abs(value.lng) <= 180 && (value.capturedAt === undefined || (Number.isFinite(Date.parse(value.capturedAt)) && Date.parse(value.capturedAt) <= Date.now()+300000));
+const uploadPath = value => {
+  const match = String(value || '').match(/^(?:https?:\/\/[^/]+)?\/uploads\/([a-zA-Z0-9_.-]+)(?:\?[^\s]*)?$/);
+  return match ? match[1] : null;
+};
+const visitAssignee = (visit, user) => Array.isArray(visit.recipientIds) && visit.recipientIds.includes(user.id);
 router.use(authMiddleware);
 router.get('/:kind', (req,res) => {
   const kind = req.params.kind;
@@ -39,7 +49,7 @@ router.post('/:kind', wrap(async(req,res)=>{
     for (const id of leadIds) { const lead=findById('leads',id); if (!lead || !sameBranch(people[0],lead.branch)) return error(res,'Every lead must be in the employee’s assigned branch'); targets.push({leadId:lead.id,targetType:'lead',targetName:lead.name || lead.mobile || 'Lead',location:lead.address || record.location}); }
     record.status='scheduled'; record.completionNote='';
     if (!targets.length) targets.push({targetType:'general',targetName:'General visit',location:record.location});
-    const visits=targets.map(target=>({...record,...target,id:randomUUID(),location:target.location || record.location}));
+    const visits=targets.map(target=>({...record,...target,targetMobile:target.customerId?findById('customers',target.customerId)?.mobile || '':target.leadId?findById('leads',target.leadId)?.mobile || '':'',id:randomUUID(),location:target.location || record.location}));
     visits.forEach(visit=>upsert('visits',visit,{single:true})); await flush();
     return success(res,visits.length === 1 ? visits[0] : visits,`${visits.length} visit${visits.length===1?'':'s'} scheduled`,201);
   }
@@ -53,13 +63,51 @@ router.post('/notices/:id/acknowledge',wrap(async(req,res)=>{
   upsert('notices',{...notice,acknowledgements},{single:true}); await flush();
   return success(res,{acknowledgedAt:acknowledgements[req.user.id]},'Acknowledgement recorded');
 }));
+router.post('/visits/:id/start',wrap(async(req,res)=>{
+  const visit=findById('visits',req.params.id);
+  if (!visit || !visible(visit,req.user)) return error(res,'Visit not found',404);
+  if (!visitAssignee(visit,req.user)) return error(res,'Only the assigned employee can start this visit',403);
+  if (visit.status==='completed') return success(res,visit,'Visit already submitted');
+  if (!['scheduled','in_progress'].includes(visit.status)) return error(res,'This visit is already closed',409);
+  const position=req.body?.position;
+  if (!validPosition(position)) return error(res,'A live GPS location is required to start the visit');
+  const now=new Date().toISOString();
+  const next={...visit,status:'in_progress',startedAt:visit.startedAt || now,startedBy:req.user.id,startGps:visit.startGps || {lat:Number(position.lat),lng:Number(position.lng),accuracy:Number(position.accuracy) || null,capturedAt:position.capturedAt || now,receivedAt:now},updatedAt:now,updatedBy:req.user.id};
+  upsert('visits',next,{single:true}); await flush();
+  return success(res,next,visit.startedAt?'Visit remains in progress':'Visit started');
+}));
+router.post('/visits/:id/complete',wrap(async(req,res)=>{
+  const visit=findById('visits',req.params.id), body=req.body || {};
+  if (!visit || !visible(visit,req.user)) return error(res,'Visit not found',404);
+  if (!visitAssignee(visit,req.user)) return error(res,'Only the assigned employee can complete this visit',403);
+  if (visit.status==='completed' && visit.verification) return success(res,visit,'Visit already submitted');
+  if (visit.status !== 'in_progress') return error(res,'Start the visit with live GPS before completing it',409);
+  const discussion=String(body.discussion || '').trim(), remarks=String(body.remarks || '').trim();
+  const purposes=['recovery','shop_verification','document_collection','customer_meeting','other'];
+  const results=['completed','customer_unavailable','shop_closed','payment_promised','revisit_required'];
+  if (discussion.length < 3 || discussion.length > 4000) return error(res,'Enter the visit discussion (3–4000 characters)');
+  if (!purposes.includes(body.purpose) || !results.includes(body.result)) return error(res,'Choose a valid visit purpose and result');
+  if (remarks.length > 2000) return error(res,'Remarks can contain up to 2000 characters');
+  if ((body.paymentPromiseDate && !isoDate(body.paymentPromiseDate)) || (body.nextFollowUpDate && !isoDate(body.nextFollowUpDate))) return error(res,'Use valid dates for payment promise and follow-up');
+  if (body.paymentAmount !== undefined && body.paymentAmount !== '' && (!Number.isFinite(Number(body.paymentAmount)) || Number(body.paymentAmount) < 0)) return error(res,'Payment amount must be zero or greater');
+  const filename=uploadPath(body.photo);
+  if (!filename || !ownsUpload(filename,req.user.companyId)) return error(res,'Capture and upload a new visit photo before completing the visit');
+  const photoFile=path.join(__dirname,'../../../uploads',filename);
+  if (!/\.(jpg|jpeg|png|webp)$/i.test(filename) || !fs.existsSync(photoFile)) return error(res,'The uploaded visit photo was not found');
+  if (!validPosition(body.photoGps)) return error(res,'The visit photo must include a live GPS location');
+  const now=new Date().toISOString();
+  const verification={discussion,purpose:body.purpose,result:body.result,paymentPromiseDate:body.paymentPromiseDate || null,paymentAmount:body.paymentAmount === undefined || body.paymentAmount === '' ? null : Number(body.paymentAmount),nextFollowUpDate:body.nextFollowUpDate || null,remarks,photo:`/uploads/${filename}`,photoGps:{lat:Number(body.photoGps.lat),lng:Number(body.photoGps.lng),accuracy:Number(body.photoGps.accuracy) || null,capturedAt:body.photoGps.capturedAt || now,receivedAt:fs.statSync(photoFile).mtime.toISOString()},completedAt:now,completedBy:req.user.id};
+  const next={...visit,status:'completed',completionNote:discussion,verification,completedAt:now,updatedAt:now,updatedBy:req.user.id};
+  upsert('visits',next,{single:true}); await flush();
+  return success(res,next,'Visit report submitted for verification');
+}));
 router.put('/visits/:id',wrap(async(req,res)=>{
   const visit=findById('visits',req.params.id);
   if (!visit || !visible(visit,req.user)) return error(res,'Visit not found',404);
   const {status,completionNote}=req.body;
-  if (!['completed','cancelled'].includes(status) || (status==='cancelled' && !manager(req.user))) return error(res,'Invalid visit action',403);
-  if (visit.status!=='scheduled') return error(res,'Visit already closed. Schedule a new visit to visit again.',409);
-  if (typeof completionNote!=='string' || completionNote.trim().length<3 || completionNote.length>2000) return error(res,'Enter completion/cancellation notes (3–2000 characters)');
+  if (status!=='cancelled' || !manager(req.user)) return error(res,'Only a manager can cancel a visit. Employees must use the verified mobile completion flow.',403);
+  if (!['scheduled','in_progress'].includes(visit.status)) return error(res,'Visit already closed. Schedule a new visit to visit again.',409);
+  if (typeof completionNote!=='string' || completionNote.trim().length<3 || completionNote.length>2000) return error(res,'Enter cancellation notes (3–2000 characters)');
   const next={...visit,status,completionNote:completionNote.trim(),updatedAt:new Date().toISOString(),updatedBy:req.user.id};
   upsert('visits',next,{single:true}); await flush();return success(res,next,'Visit updated');
 }));

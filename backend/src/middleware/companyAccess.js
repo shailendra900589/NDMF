@@ -26,7 +26,7 @@ function enforceCompanyAccess(req, res, next) {
     return actionAllowed(req.user,'notices','create') ? next() : error(res,'Notice publishing is disabled',403);
   }
   if (/^uploads\//.test(route)) {
-    return ['customerListings', 'customers', 'attendance', 'callLogs', 'users'].some(k => hasPermission(req.user, k) && actionAllowed(req.user, k, 'create'))
+    return ['customerListings', 'customers', 'attendance', 'callLogs', 'users', 'visits'].some(k => hasPermission(req.user, k) && actionAllowed(req.user, k, 'create'))
       ? next() : error(res, 'File uploads are disabled for this account', 403);
   }
   const module = /^workspace\/visits(?:\/|$)/.test(route) ? 'visits' : /^settings\/attendance-(face|timing)$/.test(route) ? 'attendance' : modulePaths[route.split('/')[0]];

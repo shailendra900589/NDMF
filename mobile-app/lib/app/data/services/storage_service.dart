@@ -110,6 +110,10 @@ class StorageService extends GetxService {
     _box.write(key, items);
   }
 
+  Future<void> writeListDurable(String key, List<Map<String, dynamic>> items) async {
+    await _box.write(key, items);
+  }
+
   void appendToList(String key, Map<String, dynamic> item) {
     final list = readList(key);
     list.add(item);

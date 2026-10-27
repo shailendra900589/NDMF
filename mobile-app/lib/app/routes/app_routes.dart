@@ -23,6 +23,7 @@ class AppRoutes {
   static const String payslips = '/payslips';
   static const String payslipForm = '/payslips/form';
   static const String faceEnrollment = '/face-enrollment';
+  static const String visits = '/visits';
   static const String customerApplication = '/customer-application';
   /// Standalone path (not under `/customer-application`) so GetX routing stays reliable.
   static const String customerApplicationNew = '/customer-listing/new';

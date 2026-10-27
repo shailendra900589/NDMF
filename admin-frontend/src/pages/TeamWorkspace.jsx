@@ -34,7 +34,7 @@ export default function TeamWorkspace({kind}) {
   }
   async function action(record,status) {
     let completionNote;
-    if(!notices){completionNote=window.prompt('Enter visit completion / cancellation notes:');if(!completionNote)return;}
+    if(!notices){completionNote=window.prompt('Enter a reason for cancelling this visit:');if(!completionNote)return;}
     setBusy(true);try {
       if(notices)await api.post(`/workspace/notices/${record.id}/acknowledge`);
       else await api.put(`/workspace/visits/${record.id}`,{status,completionNote});
@@ -62,11 +62,19 @@ export default function TeamWorkspace({kind}) {
   {records.map(r=><article className="card team-workspace__record" key={r.id}>
     <small>{notices?(r.important?'Important · acknowledgement requested':'Team update'):r.status} · {new Date(r.scheduledAt || r.createdAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})} IST</small>
     <h3>{r.title}</h3><p style={{whiteSpace:'pre-wrap'}}>{r.description}</p>
-    {!notices && <p><strong>{r.targetType==='customer'?'Customer':r.targetType==='lead'?'Lead':'Location'}:</strong> {r.targetName || r.location} · {r.location} · {r.recipientNames?.join(', ')}<br/>{r.completionNote}</p>}
+    {!notices && <p><strong>{r.targetType==='customer'?'Customer':r.targetType==='lead'?'Lead':'Location'}:</strong> {r.targetName || r.location} {r.targetMobile?`· ${r.targetMobile}`:''} · {r.location} · {r.recipientNames?.join(', ')}<br/>{r.completionNote}</p>}
+    {!notices && r.verification && <section className="visit-verification">
+      <div><span className="eyebrow">Field evidence</span><h4>Verified visit report</h4><p>Started {r.startedAt?new Date(r.startedAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}):'—'} IST · completed {new Date(r.verification.completedAt || r.completedAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})} IST</p></div>
+      <div className="visit-verification__grid"><div><small>Purpose</small><strong>{r.verification.purpose?.replaceAll('_',' ')}</strong></div><div><small>Result</small><strong>{r.verification.result?.replaceAll('_',' ')}</strong></div><div><small>Photo GPS</small><strong>{Number(r.verification.photoGps?.lat).toFixed(6)}, {Number(r.verification.photoGps?.lng).toFixed(6)}</strong></div><div><small>Follow-up</small><strong>{r.verification.nextFollowUpDate || 'Not required'}</strong></div></div>
+      <p className="visit-verification__discussion"><strong>Discussion:</strong> {r.verification.discussion}</p>{r.verification.remarks&&<p><strong>Remarks:</strong> {r.verification.remarks}</p>}
+      <p><small>Photo captured: {new Date(r.verification.photoGps.capturedAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})} IST · Server received: {new Date(r.verification.photoGps.receivedAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})} IST</small></p>
+      {r.verification.paymentAmount!==null&&r.verification.paymentAmount!==undefined&&<p><strong>Payment promise:</strong> ₹{r.verification.paymentAmount} {r.verification.paymentPromiseDate?`by ${r.verification.paymentPromiseDate}`:''}</p>}
+      <div className="visit-verification__evidence">{r.verification.photo&&<a href={r.verification.photo} target="_blank" rel="noreferrer"><img src={r.verification.photo} alt={`GPS evidence for ${r.title}`}/><span>Open GPS-stamped visit photo</span></a>}{r.verification.photoGps&&<a className="btn btn-outline" target="_blank" rel="noreferrer" href={`https://www.google.com/maps?q=${r.verification.photoGps.lat},${r.verification.photoGps.lng}`}>Open verified location</a>}</div>
+    </section>}
     {notices && r.recipientIds && <details><summary>Read acknowledgements: {Object.keys(r.acknowledgements || {}).length} / {r.recipientIds.length}</summary>{r.recipientIds.map((id,i)=><p key={id}>{r.recipientNames?.[i] || id}: {r.acknowledgements?.[id]?new Date(r.acknowledgements[id]).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})+' IST':'Pending'}</p>)}</details>}
     <div className="row-actions">
       {notices && (r.recipientIds?.includes(user.id) || !r.recipientIds) && <button className="btn btn-outline" disabled={busy || !!(r.acknowledgedAt || r.acknowledgements?.[user.id])} onClick={()=>action(r)}>{r.acknowledgedAt || r.acknowledgements?.[user.id]?'Acknowledged':'I have read this notice'}</button>}
-      {!notices && r.status==='scheduled' && canPerformStored('visits','update') && <><button disabled={busy} className="btn btn-primary" onClick={()=>action(r,'completed')}>Mark completed</button>{canCreate && <button disabled={busy} className="btn btn-outline" onClick={()=>action(r,'cancelled')}>Cancel visit</button>}</>}
+      {!notices && ['scheduled','in_progress'].includes(r.status) && canPerformStored('visits','update') && canCreate && <button disabled={busy} className="btn btn-outline" onClick={()=>action(r,'cancelled')}>Cancel visit</button>}
       {!notices && canCreate && <button className="btn btn-outline" onClick={()=>{setForm({...blank,title:r.title,description:r.description,location:r.location,branch:r.branch,userId:r.recipientIds?.[0] || ''});setEditing(true);window.scrollTo({top:0,behavior:'smooth'});}}>Schedule visit again</button>}
     </div>
   </article>)}

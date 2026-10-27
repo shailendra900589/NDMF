@@ -8,6 +8,7 @@ import '../utils/api_errors.dart';
 import '../utils/access_control.dart';
 import 'package:intl/intl.dart';
 import 'my_salary_slips.dart';
+import '../routes/app_routes.dart';
 
 /// Refreshes notices while the app is open. Acknowledgement is always explicit.
 class TeamInboxButton extends StatefulWidget {
@@ -95,8 +96,7 @@ class _TeamInboxButtonState extends State<TeamInboxButton>
               label: Text('Notices${pending > 0 ? ' ($pending)' : ''}')),
         if (AccessControl.canAccess('visits'))
           TextButton.icon(
-              onPressed: () =>
-                  Get.to(() => const TeamInboxPage(kind: 'visits')),
+              onPressed: () => Get.toNamed(AppRoutes.visits),
               icon: const Icon(Icons.event_available_outlined),
               label: const Text('My visits')),
         TextButton.icon(
