@@ -118,6 +118,11 @@ class _CheckTab extends GetView<AttendanceController> {
                                 color: AppColors.textSecondary, fontSize: 12)),
                       const SizedBox(height: 20),
                       _TrackingToggle(),
+                      if (controller.matchPercentage.value != null)
+                        Text(
+                            'Last face similarity: ${controller.matchPercentage.value!.toStringAsFixed(0)}%',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 16),
                       Container(
                         height: 140,

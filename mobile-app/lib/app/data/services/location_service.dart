@@ -1,5 +1,6 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart' as permissions;
 import '../models/loan_model.dart';
 
@@ -10,7 +11,20 @@ class LocationService extends GetxService {
   Future<bool> requestPermission() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      Get.snackbar('Location', 'Location services are disabled.');
+      await Get.dialog(AlertDialog(
+          title: const Text('Turn on location'),
+          content: const Text(
+              'Precise location must be enabled for attendance and duty tracking.'),
+          actions: [
+            TextButton(
+                onPressed: () => Get.back(), child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () async {
+                  await Geolocator.openLocationSettings();
+                  Get.back();
+                },
+                child: const Text('Open location settings'))
+          ]));
       return false;
     }
 
@@ -24,7 +38,20 @@ class LocationService extends GetxService {
     }
 
     if (permission == LocationPermission.deniedForever) {
-      Get.snackbar('Location', 'Location permission permanently denied.');
+      await Get.dialog(AlertDialog(
+          title: const Text('Location permission required'),
+          content: const Text(
+              'Allow precise location in the app permissions, then retry attendance.'),
+          actions: [
+            TextButton(
+                onPressed: () => Get.back(), child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () async {
+                  await Geolocator.openAppSettings();
+                  Get.back();
+                },
+                child: const Text('Open app settings'))
+          ]));
       return false;
     }
     return true;
@@ -51,12 +78,8 @@ class LocationService extends GetxService {
     if (!hasPermission) return null;
 
     try {
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 15),
-        ),
-      );
+      final position = await getPosition();
+      if (position == null) return null;
 
       return GpsLocation(
         latitude: position.latitude,
@@ -73,9 +96,19 @@ class LocationService extends GetxService {
   Future<Position?> getPosition() async {
     final hasPermission = await requestPermission();
     if (!hasPermission) return null;
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-    );
+    final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.best, timeLimit: Duration(seconds: 25)));
+    final age = DateTime.now().difference(position.timestamp);
+    if (position.isMocked)
+      throw Exception('Mock locations are not allowed for attendance.');
+    if (!position.accuracy.isFinite ||
+        position.accuracy > 35 ||
+        age > const Duration(seconds: 30) ||
+        age < const Duration(seconds: -5))
+      throw Exception(
+          'Waiting for accurate GPS. Move near an open area, enable precise location and try again.');
+    return position;
   }
 
   double calculateDistance(double lat1, double lng1, double lat2, double lng2) {

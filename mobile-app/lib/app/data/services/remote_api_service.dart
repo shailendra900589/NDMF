@@ -84,7 +84,8 @@ class RemoteApiService extends GetxService {
             'Super Admin accounts use the website: ndclients.co.in');
       }
       final user = UserModel.fromJson(authData);
-      if (user.token.isEmpty || user.id.isEmpty) throw Exception('Login response is incomplete. Please try again.');
+      if (user.token.isEmpty || user.id.isEmpty)
+        throw Exception('Login response is incomplete. Please try again.');
       _storage.saveUser(user);
       return user;
     } catch (e) {
@@ -209,6 +210,9 @@ class RemoteApiService extends GetxService {
     required double lat,
     required double lng,
     bool faceVerified = false,
+    double? accuracy,
+    String? gpsRecordedAt,
+    bool mocked = false,
   }) async {
     final path = isCheckIn
         ? ApiConstants.attendanceCheckIn
@@ -216,12 +220,16 @@ class RemoteApiService extends GetxService {
     final res = await _http.post(path, data: {
       'lat': lat,
       'lng': lng,
+      'accuracy': accuracy,
+      'gpsRecordedAt': gpsRecordedAt,
+      'mocked': mocked,
       if (isCheckIn) 'faceVerified': faceVerified,
     });
     return AttendanceModel.fromJson(_unwrapMap(res));
   }
 
-  Future<bool> verifyAttendanceFace(String imagePath, {String purpose = 'checkin'}) async {
+  Future<bool> verifyAttendanceFace(String imagePath,
+      {String purpose = 'checkin'}) async {
     final formData = FormData.fromMap({
       'purpose': purpose,
       'file':
@@ -234,6 +242,23 @@ class RemoteApiService extends GetxService {
           'Face could not be verified. Take a clear selfie and try again.');
     }
     return data['verified'] == true;
+  }
+
+  Future<Map<String, dynamic>> requestFaceChallenge(String purpose) async =>
+      _unwrapMap(await _http
+          .post('/attendance/face-challenge', data: {'purpose': purpose}));
+  Future<Map<String, dynamic>> verifyLiveAttendanceFace(String neutralPath,
+      String actionPath, String challengeId, String purpose) async {
+    final form = FormData.fromMap({
+      'purpose': purpose,
+      'challengeId': challengeId,
+      'file':
+          await MultipartFile.fromFile(neutralPath, filename: 'neutral.jpg'),
+      'actionFile':
+          await MultipartFile.fromFile(actionPath, filename: 'action.jpg')
+    });
+    return _unwrapMap(
+        await _http.upload(ApiConstants.attendanceVerifyFace, form));
   }
 
   Future<Map<String, dynamic>> getFaceEnrollmentStatus() async {
@@ -283,9 +308,14 @@ class RemoteApiService extends GetxService {
 
   Future<List<AttendanceModel>> getAttendanceHistory() async {
     final uid = _storage.getUser()?.id;
-    if (uid == null || uid.isEmpty) throw Exception('Sign in again to load your attendance');
-    final res = await _http.get(ApiConstants.attendanceHistory, queryParameters: {'scope': 'mine'});
-    return _unwrapList(res).where((row) => row['userId'] == uid).map(AttendanceModel.fromJson).toList();
+    if (uid == null || uid.isEmpty)
+      throw Exception('Sign in again to load your attendance');
+    final res = await _http.get(ApiConstants.attendanceHistory,
+        queryParameters: {'scope': 'mine'});
+    return _unwrapList(res)
+        .where((row) => row['userId'] == uid)
+        .map(AttendanceModel.fromJson)
+        .toList();
   }
 
   // ─── Customer Listing ───

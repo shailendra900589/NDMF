@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
+import '../../../widgets/live_face_camera.dart';
 import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/upload_service.dart';
 import '../../../data/services/storage_service.dart';
@@ -47,16 +47,10 @@ class FaceEnrollmentController extends GetxController {
     isCapturing = true;
     update();
     try {
-      final picker = ImagePicker();
-      final file = await picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front,
-        imageQuality: 85,
-        maxWidth: 1280,
-        maxHeight: 1280,
-      );
+      final file = await Get.to<LiveFaceCapture>(() => const LiveFaceCamera());
       if (file == null) return;
-      final url = await _upload.uploadPlainFile(file.path, type: 'photo');
+      final url =
+          await _upload.uploadPlainFile(file.neutralPath, type: 'photo');
       if (url != null && url.contains('/uploads/')) {
         capturedUrls.add(url);
         update();

@@ -118,14 +118,16 @@ function recordFixes(user, rawPoints) {
     points.sort((a, b) => a.at - b.at);
     const shiftReport = reportFor(user, att, true);
     for (const p of points) {
-      if (ingest(shiftReport, p) !== 'old') accepted += 1;
+      const status=ingest(shiftReport, p);
+      if (['anchor','moved','still','reanchored'].includes(status)) {
+        accepted += 1;
+        if (!latest || p.at>latest.at) latest={...p,lat:shiftReport.lastLat,lng:shiftReport.lastLng,attendanceId:att.id};
+      }
     }
     shiftReport.attendanceId = att.id;
     shiftReport.employeeName = user.name;
     shiftReport.branch = user.branch;
     upsert('tracking', shiftReport, { deferMs: REPORT_WRITE_DELAY_MS });
-    const last = points[points.length - 1];
-    if (!latest || last.at > latest.at) latest = { ...last, attendanceId: att.id };
     if (current && att.id === current.id) report = shiftReport;
   }
   if (latest) saveLive(user, latest);
@@ -164,6 +166,7 @@ function publicReport(report, withPoints) {
     anchor,
     anchorSeenAt,
     pendingJump,
+    pendingMovement,
     lastFixAt,
     totalMeters,
     gaps,
@@ -179,6 +182,7 @@ function publicReport(report, withPoints) {
     longitude: p.lng,
     timestamp: new Date(p.at).toISOString(),
     accuracy: p.accuracy,
+    breakBefore:p.breakBefore,
   }));
   return { ...rest, routePoints, routePointCount: points.length };
 }

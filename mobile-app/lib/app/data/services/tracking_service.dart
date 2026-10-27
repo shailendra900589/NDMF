@@ -251,6 +251,7 @@ class TrackingService extends GetxService {
   }
 
   void _onPosition(Position p) {
+    if(p.isMocked){gpsStatus.value='Mock location rejected';return;}
     final prev = _latest;
     if (prev == null || !p.timestamp.isBefore(prev.timestamp)) _latest = p;
     lastGpsFixAt.value = p.timestamp.toLocal();
@@ -343,6 +344,7 @@ class TrackingService extends GetxService {
   }
 
   void _addDrawPoint(Position p) {
+    if(ApiConstants.useRemoteApi)return;
     if (p.accuracy > _maxDrawAccuracy) return;
     if (routePoints.isNotEmpty) {
       final last = routePoints.last;

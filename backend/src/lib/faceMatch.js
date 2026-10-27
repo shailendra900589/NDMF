@@ -116,7 +116,7 @@ function describeFace(buffer) {
     if (!results.length) results = await detect(true);
 
     const faces = results
-      .map((r) => ({ box: r.detection.box, score: r.detection.score, descriptor: r.descriptor }))
+      .map((r) => ({ box: r.detection.box, score: r.detection.score, descriptor: r.descriptor, landmarks:r.landmarks.positions }))
       .sort((a, b) => b.box.area - a.box.area);
     if (!faces.length) {
       throw new FaceCheckError('No face found — keep your face in the centre, in good light', 'no_face');
@@ -131,6 +131,7 @@ function describeFace(buffer) {
     return {
       descriptor: Array.from(main.descriptor, (v) => Math.round(v * 1e5) / 1e5),
       detectionScore: Math.round(main.score * 1000) / 1000,
+      liveness: require('./faceLiveness').metrics(main.landmarks),
     };
   });
 }
@@ -243,6 +244,7 @@ function stripFaceSecrets(user) {
     faceDescriptorUrls,
     faceDescriptorVersion,
     faceVerification,
+    faceChallenge,
     faceVerifyFailures,
     faceEnrollmentValid,
     faceEnrollmentProblem,

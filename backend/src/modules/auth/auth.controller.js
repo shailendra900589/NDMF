@@ -29,7 +29,7 @@ function sanitizeUser(user) {
   safe.permissions = effectivePermissions(user);
   safe.company = company ? { id: company.id, name: company.name, code: company.code } : null;
   safe.actions = Object.fromEntries(Object.keys(allModules()).map(k => [k, Object.fromEntries(['create','update','delete','approve','export'].map(a => [a, company?.actions?.[k]?.[a] !== false && user.platformActions?.[k]?.[a] !== false]))]));
-  return context.run({ companyId: user.companyId, userId: user.id }, () => require('../../lib/privateUploads').signMedia({ ...safe, ...settingsForClient() }));
+  return context.run({ companyId: user.companyId, userId: user.id }, () => require('../../lib/privateUploads').signMedia({ ...safe, ...settingsForClient(),...(['fieldOfficer','branchManager'].includes(user.role)?{faceAttendanceRequired:true}:{}) }));
 }
 
 /** Normalize Login ID from body (loginId | mobile | employeeId). */

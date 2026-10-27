@@ -21,7 +21,7 @@ let beforeBuild = async()=>{}, beforeLive = async()=>{}, liveValue = 0;
 // enrollment normalization and descriptor cache are exercised below.
 require.cache[require.resolve('../src/lib/faceMatch')].exports={...face,
   buildEnrollment:async()=>{await beforeBuild();return [vector(0),vector(0),vector(0)];},
-  describeFace:async()=>{await beforeLive();return {descriptor:vector(liveValue)};},
+  describeFace:async(buffer)=>{await beforeLive();return {descriptor:vector(liveValue),liveness:buffer.toString().includes('live-action')?{mouth:0.7,eyes:0.08}:{mouth:0.05,eyes:0.30}};},
 };
 
 test('registered phone attendance survives persistence, signed URLs and concurrent resets',async t=>{
@@ -37,6 +37,12 @@ test('registered phone attendance survives persistence, signed URLs and concurre
   const secret=require('../src/config/env').jwtSecret;
   const employee=jwt.sign({userId:'EMP'},secret),admin=jwt.sign({userId:'ADMIN'},secret);
   async function call(path,method='GET',body,token=employee) {
+    if (['/attendance/check-in','/attendance/check-out'].includes(path) && body) body={accuracy:8,gpsRecordedAt:new Date().toISOString(),mocked:false,...body};
+    if (path==='/attendance/verify-face' && body instanceof FormData && body.has('file') && !body.has('challengeId')) {
+      const c=await call('/attendance/face-challenge','POST',{purpose:body.get('purpose') || 'checkin'},token);
+      if(c.status===200) body.append('challengeId',c.data.id);
+      if(!body.has('actionFile'))body.append('actionFile',new Blob(['live-action'],{type:'image/jpeg'}),'action.jpg');
+    }
     const isForm=body instanceof FormData;
     const r=await fetch(base+path,{method,headers:{Authorization:`Bearer ${token}`,...(!isForm?{'Content-Type':'application/json'}:{})},body:body===undefined?undefined:isForm?body:JSON.stringify(body)});
     return {status:r.status,...await r.json()};
@@ -81,6 +87,13 @@ test('registered phone attendance survives persistence, signed URLs and concurre
     assert.equal((await call('/users/me/face-enrollment')).data.complete,true);
     liveValue=0;
     assert.equal((await call('/attendance/verify-face','POST',selfie())).data.verified,true);
+  });
+  await t.test('static photo reuse and replayed live challenges fail closed',async()=>{
+    const challenge=await call('/attendance/face-challenge','POST',{purpose:'checkin'});
+    const make=()=>{const form=selfie();form.append('challengeId',challenge.data.id);form.append('actionFile',new Blob(['test-photo'],{type:'image/jpeg'}),'same.jpg');return form;};
+    const result=await call('/attendance/verify-face','POST',make());assert.equal(result.data.verified,false);assert.equal(result.data.reason,'liveness_failed');
+    assert.equal((await call('/attendance/verify-face','POST',make())).status,409);
+    assert.equal(db.findById('users','EMP').faceVerification,null);
   });
   await t.test('dummy manager login, own attendance and face-verified checkout stay separate from team history',async()=>{
     const bcrypt=require('bcryptjs');

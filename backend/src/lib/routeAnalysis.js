@@ -15,7 +15,7 @@ const iso = (ms) => (ms ? new Date(ms).toISOString() : null);
 
 function pathMeters(points, from, to) {
   let m = 0;
-  for (let i = from + 1; i <= to; i += 1) m += haversineMeters(points[i - 1], points[i]);
+  for (let i = from + 1; i <= to; i += 1) if(!points[i].breakBefore) m += haversineMeters(points[i - 1], points[i]);
   return m;
 }
 
@@ -123,7 +123,7 @@ function analyzeShift(report, att, { minStopMinutes = DEFAULT_MIN_STOP_MIN, now 
   timeline.sort((a, b) => Date.parse(a.at) - Date.parse(b.at) || order[a.type] - order[b.type]);
 
   return {
-    points: points.map((p) => ({ lat: p.lat, lng: p.lng, at: iso(p.at), accuracy: p.accuracy })),
+    points: points.map((p) => ({ lat: p.lat, lng: p.lng, at: iso(p.at), accuracy: p.accuracy,breakBefore:p.breakBefore })),
     stops: stops.map((s) => ({
       number: s.number,
       lat: s.lat,

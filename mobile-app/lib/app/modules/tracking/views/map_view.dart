@@ -105,8 +105,14 @@ class _MapViewState extends State<MapView> {
               final points = tracking.routePoints;
               final polylinePoints =
                   points.map((p) => LatLng(p.latitude, p.longitude)).toList();
+              final segments = <List<LatLng>>[];
+              for (final point in points) {
+                if (segments.isEmpty || point.breakBefore) segments.add([]);
+                segments.last.add(LatLng(point.latitude, point.longitude));
+              }
               if (polylinePoints.length >= 2) {
-                WidgetsBinding.instance.addPostFrameCallback((_) => _fitRoute(polylinePoints));
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _fitRoute(polylinePoints));
               }
 
               return Stack(
@@ -125,39 +131,45 @@ class _MapViewState extends State<MapView> {
                           markerId: const MarkerId('route_start'),
                           position: polylinePoints.first,
                           infoWindow: const InfoWindow(title: 'Route start'),
-                          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                              BitmapDescriptor.hueGreen),
                         ),
                       if (polylinePoints.length > 1)
                         Marker(
                           markerId: const MarkerId('route_end'),
                           position: polylinePoints.last,
-                          infoWindow: const InfoWindow(title: 'Latest position'),
-                          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                          infoWindow:
+                              const InfoWindow(title: 'Latest position'),
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                              BitmapDescriptor.hueAzure),
                         ),
                       Marker(
                         markerId: const MarkerId('branch'),
-                        position: const LatLng(LocationService.branchLat, LocationService.branchLng),
+                        position: const LatLng(LocationService.branchLat,
+                            LocationService.branchLng),
                         infoWindow: const InfoWindow(title: 'Branch office'),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+                        icon: BitmapDescriptor.defaultMarkerWithHue(
+                            BitmapDescriptor.hueOrange),
                       ),
-                      if (widget.customerLat != null && widget.customerLng != null)
+                      if (widget.customerLat != null &&
+                          widget.customerLng != null)
                         Marker(
                           markerId: const MarkerId('customer'),
-                          position: LatLng(widget.customerLat!, widget.customerLng!),
-                          infoWindow: InfoWindow(title: widget.customerName ?? 'Customer'),
+                          position:
+                              LatLng(widget.customerLat!, widget.customerLng!),
+                          infoWindow: InfoWindow(
+                              title: widget.customerName ?? 'Customer'),
                         ),
                     },
-                    polylines: polylinePoints.length >= 2
-                        ? {
-                            Polyline(
-                              polylineId: const PolylineId('route'),
-                              points: polylinePoints,
+                    polylines: {
+                      for (var i = 0; i < segments.length; i++)
+                        if (segments[i].length > 1)
+                          Polyline(
+                              polylineId: PolylineId('route_$i'),
+                              points: segments[i],
                               color: AppColors.primary,
-                              width: 5,
-                              geodesic: true,
-                            ),
-                          }
-                        : {},
+                              width: 5)
+                    },
                     myLocationEnabled: widget.customerLat == null,
                     myLocationButtonEnabled: widget.customerLat == null,
                     zoomControlsEnabled: true,
@@ -175,13 +187,15 @@ class _MapViewState extends State<MapView> {
                           children: [
                             Text(
                               '${tracking.totalKmToday.value.toStringAsFixed(2)} KM • ${points.length} points',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             Text(
                               tracking.isTracking.value
                                   ? 'Live tracking (on duty)'
                                   : 'Tracking paused — check in again tomorrow',
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppColors.textSecondary),
                             ),
                             const SizedBox(height: 8),
                             Row(
@@ -204,7 +218,8 @@ class _MapViewState extends State<MapView> {
                                       longitude: _lng,
                                       label: widget.customerName,
                                     ),
-                                    icon: const Icon(Icons.navigation, size: 18),
+                                    icon:
+                                        const Icon(Icons.navigation, size: 18),
                                     label: const Text('Navigate'),
                                   ),
                                 ),

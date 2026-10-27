@@ -109,17 +109,35 @@ class NdfaApiService extends GetxService {
     required double lat,
     required double lng,
     bool faceVerified = false,
+    double? accuracy,
+    String? gpsRecordedAt,
+    bool mocked = false,
   }) =>
       _api.markAttendance(
-          isCheckIn: isCheckIn, lat: lat, lng: lng, faceVerified: faceVerified);
+          isCheckIn: isCheckIn,
+          lat: lat,
+          lng: lng,
+          faceVerified: faceVerified,
+          accuracy: accuracy,
+          gpsRecordedAt: gpsRecordedAt,
+          mocked: mocked);
 
   Future<List<AttendanceModel>> getAttendanceHistory() =>
       _api.getAttendanceHistory();
 
-  Future<bool> verifyAttendanceFace(String imagePath, {String purpose = 'checkin'}) async {
+  Future<bool> verifyAttendanceFace(String imagePath,
+      {String purpose = 'checkin'}) async {
     if (!ApiConstants.useRemoteApi) return true;
-    return Get.find<RemoteApiService>().verifyAttendanceFace(imagePath, purpose: purpose);
+    return Get.find<RemoteApiService>()
+        .verifyAttendanceFace(imagePath, purpose: purpose);
   }
+
+  Future<Map<String, dynamic>> requestFaceChallenge(String purpose) =>
+      Get.find<RemoteApiService>().requestFaceChallenge(purpose);
+  Future<Map<String, dynamic>> verifyLiveAttendanceFace(
+          String neutral, String action, String id, String purpose) =>
+      Get.find<RemoteApiService>()
+          .verifyLiveAttendanceFace(neutral, action, id, purpose);
 
   Future<Map<String, dynamic>> getFaceEnrollmentStatus() async {
     if (!ApiConstants.useRemoteApi) return {'complete': true, 'count': 3};

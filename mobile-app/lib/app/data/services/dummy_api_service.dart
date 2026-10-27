@@ -113,9 +113,13 @@ class DummyApiService extends GetxService {
           loanAmount: 80000,
           loanPurpose: 'Stock Purchase',
         ),
-        guarantor: GuarantorDetails(name: 'Ramesh Devi', mobile: '9876543297', relation: 'Husband'),
+        guarantor: GuarantorDetails(
+            name: 'Ramesh Devi', mobile: '9876543297', relation: 'Husband'),
         documents: LoanDocuments(),
-        location: GpsLocation(latitude: 28.6519, longitude: 77.1909, address: 'Karol Bagh, Delhi'),
+        location: GpsLocation(
+            latitude: 28.6519,
+            longitude: 77.1909,
+            address: 'Karol Bagh, Delhi'),
         verification: VerificationData(),
         status: LoanStatus.verificationPending,
         createdAt: DateTime.now(),
@@ -137,10 +141,15 @@ class DummyApiService extends GetxService {
           loanAmount: 150000,
           loanPurpose: 'Inventory Purchase',
         ),
-        guarantor: GuarantorDetails(name: 'Suresh Kumar', mobile: '9876543299', relation: 'Brother'),
+        guarantor: GuarantorDetails(
+            name: 'Suresh Kumar', mobile: '9876543299', relation: 'Brother'),
         documents: LoanDocuments(),
-        location: GpsLocation(latitude: 28.6139, longitude: 77.2090, address: 'Delhi'),
-        verification: VerificationData(remarks: 'Verified on site', riskRating: 'Low', recommendedAmount: 150000),
+        location: GpsLocation(
+            latitude: 28.6139, longitude: 77.2090, address: 'Delhi'),
+        verification: VerificationData(
+            remarks: 'Verified on site',
+            riskRating: 'Low',
+            recommendedAmount: 150000),
         status: LoanStatus.branchPending,
         createdAt: DateTime.now().subtract(const Duration(days: 2)),
       ),
@@ -164,10 +173,15 @@ class DummyApiService extends GetxService {
           loanAmount: 200000,
           loanPurpose: 'Equipment Purchase',
         ),
-        guarantor: GuarantorDetails(name: 'Anita Sharma', mobile: '9876543298', relation: 'Sister'),
+        guarantor: GuarantorDetails(
+            name: 'Anita Sharma', mobile: '9876543298', relation: 'Sister'),
         documents: LoanDocuments(),
-        location: GpsLocation(latitude: 28.6200, longitude: 77.2100, address: 'Delhi'),
-        verification: VerificationData(remarks: 'Good business profile', riskRating: 'Low', recommendedAmount: 200000),
+        location: GpsLocation(
+            latitude: 28.6200, longitude: 77.2100, address: 'Delhi'),
+        verification: VerificationData(
+            remarks: 'Good business profile',
+            riskRating: 'Low',
+            recommendedAmount: 200000),
         status: LoanStatus.adminPending,
         createdAt: DateTime.now().subtract(const Duration(days: 1)),
       ),
@@ -185,7 +199,8 @@ class DummyApiService extends GetxService {
         customerName: 'Rajesh Kumar',
         mobile: '9876543210',
         date: now.subtract(const Duration(hours: 2)),
-        time: DateFormat('hh:mm a').format(now.subtract(const Duration(hours: 2))),
+        time: DateFormat('hh:mm a')
+            .format(now.subtract(const Duration(hours: 2))),
         duration: '3:45',
         type: CallType.outgoing,
       ),
@@ -194,7 +209,8 @@ class DummyApiService extends GetxService {
         customerName: 'Priya Sharma',
         mobile: '9876543211',
         date: now.subtract(const Duration(days: 1)),
-        time: DateFormat('hh:mm a').format(now.subtract(const Duration(days: 1))),
+        time:
+            DateFormat('hh:mm a').format(now.subtract(const Duration(days: 1))),
         duration: '1:20',
         type: CallType.incoming,
       ),
@@ -208,7 +224,8 @@ class DummyApiService extends GetxService {
         type: CallType.missed,
       ),
     ];
-    storage.writeList(ApiConstants.callLogsKey, logs.map((e) => e.toJson()).toList());
+    storage.writeList(
+        ApiConstants.callLogsKey, logs.map((e) => e.toJson()).toList());
   }
 
   Future<UserModel?> login(String loginId, String password) async {
@@ -251,11 +268,11 @@ class DummyApiService extends GetxService {
     await Future.delayed(const Duration(milliseconds: 800));
     return DashboardStats(
       pendingCustomerListing: _listings
-              .where((l) =>
-                  l.status == CustomerListingStatus.branchPending ||
-                  l.status == CustomerListingStatus.adminPending ||
-                  l.status == CustomerListingStatus.draft)
-              .length,
+          .where((l) =>
+              l.status == CustomerListingStatus.branchPending ||
+              l.status == CustomerListingStatus.adminPending ||
+              l.status == CustomerListingStatus.draft)
+          .length,
       totalCustomers: _customers.length,
       totalListings: _listings.length,
       attendanceStatus: 'Checked In',
@@ -303,17 +320,21 @@ class DummyApiService extends GetxService {
     await Future.delayed(const Duration(seconds: 1));
     final index = _loans.indexWhere((l) => l.id == loan.id);
     if (index >= 0) {
-      _loans[index] = loan.copyWith(status: LoanStatus.verificationPending, isSynced: true);
+      _loans[index] =
+          loan.copyWith(status: LoanStatus.verificationPending, isSynced: true);
       return _loans[index];
     }
-    final newLoan = loan.copyWith(status: LoanStatus.verificationPending, isSynced: true);
+    final newLoan =
+        loan.copyWith(status: LoanStatus.verificationPending, isSynced: true);
     _loans.add(newLoan);
     return newLoan;
   }
 
-  Future<LoanModel> saveVerification(LoanModel loan, {bool submit = false}) async {
+  Future<LoanModel> saveVerification(LoanModel loan,
+      {bool submit = false}) async {
     await Future.delayed(const Duration(milliseconds: 800));
-    final status = submit ? LoanStatus.branchPending : LoanStatus.verificationPending;
+    final status =
+        submit ? LoanStatus.branchPending : LoanStatus.verificationPending;
     final updated = loan.copyWith(status: status);
     final index = _loans.indexWhere((l) => l.id == loan.id);
     if (index >= 0) {
@@ -324,7 +345,8 @@ class DummyApiService extends GetxService {
     return updated;
   }
 
-  Future<LoanModel> processApproval(String loanId, ApprovalAction action) async {
+  Future<LoanModel> processApproval(
+      String loanId, ApprovalAction action) async {
     await Future.delayed(const Duration(milliseconds: 800));
     final index = _loans.indexWhere((l) => l.id == loanId);
     LoanStatus newStatus;
@@ -386,6 +408,10 @@ class DummyApiService extends GetxService {
     required bool isCheckIn,
     required double lat,
     required double lng,
+    bool faceVerified = false,
+    double? accuracy,
+    String? gpsRecordedAt,
+    bool mocked = false,
   }) async {
     await Future.delayed(const Duration(milliseconds: 500));
     final now = DateTime.now();
@@ -452,7 +478,8 @@ class DummyApiService extends GetxService {
 
   // ─── Customer Listing ───
 
-  Future<CustomerListingModel> submitCustomerListing(CustomerListingModel listing) async {
+  Future<CustomerListingModel> submitCustomerListing(
+      CustomerListingModel listing) async {
     await Future.delayed(const Duration(seconds: 1));
     final submitted = listing.copyWith(
       status: CustomerListingStatus.branchPending,
@@ -480,7 +507,8 @@ class DummyApiService extends GetxService {
     if (search != null && search.isNotEmpty) {
       final q = search.toLowerCase();
       result = result
-          .where((l) => l.name.toLowerCase().contains(q) || l.mobile.contains(q))
+          .where(
+              (l) => l.name.toLowerCase().contains(q) || l.mobile.contains(q))
           .toList();
     }
     return result;
@@ -491,7 +519,8 @@ class DummyApiService extends GetxService {
     return _listings.firstWhere((l) => l.id == id);
   }
 
-  Future<List<CustomerListingModel>> getListingsForApproval({CustomerListingStatus? status}) async {
+  Future<List<CustomerListingModel>> getListingsForApproval(
+      {CustomerListingStatus? status}) async {
     await Future.delayed(const Duration(milliseconds: 400));
     if (status != null) {
       return _listings.where((l) => l.status == status).toList();
@@ -503,7 +532,8 @@ class DummyApiService extends GetxService {
         .toList();
   }
 
-  Future<CustomerListingModel> processListingApproval(String id, ApprovalAction action) async {
+  Future<CustomerListingModel> processListingApproval(
+      String id, ApprovalAction action) async {
     await Future.delayed(const Duration(milliseconds: 600));
     final index = _listings.indexWhere((l) => l.id == id);
     if (index < 0) throw Exception('Listing not found');
@@ -530,7 +560,8 @@ class DummyApiService extends GetxService {
 
     _listings[index] = _listings[index].copyWith(
       status: newStatus,
-      listedAt: newStatus == CustomerListingStatus.listed ? DateTime.now() : null,
+      listedAt:
+          newStatus == CustomerListingStatus.listed ? DateTime.now() : null,
     );
     _persistListings();
     return _listings[index];
@@ -561,7 +592,8 @@ class DummyApiService extends GetxService {
   }
 
   void _loadListingsFromStorage() {
-    final data = Get.find<StorageService>().readList(ApiConstants.customerListingsKey);
+    final data =
+        Get.find<StorageService>().readList(ApiConstants.customerListingsKey);
     if (data.isNotEmpty) {
       _listings.addAll(data.map((e) => CustomerListingModel.fromJson(e)));
     }

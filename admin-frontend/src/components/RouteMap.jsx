@@ -60,8 +60,9 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
       if (route?.checkIn?.lat != null) m.setView([route.checkIn.lat, route.checkIn.lng], 15);
       return;
     }
-    L.polyline(pts, { color: '#ffffff', weight: 9, opacity: 0.9 }).addTo(g);
-    L.polyline(pts, { color: '#2563eb', weight: 5, opacity: 0.9 }).addTo(g);
+    const segments=[];
+    (route.points || []).forEach(p=>{if(!segments.length || p.breakBefore)segments.push([]);segments[segments.length-1].push([p.lat,p.lng]);});
+    segments.forEach(segment=>{if(segment.length<2)return;L.polyline(segment, { color: '#ffffff', weight: 9, opacity: 0.9 }).addTo(g);L.polyline(segment, { color: '#2563eb', weight: 5, opacity: 0.9 }).addTo(g);});
 
     const first = route.points[0];
     const last = route.points[route.points.length - 1];

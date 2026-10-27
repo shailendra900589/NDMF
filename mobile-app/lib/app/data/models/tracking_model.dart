@@ -2,17 +2,20 @@ class RoutePoint {
   final double latitude;
   final double longitude;
   final DateTime timestamp;
+  final bool breakBefore;
 
   RoutePoint({
     required this.latitude,
     required this.longitude,
     required this.timestamp,
+    this.breakBefore = false,
   });
 
   Map<String, dynamic> toJson() => {
         'latitude': latitude,
         'longitude': longitude,
         'timestamp': timestamp.toIso8601String(),
+        'breakBefore': breakBefore,
       };
 
   factory RoutePoint.fromJson(Map<String, dynamic> json) {
@@ -20,6 +23,7 @@ class RoutePoint {
       latitude: (json['latitude'] ?? 0).toDouble(),
       longitude: (json['longitude'] ?? 0).toDouble(),
       timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
+      breakBefore: json['breakBefore'] == true,
     );
   }
 }
@@ -55,8 +59,11 @@ class TravelReport {
               ?.map((e) => RoutePoint.fromJson(e))
               .toList() ??
           [],
-      startTime: json['startTime'] != null ? DateTime.tryParse(json['startTime']) : null,
-      endTime: json['endTime'] != null ? DateTime.tryParse(json['endTime']) : null,
+      startTime: json['startTime'] != null
+          ? DateTime.tryParse(json['startTime'])
+          : null,
+      endTime:
+          json['endTime'] != null ? DateTime.tryParse(json['endTime']) : null,
     );
   }
 }

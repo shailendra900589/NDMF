@@ -60,7 +60,7 @@ function normalizePoint(raw, now = Date.now()) {
   if (Math.abs(lat) < 1e-6 && Math.abs(lng) < 1e-6) return null;
 
   let at = Date.parse(raw.recordedAt ?? raw.timestamp ?? raw.time ?? '');
-  if (!Number.isFinite(at) || at > now + FUTURE_TOLERANCE_MS) at = now;
+  if (!Number.isFinite(at) || at > now + FUTURE_TOLERANCE_MS) return null;
   if (at < now - MAX_AGE_MS) return null;
 
   const accuracy = num(raw.accuracy);
@@ -92,11 +92,14 @@ function trailPoint(p) {
  * Returns what happened, for logging and tests.
  */
 function ingest(report, point) {
+  if (point.mocked) { report.mockedFixes=(report.mockedFixes || 0)+1; return 'mocked'; }
+  if (point.accuracy == null || point.accuracy <= 0 || point.accuracy > MAX_ACCURACY_FOR_DISTANCE_M) return 'inaccurate';
   if (report.totalMeters == null) report.totalMeters = Math.round((report.totalKm || 0) * 1000);
   expandPath(report);
   if (!Array.isArray(report.routePoints)) report.routePoints = [];
 
   if (report.lastFixAt && point.at <= report.lastFixAt) return 'old';
+  const largeGap=report.lastFixAt && point.at-report.lastFixAt>=GAP_MS;
   if (report.lastFixAt && point.at - report.lastFixAt >= GAP_MS) {
     if (!Array.isArray(report.gaps)) report.gaps = [];
     report.gaps.push({ from: report.lastFixAt, to: point.at });
@@ -120,6 +123,7 @@ function ingest(report, point) {
   if (accuracy > MAX_ACCURACY_FOR_DISTANCE_M) return 'inaccurate';
 
   const anchor = report.anchor;
+  if(anchor && largeGap){markLeft(report);report.anchor={lat:point.lat,lng:point.lng,accuracy,at:point.at};report.anchorSeenAt=point.at;report.pendingMovement=null;report.routePoints.push({...trailPoint(point),breakBefore:true});return 'reanchored';}
   if (!anchor) {
     report.anchor = { lat: point.lat, lng: point.lng, accuracy, at: point.at };
     report.anchorSeenAt = point.at;
@@ -128,10 +132,12 @@ function ingest(report, point) {
   }
 
   const meters = haversineMeters(anchor, point);
-  const seconds = (point.at - anchor.at) / 1000;
+  const seconds = (point.at - (report.anchorSeenAt || anchor.at)) / 1000;
   const threshold = Math.min(MAX_STEP_M, Math.max(MIN_STEP_M, anchor.accuracy + accuracy));
   const still = meters < threshold || (point.speed != null && point.speed < 0.5 && meters < threshold * 2);
   if (still) {
+    report.pendingMovement = null;
+    report.lastLat=anchor.lat;report.lastLng=anchor.lng;
     report.anchorSeenAt = point.at;
     return 'still';
   }
@@ -147,14 +153,26 @@ function ingest(report, point) {
       report.anchor = recent[recent.length - 1];
       report.anchorSeenAt = point.at;
       report.pendingJump = [];
-      report.routePoints.push(trailPoint(point));
+      report.pendingMovement=null;
+      report.routePoints.push({...trailPoint(point),breakBefore:true});
       return 'reanchored';
     }
     report.pendingJump = recent;
+    report.lastLat=anchor.lat;report.lastLng=anchor.lng;
     return 'jump';
   }
 
   report.pendingJump = [];
+  // A single stray fix must not create an excursion out and back. Confirm
+  // movement with another independent fix before moving the distance anchor.
+  const candidate=report.pendingMovement;
+  const stationary=point.speed != null && point.speed < 0.5;
+  if (stationary || !candidate || point.at-candidate.at > 90000 || haversineMeters(candidate,point) > Math.max(100,meters*0.75)) {
+    report.pendingMovement={lat:point.lat,lng:point.lng,at:point.at};
+    report.lastLat=anchor.lat;report.lastLng=anchor.lng;
+    return 'pending';
+  }
+  report.pendingMovement=null;
   markLeft(report);
   report.totalMeters += meters;
   report.totalKm = Math.round(report.totalMeters / 10) / 100;
@@ -179,11 +197,12 @@ function markLeft(report) {
  */
 function expandPath(report) {
   if (!Array.isArray(report.path)) return;
-  report.routePoints = report.path.map(([lat, lng, at, left, acc]) => ({
+  report.routePoints = report.path.map(([lat, lng, at, left, acc, split]) => ({
     latitude: lat,
     longitude: lng,
     timestamp: new Date(at * 1000).toISOString(),
     accuracy: acc || null,
+    ...(split?{breakBefore:true}:{}),
     ...(left ? { leftAt: new Date(left * 1000).toISOString() } : {}),
   }));
   delete report.path;
@@ -194,12 +213,13 @@ function expandPath(report) {
 function reportPoints(report) {
   if (!report) return [];
   if (Array.isArray(report.path)) {
-    return report.path.map(([lat, lng, at, left, acc]) => ({
+    return report.path.map(([lat, lng, at, left, acc, split]) => ({
       lat,
       lng,
       at: at * 1000,
       leftAt: left ? left * 1000 : null,
       accuracy: acc || null,
+      breakBefore:!!split,
     }));
   }
   return (report.routePoints || [])
@@ -209,6 +229,7 @@ function reportPoints(report) {
       at: Date.parse(p.timestamp),
       leftAt: p.leftAt ? Date.parse(p.leftAt) : null,
       accuracy: p.accuracy ?? null,
+      breakBefore:p.breakBefore===true,
     }))
     .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && Number.isFinite(p.at))
     .sort((a, b) => a.at - b.at);
@@ -241,6 +262,7 @@ function compactReport(report) {
   keep[pts.length - 1] = true;
   const gaps = report.gaps || [];
   pts.forEach((p, i) => {
+    if(p.breakBefore){keep[i]=true;if(i>0)keep[i-1]=true;}
     if (p.leftAt && p.leftAt - p.at >= 60 * 1000) keep[i] = true;
     const next = pts[i + 1];
     if (next && gaps.some((g) => g.from >= p.at && g.to <= next.at + 1000)) {
@@ -273,11 +295,13 @@ function compactReport(report) {
       Math.round(p.at / 1000),
       p.leftAt ? Math.round(p.leftAt / 1000) : 0,
       p.accuracy ? Math.round(p.accuracy) : 0,
+      p.breakBefore ? 1 : 0,
     ]);
   report.compactedAt = new Date().toISOString();
   delete report.routePoints;
   delete report.anchor;
   delete report.pendingJump;
+  delete report.pendingMovement;
   return report;
 }
 

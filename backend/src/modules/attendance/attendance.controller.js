@@ -82,7 +82,6 @@ function teamForActor(actor, allUsers, branchFilter) {
 }
 
 function requiresFaceVerification(user) {
-  if (!getAppSettings().faceAttendanceRequired) return false;
   return user.role === 'fieldOfficer' || user.role === 'branchManager';
 }
 
@@ -104,6 +103,10 @@ function activeShift(record, userId) {
   const age = Date.now() - Date.parse(record.checkInTime);
   return record.userId === userId && !record.checkOutTime && age >= 0 && age <= 20 * 60 * 60 * 1000;
 }
+function freshGps(body) {
+  const age=Date.now()-Date.parse(body.gpsRecordedAt);
+  return body.mocked===false && typeof body.accuracy==='number' && body.accuracy>=0 && body.accuracy<=35 && Number.isFinite(age) && age>=-5000 && age<=60000;
+}
 
 exports.checkIn = async (req, res) => {
   const user = findById('users', req.user.id) || req.user;
@@ -118,6 +121,7 @@ exports.checkIn = async (req, res) => {
   if (!validPosition(lat, lng)) {
     return error(res, 'GPS location is not valid');
   }
+  if (!freshGps(req.body)) return error(res,'Fresh precise GPS (35 m or better) is required. Mock locations are not allowed.');
   const today = dateKey();
   const attendance = getCollection('attendance');
   const existing = attendance.find(a => a.userId === req.user.id && dateKey(a.date) === today);
@@ -134,6 +138,7 @@ exports.checkIn = async (req, res) => {
     const fresh =
       facePass &&
       !facePass.usedAt &&
+      facePass.livenessVerified === true &&
       facePass.purpose !== 'checkout' &&
       new Date(facePass.expiresAt).getTime() > Date.now();
     if (!fresh) {
@@ -190,6 +195,7 @@ exports.checkOut = async (req, res) => {
   const { lat, lng } = req.body;
   if (lat == null || lng == null) return error(res, 'GPS location required');
   if (!validPosition(lat, lng)) return error(res, 'GPS location is not valid');
+  if (!freshGps(req.body)) return error(res,'Fresh precise GPS (35 m or better) is required. Mock locations are not allowed.');
 
   const today = dateKey();
   const attendance = getCollection('attendance');
@@ -209,7 +215,7 @@ exports.checkOut = async (req, res) => {
   if (['fieldOfficer', 'branchManager'].includes(user.role)) {
     if (!isEnrollmentComplete(user)) return enrollmentError(res, user);
     facePass = user.faceVerification;
-    if (!facePass || facePass.purpose !== 'checkout' || facePass.usedAt || !(new Date(facePass.expiresAt).getTime() > Date.now())) {
+    if (!facePass || !facePass.livenessVerified || facePass.purpose !== 'checkout' || facePass.usedAt || !(new Date(facePass.expiresAt).getTime() > Date.now())) {
       return error(res, 'Fresh live face verification required for check-out', 400);
     }
     facePass.usedAt = new Date().toISOString();
@@ -273,11 +279,21 @@ function recentFailures(user) {
  * Live selfie is compared with the employee's own enrolled face.
  * The image is NOT stored (processed in memory).
  */
+exports.createFaceChallenge = async (req,res) => {
+  const purpose=req.body.purpose;
+  if (!['checkin','checkout'].includes(purpose)) return error(res,'Choose checkin or checkout');
+  const user=findById('users',req.user.id);
+  if (!isEnrollmentComplete(user)) return enrollmentError(res,user);
+  const challenge={id:uuid(),purpose,action:require('node:crypto').randomInt(2)?'open_mouth':'close_eyes',expiresAt:new Date(Date.now()+180000).toISOString()};
+  upsert('users',{...user,faceChallenge:challenge,faceVerification:null},{single:true});await flush();
+  return success(res,challenge,'Follow the live camera instructions');
+};
 exports.verifyLiveFace = async (req, res) => {
   if (!requiresFaceVerification(req.user) && !(req.body.purpose === 'checkout' && ['fieldOfficer','branchManager'].includes(req.user.role))) {
     return success(res, { verified: true, matchScore: 1, skipped: true, message: 'Face not required' });
   }
-  if (!req.file) return error(res, 'Live photo required');
+  const neutralFile=req.files?.file?.[0], actionFile=req.files?.actionFile?.[0];
+  if (!neutralFile || !actionFile) return error(res, 'Two fresh in-app camera captures are required. Update your app.');
   const storedUser = findById('users', req.user.id);
   if (!storedUser) return error(res, 'User not found', 404);
   const user = structuredClone(storedUser);
@@ -287,6 +303,10 @@ exports.verifyLiveFace = async (req, res) => {
   if (recentFailures(user).length >= FACE_FAIL_LIMIT) {
     return error(res, 'Too many failed face checks — try again in 15 minutes', 429);
   }
+  const challenge=user.faceChallenge;
+  if (!challenge || challenge.id!==req.body.challengeId || challenge.purpose!==(req.body.purpose || 'checkin') || challenge.usedAt || Date.parse(challenge.expiresAt)<=Date.now()) return error(res,'Live challenge expired or already used. Start the camera check again.',409);
+  upsert('users',{...storedUser,faceChallenge:{...challenge,usedAt:new Date().toISOString()},faceVerification:null},{single:true});
+  await flush();
 
   const revision = enrollmentRevision(user);
   const save = u => {
@@ -295,6 +315,7 @@ exports.verifyLiveFace = async (req, res) => {
       throw new FaceCheckError('Face registration changed. Refresh your profile and verify again.', 'enrollment_changed');
     }
     // Preserve profile/permission changes made while face inference was running.
+    if(current.faceChallenge?.id!==challenge.id) throw new FaceCheckError('Live challenge changed. Start a new camera check.', 'enrollment_changed');
     const faceFields = ['faceDescriptors','faceDescriptorUrls','faceDescriptorVersion','faceEnrollmentValid',
       'faceEnrollmentProblem','faceVerification','faceVerifyFailures'];
     const next = { ...current };
@@ -330,7 +351,7 @@ exports.verifyLiveFace = async (req, res) => {
 
   let live;
   try {
-    live = await describeFace(req.file.buffer);
+    live = await describeFace(neutralFile.buffer);
   } catch (err) {
     if (err instanceof FaceCheckError) return fail(err.message, err.code);
     console.error('Live face check failed:', err);
@@ -338,6 +359,15 @@ exports.verifyLiveFace = async (req, res) => {
   }
 
   const result = compare(live.descriptor, enrolled);
+  if (!result.matched) return fail('Face does not match the registered employee','mismatch',{matchScore:result.matchScore});
+  if (require('../../lib/faceLiveness').digest(neutralFile.buffer)===require('../../lib/faceLiveness').digest(actionFile.buffer)) return fail('A static photo cannot pass the live camera check','liveness_failed',{matchScore:result.matchScore});
+  let action;
+  try { action=await describeFace(actionFile.buffer); } catch(err) {
+    if(err instanceof FaceCheckError) return fail(err.message,err.code);
+    throw err;
+  }
+  const actionMatch=compare(action.descriptor,enrolled);
+  if (!actionMatch.matched || !require('../../lib/faceLiveness').actionPassed(live.liveness,action.liveness,challenge.action)) return fail('Live action did not match. Use your face in the camera and follow the instructions.', 'liveness_failed',{matchScore:Math.min(result.matchScore,actionMatch.matchScore)});
   if (!result.matched) {
     return fail('Face does not match the registered employee', 'mismatch', { matchScore: result.matchScore });
   }
@@ -346,6 +376,8 @@ exports.verifyLiveFace = async (req, res) => {
   user.faceVerification = {
     id: uuid(),
     purpose: req.body.purpose === 'checkout' ? 'checkout' : 'checkin',
+    livenessVerified: true,
+    challengeId: challenge.id,
     verifiedAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + FACE_PASS_TTL_MS).toISOString(),
     matchScore: result.matchScore,
@@ -358,6 +390,8 @@ exports.verifyLiveFace = async (req, res) => {
     verified: true,
     matchScore: result.matchScore,
     message: 'Face verified',
+    matchPercentage: Math.round(result.matchScore * 100),
+    livenessVerified: true,
   });
 };
 

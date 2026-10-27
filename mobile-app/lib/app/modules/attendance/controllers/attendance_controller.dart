@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import '../../../widgets/live_face_camera.dart';
 import '../../../data/models/attendance_model.dart';
 import '../../../data/models/enums/app_enums.dart';
 import '../../../data/services/ndfa_api_service.dart';
@@ -23,6 +24,7 @@ class AttendanceController extends GetxController {
   AttendanceModel? todayRecord;
   final stateConfirmed = false.obs;
   final loadError = ''.obs;
+  final matchPercentage = Rxn<double>();
 
   bool get facePolicyRequired =>
       _storage.getUser()?.faceAttendanceRequired ?? true;
@@ -65,23 +67,28 @@ class AttendanceController extends GetxController {
       await _api.syncSession();
       await loadHistory();
       if (!stateConfirmed.value || !canCheckIn) return;
-      final loc = await _location.getPosition();
+      var loc = await _location.getPosition();
       if (loc == null) {
         Get.snackbar('GPS Required',
             'Enable location and allow location permission for attendance');
         return;
       }
       var verified = false;
-      if (facePolicyRequired && _roleNeedsFaceWhenEnabled) {
+      if (_roleNeedsFaceWhenEnabled) {
         verified = await _verifyLiveFace();
         if (!verified) return;
       }
+      loc = await _location.getPosition();
+      if (loc == null) return;
 
       final saved = await _api.markAttendance(
         isCheckIn: true,
         lat: loc.latitude,
         lng: loc.longitude,
         faceVerified: verified,
+        accuracy: loc.accuracy,
+        gpsRecordedAt: loc.timestamp.toUtc().toIso8601String(),
+        mocked: loc.isMocked,
       );
       todayRecord = saved;
       await loadHistory();
@@ -113,13 +120,18 @@ class AttendanceController extends GetxController {
       if (_roleNeedsFaceWhenEnabled) {
         if (!await _verifyLiveFace(purpose: 'checkout')) return;
       }
-      final loc = await _location.getCurrentLocation();
+      final loc = await _location.getPosition();
       if (loc == null) {
         Get.snackbar('GPS Required', 'Location is mandatory for attendance');
         return;
       }
       final saved = await _api.markAttendance(
-          isCheckIn: false, lat: loc.latitude, lng: loc.longitude);
+          isCheckIn: false,
+          lat: loc.latitude,
+          lng: loc.longitude,
+          accuracy: loc.accuracy,
+          gpsRecordedAt: loc.timestamp.toUtc().toIso8601String(),
+          mocked: loc.isMocked);
       todayRecord = saved;
       await loadHistory();
       Get.snackbar('Success',
@@ -148,6 +160,7 @@ class AttendanceController extends GetxController {
       !todayRecord!.isCheckedOut;
 
   Future<bool> _verifyLiveFace({String purpose = 'checkin'}) async {
+    matchPercentage.value=null;
     final status = await _api.getFaceEnrollmentStatus();
     if (status['complete'] != true) {
       Get.snackbar(
@@ -157,20 +170,38 @@ class AttendanceController extends GetxController {
       Get.toNamed(AppRoutes.faceEnrollment);
       return false;
     }
-    final picker = ImagePicker();
-    final file = await picker.pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.front,
-      imageQuality: 80,
-      maxWidth: 1280,
-      maxHeight: 1280,
-    );
-    if (file == null) {
+    final challenge = await _api.requestFaceChallenge(purpose);
+    final capture = await Get.to<LiveFaceCapture>(
+        () => LiveFaceCamera(action: challenge['action']?.toString()));
+    if (capture == null || capture.actionPath == null) {
       Get.snackbar('Cancelled', 'Live selfie required for attendance');
       return false;
     }
-    final ok = await _api.verifyAttendanceFace(file.path, purpose: purpose);
+    Map<String, dynamic> result;
+    try {
+      result = await _api.verifyLiveAttendanceFace(capture.neutralPath,
+          capture.actionPath!, challenge['id'].toString(), purpose);
+    } finally {
+      for (final path in [capture.neutralPath, capture.actionPath!]) {
+        try {
+          await File(path).delete();
+        } catch (_) {}
+      }
+    }
+    final ok = result['verified'] == true && result['livenessVerified'] == true;
+    matchPercentage.value = (result['matchPercentage'] as num?)?.toDouble() ??
+        ((result['matchScore'] as num?)?.toDouble() ?? 0) * 100;
+    if (ok)
+      Get.snackbar('Live face verified',
+          'Face similarity ${matchPercentage.value!.toStringAsFixed(0)}%');
     if (!ok) {
+      if (result['reason'] != 'mismatch') {
+        Get.snackbar(
+            'Live check failed',
+            result['message']?.toString() ??
+                'Follow the camera instructions and retry.');
+        return false;
+      }
       final reset = await Get.dialog<bool>(
         AlertDialog(
           title: const Text('Face did not match'),
