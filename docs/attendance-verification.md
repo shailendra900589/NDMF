@@ -1,4 +1,4 @@
-# Attendance verification — mobile 1.5.0 (26)
+# Attendance verification — mobile 1.5.1 (27)
 
 ## Employee flow
 
@@ -16,4 +16,10 @@ The route is an estimate from GPS observations, not exact road-by-road ground tr
 
 ## Deployment
 
-Pull the backend/frontend and install the published **1.5.0 (26)** APK from the website. Older apps cannot complete the required two-frame challenge and must update. Existing enrolled reference photos remain available; enrollment resets are not required solely for this release.
+Pull the backend/frontend and install the published **1.5.1 (27)** APK from the website. Older apps must update. Existing enrolled reference photos remain available; enrollment resets are not required solely for this release.
+
+## Tracking recovery and diagnostics
+
+The app restores duty tracking after login, attendance refresh and resume, and refreshes on network reconnection. Failed GPS uploads remain in an employee-scoped queue and retry even without a new position. Interrupted location streams restart. A separate heartbeat reports location permissions, background permission, app version and service state; it never changes the GPS capture timestamp.
+
+Fresh coarse observations up to 150 metres can identify an approximate live position, but fixes exceeding 35 metres do not add route distance. The dashboard distinguishes reduced GPS accuracy, location switched off, missing permission, GPS pending and stopped app updates. Stale data is never relabelled Live. Install this APK on each field phone, allow background location and review Android battery restrictions. A force-stopped app or disconnected phone cannot be made live remotely. Automated HTTP and queue tests verify recovery logic; actual field-phone background operation still needs device validation.

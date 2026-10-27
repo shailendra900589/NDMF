@@ -7,12 +7,15 @@ import 'connectivity_service.dart';
 import 'ndfa_api_service.dart';
 import 'storage_service.dart';
 import 'sync_service.dart';
+import 'tracking_service.dart';
+import '../../utils/attendance_state.dart';
 
 /// Keeps mobile app in sync with web backend (no separate app backend).
 class DataRefreshService extends GetxService with WidgetsBindingObserver {
   static const Duration _interval = Duration(seconds: 45);
 
   Timer? _timer;
+  Worker? _connectionWorker;
   final lastRefreshAt = Rxn<DateTime>();
   final isRefreshing = false.obs;
 
@@ -22,6 +25,9 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
 
   Future<DataRefreshService> init() async {
     WidgetsBinding.instance.addObserver(this);
+    _connectionWorker = ever(_connectivity.isOnline, (online) {
+      if (online) unawaited(refreshAll(silent: true));
+    });
     _timer = Timer.periodic(_interval, (_) => refreshAll(silent: true));
     // Do not await — refresh in background so app open stays fast.
     unawaited(refreshAll(silent: true));
@@ -31,6 +37,7 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
   @override
   void onClose() {
     _timer?.cancel();
+    _connectionWorker?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.onClose();
   }
@@ -88,6 +95,9 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
     if (_storage.getPermissions()['attendance'] != true) return;
     try {
       final list = await _api.getAttendanceHistory();
+      if (Get.isRegistered<TrackingService>())
+        await Get.find<TrackingService>().syncWithAttendanceState(
+            ownAttendanceState(list, _storage.getUser()?.id ?? ''));
       _storage.writeList(
         ApiConstants.attendanceKey,
         list.map((e) => e.toJson()).toList(),

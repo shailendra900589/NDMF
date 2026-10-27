@@ -33,4 +33,4 @@ The app captures fresh camera evidence; device GPS, capture time and the locatio
 
 ## Release
 
-Install mobile version **1.5.0 (26)** after deploying the backend and admin frontend. This version also requires an in-app live face challenge for attendance and filters GPS drift. Older apps must update to use attendance. The website reads `/downloads/release.json` to choose the current APK.
+Install mobile version **1.5.1 (27)** after deploying the backend and admin frontend. This version also requires an in-app live face challenge for attendance, filters GPS drift and improves background tracking recovery. Older apps must update to use attendance. The website reads `/downloads/release.json` to choose the current APK.

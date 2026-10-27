@@ -27,6 +27,7 @@ class TrackingController extends GetxController {
 
   @override
   Future<void> refresh() async {
+    await _tracking.retryPendingUploads();
     await _tracking.refreshTodayFromServer();
     loadHistory();
   }

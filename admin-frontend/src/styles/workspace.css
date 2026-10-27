@@ -1,4 +1,5 @@
 /* Shared workspace hierarchy for every operations page. */
+.live-dot--weak_gps,.live-dot--gps_pending,.live-dot--location_off,.live-dot--permission_required{background:#d97706!important}.live-pin--weak_gps,.live-pin--gps_pending,.live-pin--location_off,.live-pin--permission_required{background:#d97706!important;border-color:#fff}
 .content { max-width: 1800px; width: 100%; margin: 0 auto; box-sizing: border-box; }
 .page-header { align-items: flex-start; gap: 20px; margin-bottom: 26px; }
 .page-header__title { letter-spacing: -.035em; }

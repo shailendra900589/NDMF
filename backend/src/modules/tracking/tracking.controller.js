@@ -119,6 +119,9 @@ function recordFixes(user, rawPoints) {
     const shiftReport = reportFor(user, att, true);
     for (const p of points) {
       const status=ingest(shiftReport, p);
+      // Approximate positions remain useful live observations, but never add
+      // poor-accuracy fixes to the employee's travelled route or distance.
+      if(!p.mocked && p.accuracy>0 && p.accuracy<=150 && (!latest || p.at>latest.at)) latest={...p,lat:status==='inaccurate'?p.lat:shiftReport.lastLat,lng:status==='inaccurate'?p.lng:shiftReport.lastLng,attendanceId:att.id};
       if (['anchor','moved','still','reanchored'].includes(status)) {
         accepted += 1;
         if (!latest || p.at>latest.at) latest={...p,lat:shiftReport.lastLat,lng:shiftReport.lastLng,attendanceId:att.id};
@@ -146,6 +149,12 @@ exports.livePing = (req, res) => {
     lastLat: result.report?.lastLat ?? null,
     lastLng: result.report?.lastLng ?? null,
   });
+};
+exports.heartbeat=(req,res)=>{
+  const body=req.body || {};
+  const row={id:req.user.id,userId:req.user.id,receivedAt:new Date().toISOString(),locationEnabled:body.locationEnabled===true,permission:body.permission==='granted'?'granted':'denied',backgroundAllowed:body.backgroundAllowed===true,trackingActive:body.trackingActive===true,appVersion:String(body.appVersion || 'unknown').slice(0,30),issue:String(body.issue || '').slice(0,200)};
+  upsert('trackingDevices',row,{deferMs:LIVE_WRITE_DELAY_MS});
+  return success(res,{receivedAt:row.receivedAt,onDuty:!!currentShift(req.user.id,Date.now()) && !currentShift(req.user.id,Date.now()).checkOutTime},'App heartbeat received');
 };
 
 /** Batch of fixes, e.g. collected while the phone had no internet. */
@@ -232,10 +241,9 @@ exports.getLiveTeam = (req, res) => {
       if (lat == null || lng == null) return null;
       const lastSeenAt = todayLoc?.at || report?.endTime || att.checkInTime;
       const age = now - Date.parse(lastSeenAt);
-      let status = 'offline';
-      if (att.checkOutTime) status = 'checked_out';
-      else if (age <= LIVE_WINDOW_MS) status = 'live';
-      else if (age <= DELAYED_WINDOW_MS) status = 'delayed';
+      const heartbeat=findById('trackingDevices',u.id);
+      const health=require('../../lib/trackingHealth').trackingHealth({lastFixAt:lastSeenAt,accuracy:todayLoc?.accuracy ?? report?.lastAccuracy,heartbeat,checkedOut:!!att.checkOutTime,now});
+      const status=health.status;
       return {
         userId: u.id,
         employeeId: u.employeeId,
@@ -251,6 +259,11 @@ exports.getLiveTeam = (req, res) => {
         lastSeenAt,
         secondsAgo: Math.max(0, Math.round(age / 1000)),
         status,
+        deviceOnline:health.deviceOnline,
+        statusReason:health.reason,
+        appLastSeenAt:heartbeat?.receivedAt || null,
+        appVersion:heartbeat?.appVersion || null,
+        backgroundAllowed:heartbeat?.backgroundAllowed ?? null,
         onDuty: !att.checkOutTime,
         checkInTime: att.checkInTime,
         checkOutTime: att.checkOutTime || null,

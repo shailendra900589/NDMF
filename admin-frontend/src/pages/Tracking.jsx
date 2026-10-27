@@ -102,8 +102,8 @@ export default function Tracking() {
                     {e.mocked && <div style={{ color: '#b91c1c', fontSize: 12, fontWeight: 600 }}>Fake GPS app detected</div>}
                   </td>
                   <td>{displayLocation(e.branch)}</td>
-                  <td><span className={`live-dot live-dot--${e.status}`} style={{ display: 'inline-block', marginRight: 6 }} />{STATUS_LABELS[e.status]}</td>
-                  <td>{timeAgo(e.lastSeenAt, now)}</td>
+                  <td title={e.statusReason}><span className={`live-dot live-dot--${e.status}`} style={{ display: 'inline-block', marginRight: 6 }} />{STATUS_LABELS[e.status]}<small style={{display:'block',maxWidth:250,color:'var(--color-text-muted)',fontSize:11,marginTop:5}}>{e.statusReason}</small></td>
+                  <td>GPS: {timeAgo(e.lastSeenAt, now)}<small style={{display:'block',fontSize:11,marginTop:5}}>App: {e.appLastSeenAt?timeAgo(e.appLastSeenAt,now):'No heartbeat yet'} · {e.appVersion || 'Update app'}</small>{e.backgroundAllowed===false&&<small style={{display:'block',fontSize:11,color:'#b45309'}}>Allow background location on phone</small>}</td>
                   <td>{e.accuracy != null ? `±${Math.round(e.accuracy)} m` : '—'}</td>
                   <td>{e.speedKmh != null ? `${e.speedKmh} km/h` : '—'}</td>
                   <td><strong>{Number(e.totalKmToday || 0).toFixed(2)} km</strong></td>
