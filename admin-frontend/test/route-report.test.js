@@ -10,7 +10,7 @@ test('monthly summaries count all shifts while detailed export preserves each st
   assert.equal(output.rows.length,6);
   const travel=output.rows.find(r=>r[4]==='travel');
   assert.match(travel[9],/Test place.*26.00000/);assert.match(travel[10],/27.00000/);
-  assert.equal(output.rows.find(r=>r[4]==='Stop 1')[7],15);assert.match(output.rows.at(-1)[11],/no GPS route recorded/);
+  assert.equal(output.rows.find(r=>r[4]==='Stop 1')[7],15);assert.match(output.rows.at(-1)[11],/route points not received/);
   assert.match(output.rows.find(r=>r[4]==='Shift summary')[5],/00:30:00/);
   assert.equal(output.rows.find(r=>r[4]==='Daily total')[8],3);
 });

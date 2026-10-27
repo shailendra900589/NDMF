@@ -84,13 +84,9 @@ class RemoteApiService extends GetxService {
             'Super Admin accounts use the website: ndclients.co.in');
       }
       final user = UserModel.fromJson(authData);
+      if (user.token.isEmpty || user.id.isEmpty) throw Exception('Login response is incomplete. Please try again.');
       _storage.saveUser(user);
-      try {
-        await syncSession();
-      } catch (_) {
-        // Login token is still valid; profile sync can retry later.
-      }
-      return _storage.getUser();
+      return user;
     } catch (e) {
       _fail(e);
     }
@@ -105,6 +101,7 @@ class RemoteApiService extends GetxService {
       final map = _unwrapMap(res);
       map['token'] = token;
       final user = UserModel.fromJson(map);
+      if (_storage.getToken() != token) return _storage.getUser();
       _storage.saveUser(user);
       return user;
     } catch (e) {
@@ -285,8 +282,10 @@ class RemoteApiService extends GetxService {
   }
 
   Future<List<AttendanceModel>> getAttendanceHistory() async {
-    final res = await _http.get(ApiConstants.attendanceHistory);
-    return _unwrapList(res).map(AttendanceModel.fromJson).toList();
+    final uid = _storage.getUser()?.id;
+    if (uid == null || uid.isEmpty) throw Exception('Sign in again to load your attendance');
+    final res = await _http.get(ApiConstants.attendanceHistory, queryParameters: {'scope': 'mine'});
+    return _unwrapList(res).where((row) => row['userId'] == uid).map(AttendanceModel.fromJson).toList();
   }
 
   // ─── Customer Listing ───

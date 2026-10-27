@@ -33,4 +33,4 @@ The app captures fresh camera evidence; device GPS, capture time and the locatio
 
 ## Release
 
-Install mobile version **1.4.1 (24)** after deploying the backend and admin frontend. Older apps do not contain the new visit report form. The website reads `/downloads/release.json` to choose the current APK.
+Install mobile version **1.4.2 (25)** after deploying the backend and admin frontend. This version also isolates personal attendance from branch-manager team records and improves login connection recovery. Older apps do not contain these fixes. The website reads `/downloads/release.json` to choose the current APK.

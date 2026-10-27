@@ -1,9 +1,9 @@
 {
-  "version": "1.4.1",
-  "versionCode": 24,
-  "file": "mystaff-smart-1.4.1.apk",
-  "sizeBytes": 65310677,
-  "sha256": "e43b0f522826b7a535cd72e59ec4ca574aee3045da9f825766407845a059ac14",
+  "version": "1.4.2",
+  "versionCode": 25,
+  "file": "mystaff-smart-1.4.2.apk",
+  "sizeBytes": 65376213,
+  "sha256": "7e40a1aea4497e350a6877b2343992079fb7002d8b2760b905d187eb5545aba0",
   "apiBaseUrl": "https://ndclients.co.in/api/v1",
   "minSdk": 24,
   "architectures": [

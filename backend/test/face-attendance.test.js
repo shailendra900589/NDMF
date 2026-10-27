@@ -82,6 +82,27 @@ test('registered phone attendance survives persistence, signed URLs and concurre
     liveValue=0;
     assert.equal((await call('/attendance/verify-face','POST',selfie())).data.verified,true);
   });
+  await t.test('dummy manager login, own attendance and face-verified checkout stay separate from team history',async()=>{
+    const bcrypt=require('bcryptjs');
+    db.upsert('users',{id:'MANAGER_QA',companyId:'CO_TEST',employeeId:'MANAGER_QA',name:'Dummy manager',mobile:'9001000099',role:'branchManager',branch:'Office',workType:'field',isActive:true,password:bcrypt.hashSync('ManagerFixture432!',4)});
+    const auth=await call('/auth/login','POST',{loginId:'MANAGER_QA',password:'ManagerFixture432!'});
+    assert.equal(auth.status,200);const manager=auth.data.token;
+    assert.equal((await call('/auth/me','GET',undefined,manager)).data.id,'MANAGER_QA');
+    assert.ok((await call('/attendance/history','GET',undefined,manager)).data.some(a=>a.userId==='EMP'));
+    assert.equal((await call('/attendance/history?scope=mine','GET',undefined,manager)).data.length,0);
+    const notChecked=await call('/attendance/check-out','POST',{lat:26.7,lng:83.4},manager);
+    assert.equal(notChecked.status,400);assert.equal(notChecked.message,'Check in first');
+    assert.equal((await call('/users/me/face-enrollment','PUT',{urls},manager)).status,200);
+    assert.equal((await call('/attendance/verify-face','POST',selfie(),manager)).data.verified,true);
+    const own=await call('/attendance/check-in','POST',{lat:26.7,lng:83.4},manager);assert.equal(own.status,200);
+    const mine=await call('/attendance/history?scope=mine','GET',undefined,manager);assert.equal(mine.data.length,1);assert.equal(mine.data[0].userId,'MANAGER_QA');
+    assert.equal((await call('/attendance/verify-face','POST',selfie(),manager)).data.verified,true);
+    assert.equal((await call('/attendance/check-out','POST',{lat:26.7,lng:83.4},manager)).status,400,'even an unused check-in selfie cannot authorize checkout');
+    const checkout=selfie();checkout.append('purpose','checkout');
+    assert.equal((await call('/attendance/verify-face','POST',checkout,manager)).data.verified,true);
+    const closed=await call('/attendance/check-out','POST',{lat:26.7,lng:83.4},manager);assert.equal(closed.status,200);assert.equal(closed.data.checkOutFaceVerified,true);
+    assert.ok((await call('/attendance/history?scope=mine','GET',undefined,manager)).data[0].checkOutTime);
+  });
   await t.test('reset during live inference cannot restore deleted face data',async()=>{
     let started,finish;
     const entered=new Promise(r=>started=r),gate=new Promise(r=>finish=r);

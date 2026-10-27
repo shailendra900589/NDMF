@@ -1,4 +1,7 @@
 /// A module permission failure must not sign out an otherwise valid session.
+bool isCurrentSessionRequest(String? authorization, String? token) =>
+    token != null && token.isNotEmpty && authorization == 'Bearer $token';
+
 bool shouldExpireSession(int? status, String path, String message) {
   if (path.contains('/auth/login') || path.contains('/auth/otp/')) return false;
   if (path.contains('/auth/change-password') &&

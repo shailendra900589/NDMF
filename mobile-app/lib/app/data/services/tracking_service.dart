@@ -8,6 +8,7 @@ import 'storage_service.dart';
 import 'api_constants.dart';
 import 'location_service.dart';
 import 'ndfa_api_service.dart';
+import '../../utils/attendance_state.dart';
 
 /// Duty GPS — starts on attendance check-in, stops on check-out.
 /// Sends one fix every 15 seconds; the server works out the distance.
@@ -56,13 +57,7 @@ class TrackingService extends GetxService {
   Future<void> _resumeFromAttendanceIfNeeded() async {
     try {
       final history = await _api.getAttendanceHistory();
-      final today = DateTime.now();
-      final todayAtt = history.firstWhereOrNull(
-        (a) =>
-            a.date.year == today.year &&
-            a.date.month == today.month &&
-            a.date.day == today.day,
-      );
+      final todayAtt = ownAttendanceState(history, _storage.getUser()?.id ?? '');
       await syncWithAttendanceState(todayAtt);
     } catch (_) {}
   }

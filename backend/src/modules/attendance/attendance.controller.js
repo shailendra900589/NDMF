@@ -134,6 +134,7 @@ exports.checkIn = async (req, res) => {
     const fresh =
       facePass &&
       !facePass.usedAt &&
+      facePass.purpose !== 'checkout' &&
       new Date(facePass.expiresAt).getTime() > Date.now();
     if (!fresh) {
       return error(res, 'Live face verification required for check-in', 400);
@@ -208,7 +209,7 @@ exports.checkOut = async (req, res) => {
   if (['fieldOfficer', 'branchManager'].includes(user.role)) {
     if (!isEnrollmentComplete(user)) return enrollmentError(res, user);
     facePass = user.faceVerification;
-    if (!facePass || facePass.usedAt || !(new Date(facePass.expiresAt).getTime() > Date.now())) {
+    if (!facePass || facePass.purpose !== 'checkout' || facePass.usedAt || !(new Date(facePass.expiresAt).getTime() > Date.now())) {
       return error(res, 'Fresh live face verification required for check-out', 400);
     }
     facePass.usedAt = new Date().toISOString();
@@ -344,6 +345,7 @@ exports.verifyLiveFace = async (req, res) => {
   const now = new Date();
   user.faceVerification = {
     id: uuid(),
+    purpose: req.body.purpose === 'checkout' ? 'checkout' : 'checkin',
     verifiedAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + FACE_PASS_TTL_MS).toISOString(),
     matchScore: result.matchScore,
@@ -362,12 +364,13 @@ exports.verifyLiveFace = async (req, res) => {
 exports.getHistory = (req, res) => {
   const users = getCollection('users');
   let history = getCollection('attendance');
-  if (req.user.role === 'fieldOfficer') {
+  if (req.user.role === 'fieldOfficer' || req.query.scope === 'mine') {
     history = history.filter((a) => a.userId === req.user.id);
   } else {
     history = filterByBranchViaUser(history, req.user, users);
   }
   history.sort((a, b) => new Date(b.date) - new Date(a.date));
+  res.setHeader('Cache-Control', 'private, no-store');
   return success(res, history);
 };
 

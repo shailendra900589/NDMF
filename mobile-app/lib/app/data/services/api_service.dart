@@ -27,7 +27,10 @@ class ApiService extends GetxService {
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
         final token = _storage.getToken();
-        if (token != null && token.isNotEmpty) {
+        if (options.path.contains('/auth/login') ||
+            options.path.contains('/auth/otp/')) {
+          options.headers.remove('Authorization');
+        } else if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
         handler.next(options);
@@ -76,7 +79,9 @@ class ApiService extends GetxService {
     }
     if (shouldExpireSession(
             error.response?.statusCode, error.requestOptions.path, message) &&
-        (_storage.getToken()?.isNotEmpty ?? false)) {
+        isCurrentSessionRequest(
+            error.requestOptions.headers['Authorization']?.toString(),
+            _storage.getToken())) {
       _storage.clearAuthSession();
       showSessionExpiredDialog();
     }
@@ -87,7 +92,6 @@ class ApiService extends GetxService {
     try {
       return await _dio.get(path, queryParameters: queryParameters);
     } on DioException catch (e) {
-      _handleError(e);
       throw Exception(apiErrorMessage(e));
     }
   }
@@ -95,12 +99,19 @@ class ApiService extends GetxService {
   Future<Response> post(String path,
       {dynamic data, Map<String, dynamic>? queryParameters}) async {
     try {
-      return await _dio.post(path,
-          data: data, queryParameters: queryParameters);
-    } on DioException catch (e) {
-      if (!path.contains('/auth/login') && !path.contains('/auth/otp')) {
-        _handleError(e);
+      final authRequest = path.contains('/auth/login');
+      for (var attempt = 0;; attempt++) {
+        try {
+          return await _dio.post(path,
+              data: data, queryParameters: queryParameters);
+        } on DioException catch (e) {
+          if (!authRequest || attempt >= 1 || !isTransientConnectionError(e)) {
+            rethrow;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        }
       }
+    } on DioException catch (e) {
       throw Exception(apiErrorMessage(e));
     }
   }
@@ -109,7 +120,6 @@ class ApiService extends GetxService {
     try {
       return await _dio.put(path, data: data);
     } on DioException catch (e) {
-      _handleError(e);
       throw Exception(apiErrorMessage(e));
     }
   }
@@ -118,7 +128,6 @@ class ApiService extends GetxService {
     try {
       return await _dio.delete(path, data: data);
     } on DioException catch (e) {
-      _handleError(e);
       throw Exception(apiErrorMessage(e));
     }
   }
@@ -135,7 +144,6 @@ class ApiService extends GetxService {
         ),
       );
     } on DioException catch (e) {
-      _handleError(e);
       throw Exception(apiErrorMessage(e));
     }
   }

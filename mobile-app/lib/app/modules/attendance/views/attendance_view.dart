@@ -33,7 +33,8 @@ class AttendanceView extends GetView<AttendanceController> {
           ),
         ),
         body: Obx(() {
-          if (controller.isLoading.value) return const ListSkeleton(itemCount: 3);
+          if (controller.isLoading.value)
+            return const ListSkeleton(itemCount: 3);
           return const TabBarView(
             children: [
               _CheckTab(),
@@ -51,86 +52,145 @@ class _CheckTab extends GetView<AttendanceController> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: controller.loadHistory,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: AppRadii.card,
-                boxShadow: AppShadows.card,
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    controller.canCheckOut ? Icons.check_circle_rounded : Icons.schedule_rounded,
-                    size: 56,
-                    color: controller.canCheckOut ? AppColors.success : AppColors.textSecondary,
+    return Obx(() => RefreshIndicator(
+          onRefresh: controller.loadHistory,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (controller.loadError.value.isNotEmpty)
+                  Card(
+                      child: ListTile(
+                    leading: const Icon(Icons.cloud_off_outlined),
+                    title: const Text('Attendance could not be confirmed'),
+                    subtitle: Text(controller.loadError.value),
+                    trailing: IconButton(
+                        onPressed: controller.isProcessing.value
+                            ? null
+                            : controller.loadHistory,
+                        icon: const Icon(Icons.refresh)),
+                  )),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: AppRadii.card,
+                    boxShadow: AppShadows.card,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    controller.canCheckOut ? 'Checked In' : 'Not Checked In',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                  ),
-                  Text(
-                    '${DateFormat('EEEE, dd MMM yyyy • hh:mm a').format(indiaTime(DateTime.now()))} IST',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                  ),
-                  const SizedBox(height: 20),
-                  _TrackingToggle(),
-                  const SizedBox(height: 16),
-                  Container(
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: AppRadii.card,
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.map_rounded, color: AppColors.primary, size: 36),
-                          const SizedBox(height: 8),
-                          const Text('GPS location captured on check-in', style: TextStyle(fontWeight: FontWeight.w600)),
-                          TextButton(onPressed: () => Get.toNamed(AppRoutes.mapView), child: const Text('Open map')),
-                        ],
+                  child: Column(
+                    children: [
+                      Icon(
+                        controller.canCheckOut
+                            ? Icons.check_circle_rounded
+                            : Icons.schedule_rounded,
+                        size: 56,
+                        color: controller.canCheckOut
+                            ? AppColors.success
+                            : AppColors.textSecondary,
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        !controller.stateConfirmed.value
+                            ? 'Status unavailable'
+                            : controller.canCheckOut
+                                ? 'Checked In'
+                                : controller.todayRecord?.isCheckedOut == true
+                                    ? 'Checked Out'
+                                    : 'Not Checked In',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w800),
+                      ),
+                      Text(
+                        controller.todayRecord?.checkInTime == null
+                            ? controller.stateConfirmed.value
+                                ? 'No check-in recorded for your account today'
+                                : 'Pull down to retry'
+                            : 'Check-in: ${DateFormat('dd MMM yyyy • hh:mm a').format(indiaTime(controller.todayRecord!.checkInTime!))} IST',
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                      if (controller.todayRecord?.checkOutTime != null)
+                        Text(
+                            'Check-out: ${DateFormat('dd MMM yyyy • hh:mm a').format(indiaTime(controller.todayRecord!.checkOutTime!))} IST',
+                            style: const TextStyle(
+                                color: AppColors.textSecondary, fontSize: 12)),
+                      const SizedBox(height: 20),
+                      _TrackingToggle(),
+                      const SizedBox(height: 16),
+                      Container(
+                        height: 140,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: AppRadii.card,
+                          border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.15)),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.map_rounded,
+                                  color: AppColors.primary, size: 36),
+                              const SizedBox(height: 8),
+                              Text(
+                                  controller.todayRecord?.checkInLat == null
+                                      ? 'Your location will be captured at check-in'
+                                      : 'GPS location captured on check-in',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w600)),
+                              TextButton(
+                                  onPressed: () =>
+                                      Get.toNamed(AppRoutes.mapView),
+                                  child: const Text('Open map')),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 58,
+                  child: FilledButton.icon(
+                    onPressed:
+                        controller.canCheckIn && !controller.isProcessing.value
+                            ? controller.checkIn
+                            : null,
+                    icon: const Icon(Icons.fingerprint_rounded, size: 28),
+                    label: const Text('Check In',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w800)),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: AppRadii.button)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 58,
+                  child: FilledButton.icon(
+                    onPressed:
+                        controller.canCheckOut && !controller.isProcessing.value
+                            ? controller.checkOut
+                            : null,
+                    icon: const Icon(Icons.logout_rounded, size: 26),
+                    label: const Text('Check Out',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w800)),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.error,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: AppRadii.button)),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 58,
-              child: FilledButton.icon(
-                onPressed: controller.canCheckIn && !controller.isProcessing.value ? controller.checkIn : null,
-                icon: const Icon(Icons.fingerprint_rounded, size: 28),
-                label: const Text('Check In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                style: FilledButton.styleFrom(backgroundColor: AppColors.success, shape: RoundedRectangleBorder(borderRadius: AppRadii.button)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 58,
-              child: FilledButton.icon(
-                onPressed: controller.canCheckOut && !controller.isProcessing.value ? controller.checkOut : null,
-                icon: const Icon(Icons.logout_rounded, size: 26),
-                label: const Text('Check Out', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                style: FilledButton.styleFrom(backgroundColor: AppColors.error, shape: RoundedRectangleBorder(borderRadius: AppRadii.button)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 }
 
@@ -151,8 +211,13 @@ class _HistoryTab extends GetView<AttendanceController> {
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: a.status == 'Present' ? AppColors.success.withValues(alpha: 0.15) : AppColors.error.withValues(alpha: 0.15),
-              child: Icon(a.status == 'Present' ? Icons.check : Icons.close, color: a.status == 'Present' ? AppColors.success : AppColors.error),
+              backgroundColor: a.status == 'Present'
+                  ? AppColors.success.withValues(alpha: 0.15)
+                  : AppColors.error.withValues(alpha: 0.15),
+              child: Icon(a.status == 'Present' ? Icons.check : Icons.close,
+                  color: a.status == 'Present'
+                      ? AppColors.success
+                      : AppColors.error),
             ),
             title: Text(DateFormat('dd MMM yyyy').format(indiaTime(a.date))),
             subtitle: Text(
@@ -172,8 +237,11 @@ class _TrackingToggle extends StatelessWidget {
     final tracking = Get.find<TrackingService>();
     return Obx(() => SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Auto GPS tracking', style: TextStyle(fontWeight: FontWeight.w700)),
-          subtitle: Text(tracking.isTracking.value ? 'On duty — live pings' : 'Starts with attendance check-in'),
+          title: const Text('Auto GPS tracking',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: Text(tracking.isTracking.value
+              ? 'On duty — live pings'
+              : 'Starts with attendance check-in'),
           value: tracking.isTracking.value,
           activeThumbColor: AppColors.primary,
           onChanged: null,

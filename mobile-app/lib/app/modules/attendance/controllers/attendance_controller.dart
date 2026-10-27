@@ -9,7 +9,7 @@ import '../../../data/services/tracking_service.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../routes/app_routes.dart';
 import '../../../utils/api_errors.dart';
-import '../../../utils/business_time.dart';
+import '../../../utils/attendance_state.dart';
 
 class AttendanceController extends GetxController {
   NdfaApiService get _api => Get.find<NdfaApiService>();
@@ -21,6 +21,8 @@ class AttendanceController extends GetxController {
   final isLoading = false.obs;
   final isProcessing = false.obs;
   AttendanceModel? todayRecord;
+  final stateConfirmed = false.obs;
+  final loadError = ''.obs;
 
   bool get facePolicyRequired =>
       _storage.getUser()?.faceAttendanceRequired ?? true;
@@ -38,25 +40,19 @@ class AttendanceController extends GetxController {
 
   Future<void> loadHistory() async {
     isLoading.value = true;
+    stateConfirmed.value = false;
     try {
       history.value = await _api.getAttendanceHistory();
-      final instant = DateTime.now();
-      final today = indiaTime(instant);
-      final activeShift = history.firstWhereOrNull((a) {
-        if (a.checkInTime == null || a.checkOutTime != null) return false;
-        final age = instant.difference(a.checkInTime!);
-        return !age.isNegative && age <= const Duration(hours: 20);
-      });
-      todayRecord = activeShift ??
-          history.firstWhereOrNull((a) {
-            final localDate = indiaTime(a.date);
-            return localDate.year == today.year &&
-                localDate.month == today.month &&
-                localDate.day == today.day;
-          });
-      await _tracking.syncWithAttendanceState(todayRecord);
+      todayRecord = ownAttendanceState(history, _storage.getUser()?.id ?? '');
+      stateConfirmed.value = true;
+      loadError.value = '';
+      try {
+        await _tracking.syncWithAttendanceState(todayRecord);
+      } catch (_) {
+        // Attendance is confirmed even if the GPS tracking service needs to retry.
+      }
     } catch (e) {
-      Get.snackbar('Error', e.toString());
+      loadError.value = apiErrorMessage(e);
     } finally {
       isLoading.value = false;
     }
@@ -67,6 +63,8 @@ class AttendanceController extends GetxController {
     isProcessing.value = true;
     try {
       await _api.syncSession();
+      await loadHistory();
+      if (!stateConfirmed.value || !canCheckIn) return;
       final loc = await _location.getPosition();
       if (loc == null) {
         Get.snackbar('GPS Required',
@@ -79,12 +77,13 @@ class AttendanceController extends GetxController {
         if (!verified) return;
       }
 
-      await _api.markAttendance(
+      final saved = await _api.markAttendance(
         isCheckIn: true,
         lat: loc.latitude,
         lng: loc.longitude,
         faceVerified: verified,
       );
+      todayRecord = saved;
       await loadHistory();
       Get.snackbar(
         'Success',
@@ -104,6 +103,13 @@ class AttendanceController extends GetxController {
     isProcessing.value = true;
     try {
       await _api.syncSession();
+      await loadHistory();
+      if (!stateConfirmed.value) return;
+      if (!canCheckOut) {
+        Get.snackbar('Attendance refreshed',
+            'No open check-in was found for your account.');
+        return;
+      }
       if (_roleNeedsFaceWhenEnabled) {
         if (!await _verifyLiveFace(purpose: 'checkout')) return;
       }
@@ -112,12 +118,14 @@ class AttendanceController extends GetxController {
         Get.snackbar('GPS Required', 'Location is mandatory for attendance');
         return;
       }
-      await _api.markAttendance(
+      final saved = await _api.markAttendance(
           isCheckIn: false, lat: loc.latitude, lng: loc.longitude);
+      todayRecord = saved;
       await loadHistory();
       Get.snackbar('Success',
           'Checked out • route saved (${_tracking.totalKmToday.value.toStringAsFixed(2)} KM)');
     } catch (e) {
+      await loadHistory();
       Get.snackbar('Check-out failed', apiErrorMessage(e));
     } finally {
       isProcessing.value = false;
@@ -130,8 +138,11 @@ class AttendanceController extends GetxController {
         todayRecord!.checkInLat!, todayRecord!.checkInLng!);
   }
 
-  bool get canCheckIn => todayRecord == null || !todayRecord!.isCheckedIn;
+  bool get canCheckIn =>
+      stateConfirmed.value &&
+      (todayRecord == null || !todayRecord!.isCheckedIn);
   bool get canCheckOut =>
+      stateConfirmed.value &&
       todayRecord != null &&
       todayRecord!.isCheckedIn &&
       !todayRecord!.isCheckedOut;

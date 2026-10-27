@@ -32,6 +32,7 @@ class AuthController extends GetxController {
   void togglePasswordVisibility() => obscurePassword.value = !obscurePassword.value;
 
   Future<void> login() async {
+    if (isLoading.value) return;
     final loginId = loginIdField.text.trim();
     final password = passwordField.text;
     if (loginId.length < 3) {
@@ -46,7 +47,6 @@ class AuthController extends GetxController {
     isLoading.value = true;
     try {
       await _api.login(loginId, password);
-      await _api.syncSession();
       _storage.setRememberMe(rememberMe.value);
       if (Get.isRegistered<DataRefreshService>()) {
         Get.find<DataRefreshService>().refreshAll(silent: true);

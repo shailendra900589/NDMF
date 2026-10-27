@@ -2,6 +2,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// User-facing API error text (no raw DioException dumps).
+bool isTransientConnectionError(DioException error) => const {
+      DioExceptionType.connectionTimeout,
+      DioExceptionType.connectionError,
+      DioExceptionType.receiveTimeout,
+      DioExceptionType.sendTimeout,
+    }.contains(error.type);
+
 String apiErrorMessage(Object error) {
   if (error is DioException) {
     final data = error.response?.data;
@@ -15,6 +22,8 @@ String apiErrorMessage(Object error) {
     if (code == 403) {
       return 'You do not have permission for this action.';
     }
+    if (code == 502 || code == 503 || code == 504)
+      return 'Server is temporarily unavailable. Please try again shortly.';
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
@@ -26,6 +35,8 @@ String apiErrorMessage(Object error) {
               'or run mobile-app/scripts/run_web.ps1 for local testing.';
         }
         return 'Cannot reach server. Check internet and try again.';
+      case DioExceptionType.badCertificate:
+        return 'Could not establish a secure connection. Check your phone date and time and try again.';
       default:
         return 'Request failed. Please try again.';
     }

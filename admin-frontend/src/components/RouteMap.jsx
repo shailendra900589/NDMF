@@ -77,7 +77,7 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
       .addTo(g);
 
     if (showStops) {
-      (route.stops || []).forEach((s, index) => {
+      (route.stops || []).forEach((s) => {
         const icon = pin(`<div class="route-pin route-pin--stop">${s.number}</div>`, 28);
         const label = document.createElement('div');
         const duration = document.createElement('strong');duration.textContent=`Stop ${s.number} · ${fmtDuration(s.minutes)}`;
@@ -85,10 +85,8 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
         const place = document.createElement('div');place.className='route-stop-place';place.textContent=cachedAddress(s.lat,s.lng) || `${Number(s.lat).toFixed(5)}, ${Number(s.lng).toFixed(5)}`;
         label.append(duration,times,place);
         lookup(s.lat,s.lng).then(name=>{if(name) place.textContent=name;}).catch(()=>{});
-        const side = index % 2 === 0 ? 'right' : 'left';
-        const vertical = index % 3 === 0 ? -32 : index % 3 === 1 ? 18 : -6;
-        L.marker([s.lat, s.lng], { icon, zIndexOffset: 700 })
-          .bindTooltip(label, { permanent: true, direction: side, className: 'route-stop-label', offset: [side === 'right' ? 28 : -28, vertical], opacity: 0.96 })
+        L.marker([s.lat, s.lng], { icon, zIndexOffset: 700, title: `Stop ${s.number} · ${fmtDuration(s.minutes)}`, alt: `Stop ${s.number}` })
+          .bindTooltip(label, { permanent: false, direction: 'auto', className: 'route-stop-label', offset: [16, 0], opacity: 0.98 })
           .bindPopup(
             `<div class="live-pop"><strong>Stop ${s.number}${s.isStart ? ' · start' : ''}</strong>` +
               `<span>${fmtTime(s.arrivedAt)} – ${fmtTime(s.leftAt)} IST</span>` +
@@ -99,7 +97,7 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
       });
     }
     const bounds = L.latLngBounds(pts);
-    const fit = () => m.fitBounds(bounds, { paddingTopLeft: [90, 90], paddingBottomRight: [260, 110], maxZoom: 18, animate: false });
+    const fit = () => m.fitBounds(bounds, { padding: [45, 45], maxZoom: 18, animate: false });
     m.invalidateSize();
     requestAnimationFrame(fit);
     const overview = L.control({ position: 'topleft' });

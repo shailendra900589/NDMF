@@ -1,5 +1,6 @@
 class AttendanceModel {
   final String id;
+  final String userId;
   final DateTime date;
   final DateTime? checkInTime;
   final DateTime? checkOutTime;
@@ -12,6 +13,7 @@ class AttendanceModel {
 
   AttendanceModel({
     required this.id,
+    this.userId = '',
     required this.date,
     this.checkInTime,
     this.checkOutTime,
@@ -26,6 +28,7 @@ class AttendanceModel {
   factory AttendanceModel.fromJson(Map<String, dynamic> json) {
     return AttendanceModel(
       id: json['id']?.toString() ?? '',
+      userId: json['userId']?.toString() ?? '',
       date: DateTime.tryParse(json['date'] ?? '') ?? DateTime.now(),
       checkInTime: json['checkInTime'] != null ? DateTime.tryParse(json['checkInTime']) : null,
       checkOutTime: json['checkOutTime'] != null ? DateTime.tryParse(json['checkOutTime']) : null,
@@ -40,6 +43,7 @@ class AttendanceModel {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'userId': userId,
         'date': date.toIso8601String(),
         'checkInTime': checkInTime?.toIso8601String(),
         'checkOutTime': checkOutTime?.toIso8601String(),
