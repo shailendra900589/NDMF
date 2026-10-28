@@ -1,10 +1,10 @@
-# Attendance verification — mobile 1.5.2 (28)
+# Attendance verification — mobile 1.6.0 (29)
 
 ## Employee flow
 
 Enable precise location and open Attendance. Check-in and check-out require a fresh fix within 35 metres reported accuracy, taken within the last minute. Mock locations are rejected. The app provides a shortcut to Android location/app settings when permissions or location services are off. Android permission controls cannot be silently overridden.
 
-The attendance and enrollment cameras now run inside the app. For attendance, the server issues a random, single-use, three-minute challenge bound to the signed-in employee and check-in/check-out purpose. The app captures a neutral face followed by the requested eyes-closed or open-mouth action. The server detects the face, compares both frames against enrollment and checks landmark changes. Identical uploaded frames, a wrong identity, missing actions and expired/reused challenges cannot authorize attendance. A completed face check produces a short-lived, one-use pass; a check-in pass cannot authorize checkout. The old optional company check-in flag cannot bypass employee/manager live verification.
+The attendance and enrollment cameras run inside the app. The server issues a single-use, three-minute challenge bound to the signed-in employee and check-in/check-out purpose. Mobile 1.6.0 requests automatic blink capture; older guided clients receive an eyes-closed or open-mouth action. The server detects the face, compares both frames against enrollment and checks landmark changes. Identical uploaded frames, a wrong identity, missing actions and expired/reused challenges cannot authorize attendance. A completed face check produces a short-lived, one-use pass; a check-in pass cannot authorize checkout. The old optional company check-in flag cannot bypass employee/manager live verification.
 
 The displayed percentage is the face model's similarity score, not a calibrated probability of identity. The action check reduces static-photo replay; it is **not certified presentation-attack detection**, and sophisticated screen/video/deepfake attacks require an independently evaluated liveness solution. Real-phone testing under representative lighting and face poses is required to tune usability and assess spoof resistance. Automated tests stub neural inference while exercising actual HTTP authorization, persistence, challenge consumption and attendance endpoints.
 
@@ -16,9 +16,15 @@ The route is an estimate from GPS observations, not exact road-by-road ground tr
 
 ## Deployment
 
-Pull the backend/frontend and install the published **1.5.2 (28)** APK from the website. Older apps must update. Existing enrolled reference photos remain available; enrollment resets are not required solely for this release.
+Pull the backend/frontend and install the published **1.6.0 (29)** APK from the website. Deploy the backend first: the app requires the `auto_blink` challenge mode. Existing enrolled reference photos remain available; enrollment resets are not required solely for this release.
 
-## Guided live capture
+## Automatic attendance camera
+
+Check In or Check Out opens the in-app camera without a shutter button or countdown. Bundled on-device ML Kit detection selects a stable, frontal, single-face reference, a closed-eye blink frame and observes the eyes reopening. It does not identify the employee or authorize attendance. The two selected camera-stream frames are packed with their plane strides and rotation preserved, JPEG encoded off the UI isolate, then sent once for server identity/action verification. A gallery image or an open-eye static face cannot complete this local sequence. Server verification remains mandatory, with the same enrolled-face checks, purpose-bound one-use pass, anti-replay and GPS requirements. This is not independently certified anti-spoof detection.
+
+GPS acquisition runs alongside capture. A non-mocked, precise real GPS observation no more than ten seconds old can be reused; older/poor fixes require acquisition. Attendance history refresh no longer delays the success acknowledgement after the server saves the punch. The interaction targets 3–5 seconds under good conditions; no physical-device latency measurement or guarantee is available. Slow network, cold server inference, camera startup, blink capture and GPS acquisition can take longer. There is a 20-second camera timeout with a clear retry message. No attendance is marked on capture timeout or failed verification.
+
+## Previous guided flow (1.5.2)
 
 Each attendance camera frame is checked before moving to the next step. A closed-eye or open-mouth reference can be retaken, and an incomplete action can be retried in the camera with specific guidance. Keep the requested pose throughout the countdown. These guidance requests do not create an attendance pass, count as identity failures, or consume the challenge. They are limited to twelve requests per unexpired challenge. The final two-frame identity, action and anti-replay checks still run; similarity percentage alone never authorizes attendance. No action threshold was relaxed. Both check-in and checkout use this flow.
 

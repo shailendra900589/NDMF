@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
+import 'dart:async';
 import '../../../widgets/live_face_camera.dart';
+import '../../../widgets/quick_face_camera.dart';
 import '../../../data/models/attendance_model.dart';
 import '../../../data/models/enums/app_enums.dart';
 import '../../../data/services/ndfa_api_service.dart';
@@ -67,18 +69,24 @@ class AttendanceController extends GetxController {
       await _api.syncSession();
       await loadHistory();
       if (!stateConfirmed.value || !canCheckIn) return;
-      var loc = await _location.getPosition();
-      if (loc == null) {
-        Get.snackbar('GPS Required',
-            'Enable location and allow location permission for attendance');
-        return;
-      }
+      if (!await _location.requestPermission()) return;
+      // Acquire GPS while the camera does its local live capture. Consume errors
+      // immediately so cancelling the camera cannot leave an unhandled future.
+      Object? gpsError;
+      final position = _location.getPosition().catchError((Object e) {
+        gpsError = e;
+        return null;
+      });
       var verified = false;
       if (_roleNeedsFaceWhenEnabled) {
         verified = await _verifyLiveFace();
         if (!verified) return;
       }
-      loc = await _location.getPosition();
+      var loc = await position;
+      if (gpsError != null) throw gpsError!;
+      if (loc != null &&
+          DateTime.now().difference(loc.timestamp).inSeconds > 30)
+        loc = await _location.getPosition();
       if (loc == null) return;
 
       final saved = await _api.markAttendance(
@@ -91,7 +99,7 @@ class AttendanceController extends GetxController {
         mocked: loc.isMocked,
       );
       todayRecord = saved;
-      await loadHistory();
+      unawaited(loadHistory());
       Get.snackbar(
         'Success',
         facePolicyRequired && _roleNeedsFaceWhenEnabled
@@ -117,10 +125,20 @@ class AttendanceController extends GetxController {
             'No open check-in was found for your account.');
         return;
       }
+      if (!await _location.requestPermission()) return;
+      Object? gpsError;
+      final position = _location.getPosition().catchError((Object e) {
+        gpsError = e;
+        return null;
+      });
       if (_roleNeedsFaceWhenEnabled) {
         if (!await _verifyLiveFace(purpose: 'checkout')) return;
       }
-      final loc = await _location.getPosition();
+      var loc = await position;
+      if (gpsError != null) throw gpsError!;
+      if (loc != null &&
+          DateTime.now().difference(loc.timestamp).inSeconds > 30)
+        loc = await _location.getPosition();
       if (loc == null) {
         Get.snackbar('GPS Required', 'Location is mandatory for attendance');
         return;
@@ -133,7 +151,7 @@ class AttendanceController extends GetxController {
           gpsRecordedAt: loc.timestamp.toUtc().toIso8601String(),
           mocked: loc.isMocked);
       todayRecord = saved;
-      await loadHistory();
+      unawaited(loadHistory());
       Get.snackbar('Success',
           'Checked out • route saved (${_tracking.totalKmToday.value.toStringAsFixed(2)} KM)');
     } catch (e) {
@@ -171,10 +189,13 @@ class AttendanceController extends GetxController {
       return false;
     }
     final challenge = await _api.requestFaceChallenge(purpose);
-    final capture = await Get.to<LiveFaceCapture>(() => LiveFaceCamera(
-        action: challenge['action']?.toString(),
-        validateCapture: (neutral, action) => _api.checkFaceCapture(
-            neutral, action, challenge['id'].toString())));
+    if (challenge['captureMode'] != 'auto_blink' ||
+        challenge['action'] != 'close_eyes') {
+      throw Exception(
+          'Update the attendance server before using quick verification.');
+    }
+    final capture =
+        await Get.to<LiveFaceCapture>(() => const QuickFaceCamera());
     if (capture == null || capture.actionPath == null) {
       Get.snackbar('Cancelled', 'Live selfie required for attendance');
       return false;

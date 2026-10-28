@@ -72,6 +72,15 @@ test('registered phone attendance survives persistence, signed URLs and concurre
     assert.equal(verified.data.verified,true);
     assert.equal((await call('/attendance/face-capture-check','POST',form())).status,409);
   });
+  await t.test('automatic blink challenge still requires server face and action verification',async()=>{
+    const c=await call('/attendance/face-challenge','POST',{purpose:'checkout',captureMode:'auto_blink'});
+    assert.equal(c.data.captureMode,'auto_blink');assert.equal(c.data.action,'close_eyes');
+    assert.equal(db.findById('users','EMP').faceVerification,null);
+    const form=selfie();form.append('challengeId',c.data.id);form.append('purpose','checkout');form.append('actionFile',new Blob(['live-action'],{type:'image/jpeg'}),'blink.jpg');
+    const verified=await call('/attendance/verify-face','POST',form);
+    assert.equal(verified.data.verified,true);assert.equal(verified.data.livenessVerified,true);
+    assert.equal((await call('/attendance/verify-face','POST',form)).status,409);
+  });
   await t.test('accepted exact captures retain their server decision through final submission',async()=>{
     const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin'})).data;
     const form=(text='live-action')=>{const f=selfie();f.append('challengeId',challenge.id);f.append('actionFile',new Blob([text],{type:'image/jpeg'}),'action.jpg');return f;};

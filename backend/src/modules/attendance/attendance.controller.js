@@ -284,7 +284,8 @@ exports.createFaceChallenge = async (req,res) => {
   if (!['checkin','checkout'].includes(purpose)) return error(res,'Choose checkin or checkout');
   const user=findById('users',req.user.id);
   if (!isEnrollmentComplete(user)) return enrollmentError(res,user);
-  const challenge={id:uuid(),purpose,action:require('node:crypto').randomInt(2)?'open_mouth':'close_eyes',expiresAt:new Date(Date.now()+180000).toISOString()};
+  const quick=req.body.captureMode==='auto_blink';
+  const challenge={id:uuid(),purpose,action:quick?'close_eyes':require('node:crypto').randomInt(2)?'open_mouth':'close_eyes',captureMode:quick?'auto_blink':'guided',expiresAt:new Date(Date.now()+180000).toISOString()};
   upsert('users',{...user,faceChallenge:challenge,faceVerification:null},{single:true});await flush();
   return success(res,challenge,'Follow the live camera instructions');
 };

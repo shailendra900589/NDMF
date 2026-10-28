@@ -96,6 +96,19 @@ class LocationService extends GetxService {
   Future<Position?> getPosition() async {
     final hasPermission = await requestPermission();
     if (!hasPermission) return null;
+    // Use a real, recent precise observation when available, never an invented
+    // position or a stale fix. Avoids a second cold GPS acquisition at punch.
+    try {
+      final cached = await Geolocator.getLastKnownPosition();
+      if (cached != null &&
+          !cached.isMocked &&
+          cached.accuracy.isFinite &&
+          cached.accuracy > 0 &&
+          cached.accuracy <= 35 &&
+          DateTime.now().difference(cached.timestamp) >= Duration.zero &&
+          DateTime.now().difference(cached.timestamp) <=
+              const Duration(seconds: 10)) return cached;
+    } catch (_) {/* A cache failure must not prevent fresh GPS acquisition. */}
     final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.best, timeLimit: Duration(seconds: 25)));

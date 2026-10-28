@@ -33,4 +33,4 @@ The app captures fresh camera evidence; device GPS, capture time and the locatio
 
 ## Release
 
-Install mobile version **1.5.2 (28)** after deploying the backend and admin frontend. This version also requires an in-app live face challenge for attendance with capture guidance, filters GPS drift and improves background tracking recovery. Older apps must update to use attendance. The website reads `/downloads/release.json` to choose the current APK.
+Install mobile version **1.6.0 (29)** after deploying the backend and admin frontend. Attendance now captures a live blink automatically without a shutter button, with identity and action verified on the server. The app also filters GPS drift and improves background tracking recovery. The website reads `/downloads/release.json` to choose the current APK.
