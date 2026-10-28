@@ -81,6 +81,38 @@ test('registered phone attendance survives persistence, signed URLs and concurre
     assert.equal(verified.data.verified,true);assert.equal(verified.data.livenessVerified,true);
     assert.equal((await call('/attendance/verify-face','POST',form)).status,409);
   });
+  await t.test('single camera image authorizes both punches only after server identity match',async()=>{
+    db.upsert('users',{id:'SINGLE_QA',companyId:'CO_TEST',name:'Single capture QA',role:'fieldOfficer',branch:'Office',workType:'field',isActive:true});
+    const actor=jwt.sign({userId:'SINGLE_QA'},secret);
+    assert.equal((await call('/users/me/face-enrollment','PUT',{urls},actor)).status,200);
+    assert.equal((await call('/attendance/check-in','POST',{lat:26.7,lng:83.4,faceVerified:true},actor)).status,400);
+    async function verify(purpose){
+      const c=(await call('/attendance/face-challenge','POST',{purpose,captureMode:'auto_single'},actor)).data;
+      assert.equal(c.action,null);assert.equal(c.captureMode,'auto_single');
+      const f=selfie();f.append('challengeId',c.id);f.append('purpose',purpose);
+      const r=await call('/attendance/verify-face','POST',f,actor);
+      return {r,c};
+    }
+    const first=await verify('checkin');
+    assert.equal(first.r.data.verified,true);assert.equal(first.r.data.identityVerified,true);
+    assert.equal(first.r.data.livenessVerified,false,'single photo must never claim anti-spoof liveness');
+    const checked=await call('/attendance/check-in','POST',{lat:26.7,lng:83.4},actor);
+    assert.equal(checked.status,200);assert.equal(checked.data.faceCaptureMode,'auto_single');
+    assert.equal(checked.data.faceLivenessVerified,false);
+    assert.equal((await call('/attendance/check-out','POST',{lat:26.7,lng:83.4},actor)).status,400);
+    const second=await verify('checkout');assert.equal(second.r.data.verified,true);
+    const closed=await call('/attendance/check-out','POST',{lat:26.7,lng:83.4},actor);
+    assert.equal(closed.status,200);assert.equal(closed.data.checkOutFaceVerified,true);
+    assert.equal(closed.data.checkOutFaceLivenessVerified,false);
+    const replay=selfie();replay.append('challengeId',second.c.id);replay.append('purpose','checkout');
+    assert.equal((await call('/attendance/verify-face','POST',replay,actor)).status,409);
+    liveValue=0.2;
+    try { assert.equal((await verify('checkin')).r.data.verified,false,'wrong identity is rejected with a single photo'); }
+    finally {liveValue=0;}
+    const guided=(await call('/attendance/face-challenge','POST',{purpose:'checkin'},actor)).data;
+    const forged=selfie();forged.append('challengeId',guided.id);forged.append('captureMode','auto_single');
+    assert.equal((await call('/attendance/verify-face','POST',forged,actor)).status,400,'request body cannot change a stored challenge mode');
+  });
   await t.test('accepted exact captures retain their server decision through final submission',async()=>{
     const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin'})).data;
     const form=(text='live-action')=>{const f=selfie();f.append('challengeId',challenge.id);f.append('actionFile',new Blob([text],{type:'image/jpeg'}),'action.jpg');return f;};

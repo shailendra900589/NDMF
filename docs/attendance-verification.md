@@ -1,41 +1,29 @@
-# Attendance verification — mobile 1.6.0 (29)
+# Attendance face verification — mobile 1.6.1 (30)
 
-## Employee flow
+## Current employee flow
 
-Enable precise location and open Attendance. Check-in and check-out require a fresh fix within 35 metres reported accuracy, taken within the last minute. Mock locations are rejected. The app provides a shortcut to Android location/app settings when permissions or location services are off. Android permission controls cannot be silently overridden.
+Tap Check In or Check Out. The front camera opens inside the app, detects one clear, frontal face and automatically captures a single frame after a brief stable interval. There is no shutter button, countdown, blink, eyes-closed or mouth-open requirement. Local detection selects the image only; it cannot identify the employee or approve attendance. The server compares that one image with the employee's registered reference photos and returns the similarity score. The percentage is a model similarity score, not a calibrated probability of identity.
 
-The attendance and enrollment cameras run inside the app. The server issues a single-use, three-minute challenge bound to the signed-in employee and check-in/check-out purpose. Mobile 1.6.0 requests automatic blink capture; older guided clients receive an eyes-closed or open-mouth action. The server detects the face, compares both frames against enrollment and checks landmark changes. Identical uploaded frames, a wrong identity, missing actions and expired/reused challenges cannot authorize attendance. A completed face check produces a short-lived, one-use pass; a check-in pass cannot authorize checkout. The old optional company check-in flag cannot bypass employee/manager live verification.
+The server issues a three-minute, single-use challenge in `auto_single` mode, bound to the account and check-in/check-out purpose. A successful identity match creates a short-lived one-use face pass. A check-in pass cannot authorize checkout. The client cannot authorize a punch by sending `faceVerified: true`, switch a stored challenge mode, reuse a consumed challenge or revive a reset enrollment. Inference concurrent with enrollment changes is rejected. No captured attendance photo is retained on the server; temporary app files are removed after use or cancellation.
 
-The displayed percentage is the face model's similarity score, not a calibrated probability of identity. The action check reduces static-photo replay; it is **not certified presentation-attack detection**, and sophisticated screen/video/deepfake attacks require an independently evaluated liveness solution. Real-phone testing under representative lighting and face poses is required to tune usability and assess spoof resistance. Automated tests stub neural inference while exercising actual HTTP authorization, persistence, challenge consumption and attendance endpoints.
+**Single-image face matching does not establish anti-spoof liveness.** A printed photo, screen replay or manipulated image is not reliably distinguished by this flow. Fresh in-app capture is the normal client workflow, not cryptographic proof of a live person. Accordingly single-image results and attendance audit fields record identity verification and `livenessVerified: false`; the product labels this Face verification. This simplified mode was explicitly requested by the owner. Strong anti-spoof requirements need a separately validated passive liveness solution or an interactive challenge.
 
-## GPS interpretation
+Existing reference enrollment remains valid. No enrollment reset is required merely to install this update. Wrong identities, missing/multiple/small faces and unreadable captures still fail; matching thresholds have not been relaxed. Previously deployed guided/automatic-blink clients retain their previous challenge validation and should update to receive the single-capture interaction.
 
-Only usable, non-mocked fixes contribute to the route. Movement needs consecutive fixes, stationary drift is excluded from distance, and jumps/long gaps create disconnected segments instead of invented travel. The mobile map uses the server-approved route rather than temporarily drawing raw device fixes.
+## GPS and responsiveness
 
-The route is an estimate from GPS observations, not exact road-by-road ground truth. Old recorded zigzags cannot establish the employee's actual past movement, so existing history is preserved. Poor reception can reduce coverage; samples are not snapped to a guessed road to make the route look smoother.
+GPS is acquired alongside camera capture. A real non-mocked position no more than ten seconds old can be reused if its reported accuracy is within 35 metres. Older or poor positions require a fresh acquisition. A punch still requires precise location enabled and a usable position; Android permissions cannot be overridden silently. The success acknowledgement appears after the server saves attendance without waiting for a full history reload.
+
+The interaction targets 3–5 seconds with good lighting, GPS and connectivity; this is not a measured device guarantee. Camera startup, poor GPS, network delay and cold server inference can take longer. No physical phone was available for end-to-end camera/latency validation. Automated tests cover frame selection/encoding and real HTTP authentication, identity decisions, purpose binding, one-use consumption, wrong identities and enrollment reset races, with deterministic model inference fixtures.
+
+## Tracking interpretation
+
+Only usable, non-mocked fixes contribute to travelled distance. Movement needs consecutive observations, stationary drift is excluded, and jumps/long gaps create disconnected segments. Routes estimate GPS observations rather than exact road-by-road ground truth; missing historical movement is never invented.
+
+Duty tracking resumes after login, attendance refresh and app resume. Network reconnection refreshes state. Failed GPS uploads retry from an employee-scoped durable queue, including without a new fix, and interrupted streams restart. Independent phone heartbeat reports permissions, app version and service state without rewriting the GPS capture timestamp.
+
+Fresh coarse observations up to 150 metres may show approximate live positions but do not add travelled distance above the 35-metre quality limit. Dashboard states distinguish reduced accuracy, location switched off, missing permission, GPS pending and stopped app updates. Stale data is never labelled Live. Allow background location and review Android battery restrictions; a force-stopped or disconnected phone cannot be made live remotely.
 
 ## Deployment
 
-Pull the backend/frontend and install the published **1.6.0 (29)** APK from the website. Deploy the backend first: the app requires the `auto_blink` challenge mode. Existing enrolled reference photos remain available; enrollment resets are not required solely for this release.
-
-## Automatic attendance camera
-
-Check In or Check Out opens the in-app camera without a shutter button or countdown. Bundled on-device ML Kit detection selects a stable, frontal, single-face reference, a closed-eye blink frame and observes the eyes reopening. It does not identify the employee or authorize attendance. The two selected camera-stream frames are packed with their plane strides and rotation preserved, JPEG encoded off the UI isolate, then sent once for server identity/action verification. A gallery image or an open-eye static face cannot complete this local sequence. Server verification remains mandatory, with the same enrolled-face checks, purpose-bound one-use pass, anti-replay and GPS requirements. This is not independently certified anti-spoof detection.
-
-GPS acquisition runs alongside capture. A non-mocked, precise real GPS observation no more than ten seconds old can be reused; older/poor fixes require acquisition. Attendance history refresh no longer delays the success acknowledgement after the server saves the punch. The interaction targets 3–5 seconds under good conditions; no physical-device latency measurement or guarantee is available. Slow network, cold server inference, camera startup, blink capture and GPS acquisition can take longer. There is a 20-second camera timeout with a clear retry message. No attendance is marked on capture timeout or failed verification.
-
-## Previous guided flow (1.5.2)
-
-Each attendance camera frame is checked before moving to the next step. A closed-eye or open-mouth reference can be retaken, and an incomplete action can be retried in the camera with specific guidance. Keep the requested pose throughout the countdown. These guidance requests do not create an attendance pass, count as identity failures, or consume the challenge. They are limited to twelve requests per unexpired challenge. The final two-frame identity, action and anti-replay checks still run; similarity percentage alone never authorizes attendance. No action threshold was relaxed. Both check-in and checkout use this flow.
-
-The home shortcut strip is removed. Notices, visits and salary slips are available as organized rows in Profile; notice refresh and phone notifications remain active while home is open.
-
-### Backend consistency correction
-
-Action-photo presence is now explicit: missing action landmarks cannot be mistaken for an accepted reference-only frame. Guidance validates both identities and the requested action before returning ready. Its server-generated decision is bound to the SHA-256 of both uploaded files, the employee enrollment revision and the unexpired single-use challenge. Final submission uses this same decision for identical files, avoiding a second inference disagreeing with an already accepted capture. Modified files fall back to full verification; changed enrollment invalidates the decision. No client success flag is trusted and no photo is saved by this process. Existing mobile 1.5.2 uses this backend correction without a new APK.
-
-## Tracking recovery and diagnostics
-
-The app restores duty tracking after login, attendance refresh and resume, and refreshes on network reconnection. Failed GPS uploads remain in an employee-scoped queue and retry even without a new position. Interrupted location streams restart. A separate heartbeat reports location permissions, background permission, app version and service state; it never changes the GPS capture timestamp.
-
-Fresh coarse observations up to 150 metres can identify an approximate live position, but fixes exceeding 35 metres do not add route distance. The dashboard distinguishes reduced GPS accuracy, location switched off, missing permission, GPS pending and stopped app updates. Stale data is never relabelled Live. Install this APK on each field phone, allow background location and review Android battery restrictions. A force-stopped app or disconnected phone cannot be made live remotely. Automated HTTP and queue tests verify recovery logic; actual field-phone background operation still needs device validation.
+Deploy the backend first, then install **1.6.1 (30)** from the website. Both are required for `auto_single`. The website chooses its APK from `/downloads/release.json`; deployment verifies the committed binary's size and checksum. Android minimum remains API 24 (Android 7), with armeabi-v7a, arm64-v8a and x86_64 libraries.

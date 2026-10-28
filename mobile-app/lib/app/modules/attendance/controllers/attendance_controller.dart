@@ -189,38 +189,39 @@ class AttendanceController extends GetxController {
       return false;
     }
     final challenge = await _api.requestFaceChallenge(purpose);
-    if (challenge['captureMode'] != 'auto_blink' ||
-        challenge['action'] != 'close_eyes') {
+    if (challenge['captureMode'] != 'auto_single') {
       throw Exception(
           'Update the attendance server before using quick verification.');
     }
     final capture =
         await Get.to<LiveFaceCapture>(() => const QuickFaceCamera());
-    if (capture == null || capture.actionPath == null) {
-      Get.snackbar('Cancelled', 'Live selfie required for attendance');
+    if (capture == null) {
+      Get.snackbar('Cancelled', 'Camera selfie required for attendance');
       return false;
     }
     Map<String, dynamic> result;
     try {
-      result = await _api.verifyLiveAttendanceFace(capture.neutralPath,
-          capture.actionPath!, challenge['id'].toString(), purpose);
+      result = await _api.verifyLiveAttendanceFace(
+          capture.neutralPath, null, challenge['id'].toString(), purpose);
     } finally {
-      for (final path in [capture.neutralPath, capture.actionPath!]) {
+      for (final path in [capture.neutralPath]) {
         try {
           await File(path).delete();
         } catch (_) {}
       }
     }
-    final ok = result['verified'] == true && result['livenessVerified'] == true;
+    final ok = result['verified'] == true &&
+        result['identityVerified'] == true &&
+        result['captureMode'] == 'auto_single';
     matchPercentage.value = (result['matchPercentage'] as num?)?.toDouble() ??
         ((result['matchScore'] as num?)?.toDouble() ?? 0) * 100;
     if (ok)
-      Get.snackbar('Live face verified',
+      Get.snackbar('Face verified',
           'Face similarity ${matchPercentage.value!.toStringAsFixed(0)}%');
     if (!ok) {
       if (result['reason'] != 'mismatch') {
         Get.snackbar(
-            'Live check failed',
+            'Face verification failed',
             result['message']?.toString() ??
                 'Follow the camera instructions and retry.');
         return false;

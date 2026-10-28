@@ -22,14 +22,14 @@ class _QuickFaceCameraState extends State<QuickFaceCamera>
   CameraController? _camera;
   final _detector = FaceDetector(
       options: FaceDetectorOptions(
-          enableClassification: true,
+          enableClassification: false,
           enableTracking: true,
           performanceMode: FaceDetectorMode.fast,
           minFaceSize: 0.20));
-  final _sequence = AutoFaceCapture();
+  final _sequence = SingleFaceCapture();
   bool _processing = false, _delivered = false, _finishing = false;
   String _message = 'Look at the camera';
-  String? _error, _neutral, _action;
+  String? _error, _neutral;
   Timer? _timeout;
   DateTime _last = DateTime.fromMillisecondsSinceEpoch(0);
   @override
@@ -57,7 +57,7 @@ class _QuickFaceCameraState extends State<QuickFaceCamera>
       _timeout = Timer(const Duration(seconds: 20), () {
         if (mounted && !_finishing)
           setState(() => _error =
-              'Could not capture a clear blink. Check lighting, remove dark glasses and try again.');
+              'Could not capture a clear face. Face the camera in good light and try again.');
       });
       setState(() {});
     } catch (_) {
@@ -82,7 +82,7 @@ class _QuickFaceCameraState extends State<QuickFaceCamera>
   }
 
   Future<void> _clearFrames() async {
-    for (final path in [_neutral, _action]) {
+    for (final path in [_neutral]) {
       if (path != null) {
         try {
           await File(path).delete();
@@ -90,7 +90,6 @@ class _QuickFaceCameraState extends State<QuickFaceCamera>
       }
     }
     _neutral = null;
-    _action = null;
   }
 
   Future<String> _save(Map<String, dynamic> data, String kind) async {
@@ -139,13 +138,8 @@ class _QuickFaceCameraState extends State<QuickFaceCamera>
           (face.headEulerAngleY ?? 90).abs() < 15 &&
           (face.headEulerAngleZ ?? 90).abs() < 15 &&
           face.boundingBox.shortestSide >= 100;
-      final before = _sequence.step;
-      final step = _sequence.observe(
-          singleCenteredFace: centered,
-          leftEye: face?.leftEyeOpenProbability ?? double.nan,
-          rightEye: face?.rightEyeOpenProbability ?? double.nan,
-          trackingId: face?.trackingId,
-          now: now);
+      final ready = _sequence.observe(
+          singleCenteredFace: centered, trackingId: face?.trackingId, now: now);
       final data = {
         'width': frame.width,
         'height': frame.height,
@@ -154,39 +148,25 @@ class _QuickFaceCameraState extends State<QuickFaceCamera>
         'bgra': Platform.isIOS,
         'rowStride': frame.planes.first.bytesPerRow
       };
-      if (step == AutoFaceStep.waiting && before != step) await _clearFrames();
-      if (step == AutoFaceStep.reference && before == AutoFaceStep.waiting)
-        _neutral = await _save(data, 'reference');
-      if (step == AutoFaceStep.action && before == AutoFaceStep.reference)
-        _action = await _save(data, 'blink');
-      if (!mounted) {
-        await _clearFrames();
-        return;
-      }
       setState(() => _message = !centered
           ? 'Keep one face centered in good light'
-          : step == AutoFaceStep.waiting
-              ? 'Hold still for a moment'
-              : step == AutoFaceStep.reference
-                  ? 'Blink naturally — no buttons needed'
-                  : 'Blink captured · open your eyes');
-      if (step == AutoFaceStep.complete &&
-          _neutral != null &&
-          _action != null) {
+          : 'Hold still · capturing automatically');
+      if (ready) {
         _finishing = true;
         _timeout?.cancel();
+        _neutral = await _save(data, 'face');
         await _camera?.stopImageStream();
         if (!mounted) {
           await _clearFrames();
           return;
         }
         _delivered = true;
-        Navigator.pop(context, LiveFaceCapture(_neutral!, _action));
+        Navigator.pop(context, LiveFaceCapture(_neutral!, null));
       }
     } catch (_) {
       if (mounted)
-        setState(() => _error =
-            'Live camera analysis could not continue. Go back and retry.');
+        setState(() =>
+            _error = 'Camera analysis could not continue. Go back and retry.');
     } finally {
       _processing = false;
     }
@@ -228,7 +208,7 @@ class _QuickFaceCameraState extends State<QuickFaceCamera>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: const Text('Quick live verification')),
+      appBar: AppBar(title: const Text('Face verification')),
       body: SafeArea(
           child: Padding(
               padding: const EdgeInsets.all(20),

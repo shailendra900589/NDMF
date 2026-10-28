@@ -138,7 +138,7 @@ class NdfaApiService extends GetxService {
           String neutral, String? action, String id) =>
       Get.find<RemoteApiService>().checkFaceCapture(neutral, action, id);
   Future<Map<String, dynamic>> verifyLiveAttendanceFace(
-          String neutral, String action, String id, String purpose) =>
+          String neutral, String? action, String id, String purpose) =>
       Get.find<RemoteApiService>()
           .verifyLiveAttendanceFace(neutral, action, id, purpose);
 

@@ -5,54 +5,33 @@ import 'package:nirmaldhara_micro_finance/app/utils/auto_face_capture.dart';
 import 'package:nirmaldhara_micro_finance/app/utils/camera_frame.dart';
 
 void main() {
-  test(
-      'automatic capture requires one stable face and an open-close-open blink',
+  test('single automatic capture needs only one stable face and no expression',
       () {
-    final capture = AutoFaceCapture();
+    final capture = SingleFaceCapture();
     final start = DateTime(2026);
-    AutoFaceStep frame(int ms, double left, double right,
-            {bool single = true, int person = 1}) =>
-        capture.observe(
-            singleCenteredFace: single,
-            leftEye: left,
-            rightEye: right,
-            now: start.add(Duration(milliseconds: ms)),
-            trackingId: person);
-    expect(frame(0, .95, .95), AutoFaceStep.waiting);
-    expect(frame(200, .95, .95), AutoFaceStep.reference);
-    expect(frame(400, .95, .95), AutoFaceStep.reference); // static photo
-    expect(frame(500, .1, .95), AutoFaceStep.reference); // wink
-    expect(frame(600, .1, .1), AutoFaceStep.action);
-    expect(frame(750, .95, .95), AutoFaceStep.complete);
-    capture.reset();
-    frame(0, .95, .95);
-    frame(200, .95, .95);
-    expect(frame(300, .1, .1, single: false), AutoFaceStep.waiting);
-    frame(400, .95, .95);
-    frame(600, .95, .95);
-    expect(frame(700, .1, .1, person: 2), AutoFaceStep.waiting);
+    bool frame(int ms, {bool single = true, int person = 1}) => capture.observe(
+        singleCenteredFace: single,
+        now: start.add(Duration(milliseconds: ms)),
+        trackingId: person);
+    expect(frame(0), false);
+    expect(frame(100), false);
+    expect(frame(200), true);
+    expect(frame(300, single: false), false);
+    expect(frame(400), false);
+    expect(frame(600), true);
+    expect(frame(700, person: 2), false);
   });
-  test('closed-eye hold and missing classification never auto-complete', () {
-    final capture = AutoFaceCapture();
-    final start = DateTime(2026);
+  test('missing face never auto captures', () {
+    final capture = SingleFaceCapture();
     for (var i = 0; i < 5; i++) {
       expect(
           capture.observe(
-              singleCenteredFace: true,
-              leftEye: .1,
-              rightEye: .1,
-              now: start.add(Duration(seconds: i))),
-          AutoFaceStep.waiting);
+              singleCenteredFace: false,
+              now: DateTime(2026).add(Duration(seconds: i))),
+          false);
     }
-    expect(
-        capture.observe(
-            singleCenteredFace: true,
-            leftEye: double.nan,
-            rightEye: .9,
-            now: start),
-        AutoFaceStep.waiting);
   });
-  test('YUV frame packing respects padding and chroma pixel strides', () {
+  test('YUV frame packing preserves padded planes and portrait rotation', () {
     final packed = packNv21(2, 2, [
       Uint8List.fromList([16, 40, 99, 80, 120, 99]),
       Uint8List.fromList([100, 99]),
@@ -67,18 +46,15 @@ void main() {
       2
     ]);
     expect(packed, [16, 40, 80, 120, 150, 100]);
-    final encoded = encodeFaceFrame(
-        {'width': 2, 'height': 2, 'bytes': packed, 'rotation': 90});
-    final decoded = img.decodeJpg(encoded)!;
+    final decoded = img.decodeJpg(encodeFaceFrame(
+        {'width': 2, 'height': 2, 'bytes': packed, 'rotation': 90}))!;
     expect(decoded.width, 2);
     expect(decoded.height, 2);
-    expect(decoded.getPixel(0, 0).r.isFinite, true);
     final portrait = img.decodeJpg(encodeFaceFrame({
       'width': 4,
       'height': 2,
-      'bytes': Uint8List.fromList(
-          [128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128]),
-      'rotation': 90,
+      'bytes': Uint8List.fromList(List.filled(12, 128)),
+      'rotation': 90
     }))!;
     expect(portrait.width, 2);
     expect(portrait.height, 4);
