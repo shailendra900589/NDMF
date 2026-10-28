@@ -24,6 +24,10 @@ Each attendance camera frame is checked before moving to the next step. A closed
 
 The home shortcut strip is removed. Notices, visits and salary slips are available as organized rows in Profile; notice refresh and phone notifications remain active while home is open.
 
+### Backend consistency correction
+
+Action-photo presence is now explicit: missing action landmarks cannot be mistaken for an accepted reference-only frame. Guidance validates both identities and the requested action before returning ready. Its server-generated decision is bound to the SHA-256 of both uploaded files, the employee enrollment revision and the unexpired single-use challenge. Final submission uses this same decision for identical files, avoiding a second inference disagreeing with an already accepted capture. Modified files fall back to full verification; changed enrollment invalidates the decision. No client success flag is trusted and no photo is saved by this process. Existing mobile 1.5.2 uses this backend correction without a new APK.
+
 ## Tracking recovery and diagnostics
 
 The app restores duty tracking after login, attendance refresh and resume, and refreshes on network reconnection. Failed GPS uploads remain in an employee-scoped queue and retry even without a new position. Interrupted location streams restart. A separate heartbeat reports location permissions, background permission, app version and service state; it never changes the GPS capture timestamp.

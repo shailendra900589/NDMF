@@ -16,12 +16,12 @@ require.cache[require.resolve('../src/lib/pg')]={exports:{query,getPool:()=>({co
 const face = require('../src/lib/faceMatch');
 const db = require('../src/lib/db');
 const vector = value => Array(128).fill(value);
-let beforeBuild = async()=>{}, beforeLive = async()=>{}, liveValue = 0;
+let beforeBuild = async()=>{}, beforeLive = async()=>{}, liveValue = 0, actionMetrics={mouth:0.7,eyes:0.08};
 // Deterministic inference boundary; the real HTTP, authorization, persistence,
 // enrollment normalization and descriptor cache are exercised below.
 require.cache[require.resolve('../src/lib/faceMatch')].exports={...face,
   buildEnrollment:async()=>{await beforeBuild();return [vector(0),vector(0),vector(0)];},
-  describeFace:async(buffer)=>{await beforeLive();return {descriptor:vector(liveValue),liveness:buffer.toString().includes('live-action')?{mouth:0.7,eyes:0.08}:{mouth:0.05,eyes:0.30}};},
+  describeFace:async(buffer)=>{await beforeLive();return {descriptor:vector(liveValue),liveness:buffer.toString().includes('live-action')?actionMetrics:{mouth:0.05,eyes:0.30}};},
 };
 
 test('registered phone attendance survives persistence, signed URLs and concurrent resets',async t=>{
@@ -71,6 +71,38 @@ test('registered phone attendance survives persistence, signed URLs and concurre
     const verified=await call('/attendance/verify-face','POST',form('live-action'));
     assert.equal(verified.data.verified,true);
     assert.equal((await call('/attendance/face-capture-check','POST',form())).status,409);
+  });
+  await t.test('accepted exact captures retain their server decision through final submission',async()=>{
+    const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin'})).data;
+    const form=(text='live-action')=>{const f=selfie();f.append('challengeId',challenge.id);f.append('actionFile',new Blob([text],{type:'image/jpeg'}),'action.jpg');return f;};
+    const accepted=await call('/attendance/face-capture-check','POST',form());assert.equal(accepted.data.ready,true);
+    let inferenceCalls=0;beforeLive=async()=>{inferenceCalls++;};actionMetrics={mouth:0.05,eyes:0.30};
+    try {
+      const final=await call('/attendance/verify-face','POST',form());assert.equal(final.data.verified,true,'same already accepted frames must not fail on a second inference');
+      assert.equal(inferenceCalls,0,'final consumes hash-bound server evidence without repeating inference');
+      assert.equal((await call('/attendance/verify-face','POST',form())).status,409);
+    }finally{beforeLive=async()=>{};actionMetrics={mouth:0.7,eyes:0.08};}
+  });
+  await t.test('action photo with missing geometry is never reported ready',async()=>{
+    const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin'})).data;
+    const f=selfie();f.append('challengeId',challenge.id);f.append('actionFile',new Blob(['live-action'],{type:'image/jpeg'}),'action.jpg');
+    actionMetrics=null;
+    try{const r=await call('/attendance/face-capture-check','POST',f);assert.equal(r.data.ready,false);}finally{actionMetrics={mouth:0.7,eyes:0.08};}
+  });
+  await t.test('accepted capture evidence cannot authorize changed files or changed enrollment',async()=>{
+    async function prepared(){
+      const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin'})).data;
+      const form=(text='live-action')=>{const f=selfie();f.append('challengeId',challenge.id);f.append('actionFile',new Blob([text],{type:'image/jpeg'}),'action.jpg');return f;};
+      assert.equal((await call('/attendance/face-capture-check','POST',form())).data.ready,true);
+      return {challenge,form};
+    }
+    let {form}=await prepared();
+    const changed=await call('/attendance/verify-face','POST',form('different-invalid-action'));
+    assert.equal(changed.data.verified,false,'a different uploaded action cannot inherit the accepted decision');
+    ({form}=await prepared());
+    db.upsert('users',{...db.findById('users','EMP'),faceEnrollmentRevision:'new-enrollment'},{single:true});
+    actionMetrics={mouth:0.05,eyes:0.30};
+    try{assert.equal((await call('/attendance/verify-face','POST',form())).data.verified,false,'old evidence cannot authorize a new enrollment');}finally{actionMetrics={mouth:0.7,eyes:0.08};}
   });
   await t.test('legacy photo objects and expiring signatures use the stored face cache',async()=>{
     const u=db.findById('users','EMP');

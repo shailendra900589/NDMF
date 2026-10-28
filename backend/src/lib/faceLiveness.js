@@ -11,11 +11,12 @@ function actionPassed(neutral, action, type) {
   return type==='open_mouth' && neutral.mouth<0.30 && action.mouth>0.38 && action.mouth-neutral.mouth>0.18;
 }
 const digest=buffer=>createHash('sha256').update(buffer).digest('hex');
-function captureFeedback(neutral, action, type) {
+function captureFeedback(neutral, action, type, actionRequired=false) {
   if (!neutral || !['eyes','mouth'].every(k=>Number.isFinite(neutral[k]))) return {ready:false,message:'Keep your whole face visible in bright, even light.'};
   if(type==='close_eyes' && neutral.eyes<=0.20) return {ready:false,restartReference:true,message:'Retake the first photo with both eyes fully open. Remove dark glasses.'};
   if(type==='open_mouth' && neutral.mouth>=0.30) return {ready:false,restartReference:true,message:'Retake the first photo with lips gently closed and a relaxed expression.'};
-  if(!action)return {ready:true,message:'Reference ready. Now follow the live action instruction.'};
+  if(!action && !actionRequired)return {ready:true,message:'Reference ready. Now follow the live action instruction.'};
+  if(!action || !['eyes','mouth'].every(k=>Number.isFinite(action[k])))return {ready:false,message:'The action photo could not be measured. Keep your whole face visible in even light and retake this photo.'};
   if(actionPassed(neutral,action,type))return {ready:true,message:'Live action captured. Checking your identity…'};
   return {ready:false,message:type==='close_eyes'?'Close both eyes completely and keep them closed until the photo is taken. Keep your head straight.':'Open your mouth wider and hold it open until the photo is taken. Keep your head straight.'};
 }

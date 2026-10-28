@@ -16,4 +16,6 @@ test('capture guidance distinguishes bad reference, wrong action and ready frame
  assert.equal(captureFeedback(neutral,neutral,'close_eyes').ready,false);
  assert.equal(captureFeedback(neutral,{eyes:0.09,mouth:0.05},'close_eyes').ready,true);
  assert.equal(captureFeedback(null,null,'open_mouth').ready,false);
+ assert.equal(captureFeedback(neutral,null,'open_mouth',true).ready,false);
+ assert.equal(captureFeedback(neutral,{eyes:NaN,mouth:0.5},'open_mouth',true).ready,false);
 });

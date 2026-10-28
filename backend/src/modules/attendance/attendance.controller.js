@@ -295,12 +295,29 @@ exports.checkFaceCapture = async (req,res) => {
   if(!challenge || challenge.id!==req.body.challengeId || challenge.usedAt || Date.parse(challenge.expiresAt)<=Date.now())return error(res,'Camera check expired. Go back and start a new check.',409);
   if((challenge.captureChecks || 0)>=12)return error(res,'Capture retry limit reached. Go back and start a new check.',429);
   if(!req.files?.file?.[0])return error(res,'A fresh camera reference is required');
-  upsert('users',{...user,faceChallenge:{...challenge,captureChecks:(challenge.captureChecks || 0)+1}},{single:true});
+  const revision=enrollmentRevision(user);
+  const pendingChallenge={...challenge,captureChecks:(challenge.captureChecks || 0)+1,captureProof:null};
+  upsert('users',{...user,faceChallenge:pendingChallenge},{single:true});
   await flush();
   try {
     const neutral=await describeFace(req.files.file[0].buffer);
-    const action=req.files.actionFile?.[0] ? await describeFace(req.files.actionFile[0].buffer) : null;
-    return success(res,require('../../lib/faceLiveness').captureFeedback(neutral.liveness,action?.liveness,challenge.action));
+    const actionFile=req.files.actionFile?.[0];
+    const action=actionFile ? await describeFace(actionFile.buffer) : null;
+    const {captureFeedback,digest}=require('../../lib/faceLiveness');
+    const feedback=captureFeedback(neutral.liveness,action?.liveness,challenge.action,!!actionFile);
+    if(!feedback.ready || !actionFile)return success(res,feedback);
+    if(digest(req.files.file[0].buffer)===digest(actionFile.buffer))return success(res,{ready:false,message:'Take a new live action photo. The two photos must be different.'});
+    const enrolled=await ensureEnrolledDescriptors(user,()=>{});
+    const neutralMatch=compare(neutral.descriptor,enrolled), actionMatch=compare(action.descriptor,enrolled);
+    if(!neutralMatch.matched || !actionMatch.matched)return success(res,{ready:false,restartReference:true,message:'Face could not be matched in both photos. Keep your whole face centered in even light and retake the reference.'});
+    const current=findById('users',user.id);
+    if(!current || current.isActive===false || enrollmentRevision(current)!==revision || current.faceChallenge?.id!==challenge.id || current.faceChallenge.usedAt || Date.parse(current.faceChallenge.expiresAt)<=Date.now())return error(res,'Face registration or camera session changed. Start a new check.',409);
+    // Bind the server decision to these exact bytes, this employee's enrollment
+    // revision and the existing single-use challenge. No photos are retained.
+    const captureProof={revision,neutralHash:digest(req.files.file[0].buffer),actionHash:digest(actionFile.buffer),neutralMetrics:neutral.liveness,actionMetrics:action.liveness,neutralMatch,actionMatch};
+    upsert('users',{...current,faceChallenge:{...current.faceChallenge,captureProof}},{single:true});
+    await flush();
+    return success(res,feedback);
   } catch(err) {
     if(err instanceof FaceCheckError)return success(res,{ready:false,message:err.message});
     throw err;
@@ -327,6 +344,9 @@ exports.verifyLiveFace = async (req, res) => {
   await flush();
 
   const revision = enrollmentRevision(user);
+  const {digest}=require('../../lib/faceLiveness');
+  const candidate=challenge.captureProof;
+  const proof=candidate && candidate.revision===revision && candidate.neutralHash===digest(neutralFile.buffer) && candidate.actionHash===digest(actionFile.buffer) ? candidate : null;
   const save = u => {
     const current = findById('users', user.id);
     if (!current || current.isActive === false || enrollmentRevision(current) !== revision) {
@@ -369,24 +389,24 @@ exports.verifyLiveFace = async (req, res) => {
 
   let live;
   try {
-    live = await describeFace(neutralFile.buffer);
+    live = proof ? {liveness:proof.neutralMetrics} : await describeFace(neutralFile.buffer);
   } catch (err) {
     if (err instanceof FaceCheckError) return fail(err.message, err.code);
     console.error('Live face check failed:', err);
     return error(res, 'Face check is not available right now — try again in a minute', 503);
   }
 
-  const result = compare(live.descriptor, enrolled);
+  const result = proof?.neutralMatch || compare(live.descriptor, enrolled);
   if (!result.matched) return fail('Face does not match the registered employee','mismatch',{matchScore:result.matchScore});
   if (require('../../lib/faceLiveness').digest(neutralFile.buffer)===require('../../lib/faceLiveness').digest(actionFile.buffer)) return fail('A static photo cannot pass the live camera check','liveness_failed',{matchScore:result.matchScore});
   let action;
-  try { action=await describeFace(actionFile.buffer); } catch(err) {
+  try { action=proof ? {liveness:proof.actionMetrics} : await describeFace(actionFile.buffer); } catch(err) {
     if(err instanceof FaceCheckError) return fail(err.message,err.code);
     throw err;
   }
-  const actionMatch=compare(action.descriptor,enrolled);
+  const actionMatch=proof?.actionMatch || compare(action.descriptor,enrolled);
   if (!actionMatch.matched) return fail('Your face could not be matched in the action photo. Keep your whole face centered with the same lighting.', 'mismatch',{matchScore:Math.min(result.matchScore,actionMatch.matchScore)});
-  if (!require('../../lib/faceLiveness').actionPassed(live.liveness,action.liveness,challenge.action)) return fail(require('../../lib/faceLiveness').captureFeedback(live.liveness,action.liveness,challenge.action).message, 'liveness_failed',{matchScore:Math.min(result.matchScore,actionMatch.matchScore)});
+  if (!require('../../lib/faceLiveness').actionPassed(live.liveness,action.liveness,challenge.action)) return fail(require('../../lib/faceLiveness').captureFeedback(live.liveness,action.liveness,challenge.action,true).message, 'liveness_failed',{matchScore:Math.min(result.matchScore,actionMatch.matchScore)});
 
   const now = new Date();
   user.faceVerification = {
