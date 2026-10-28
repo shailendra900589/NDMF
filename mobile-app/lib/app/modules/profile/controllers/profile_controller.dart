@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/services/security_platform_service.dart';
 import '../../../data/services/camera_service.dart';
@@ -18,7 +19,7 @@ class ProfileController extends GetxController {
   final NdfaApiService _api = Get.find<NdfaApiService>();
   final UploadService _upload = Get.find<UploadService>();
 
-  final appVersion = '1.0.0'.obs;
+  final appVersion = 'Loading…'.obs;
   final screenshotProtection = false.obs;
   final photoPath = RxnString();
   final faceAttendanceRequired = true.obs;
@@ -27,9 +28,19 @@ class ProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _loadVersion();
     photoPath.value = _storage.getUser()?.photoUrl;
     faceAttendanceRequired.value =
         _storage.getUser()?.faceAttendanceRequired ?? true;
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      appVersion.value = '${info.version} (${info.buildNumber})';
+    } catch (_) {
+      appVersion.value = 'Unavailable';
+    }
   }
 
   Future<void> toggleFaceAttendancePolicy(bool enabled) async {

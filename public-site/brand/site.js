@@ -26,9 +26,9 @@
     stage.addEventListener('pointerleave',function(){preview.style.removeProperty('--tilt-x');preview.style.removeProperty('--tilt-y');});
   }
   document.querySelector('#year').textContent=String(new Date().getFullYear());
-  // The signed release manifest is the single source of truth for the app download.
+  // The release manifest selects the versioned APK and its cache key.
   fetch('/downloads/release.json',{cache:'no-store'}).then(function(response){return response.ok?response.json():null;}).then(function(release){
     if(!release || !/^mystaff-smart-[\d.]+\.apk$/.test(release.file || ''))return;
-    document.querySelectorAll('a[href$=".apk"]').forEach(function(link){link.href='/downloads/'+release.file;});
+    document.querySelectorAll('a[href$=".apk"]').forEach(function(link){link.href='/downloads/'+release.file+'?v='+encodeURIComponent((release.sha256 || '').slice(0,12));link.textContent='Download Android app '+release.version+' ↓';});
   }).catch(function(){});
 })();

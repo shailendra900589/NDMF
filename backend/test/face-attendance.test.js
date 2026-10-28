@@ -39,9 +39,8 @@ test('registered phone attendance survives persistence, signed URLs and concurre
   async function call(path,method='GET',body,token=employee) {
     if (['/attendance/check-in','/attendance/check-out'].includes(path) && body) body={accuracy:8,gpsRecordedAt:new Date().toISOString(),mocked:false,...body};
     if (path==='/attendance/verify-face' && body instanceof FormData && body.has('file') && !body.has('challengeId')) {
-      const c=await call('/attendance/face-challenge','POST',{purpose:body.get('purpose') || 'checkin'},token);
+      const c=await call('/attendance/face-challenge','POST',{purpose:body.get('purpose') || 'checkin',captureMode:'auto_single'},token);
       if(c.status===200) body.append('challengeId',c.data.id);
-      if(!body.has('actionFile'))body.append('actionFile',new Blob(['live-action'],{type:'image/jpeg'}),'action.jpg');
     }
     const isForm=body instanceof FormData;
     const r=await fetch(base+path,{method,headers:{Authorization:`Bearer ${token}`,...(!isForm?{'Content-Type':'application/json'}:{})},body:body===undefined?undefined:isForm?body:JSON.stringify(body)});
@@ -49,6 +48,7 @@ test('registered phone attendance survives persistence, signed URLs and concurre
   }
   function selfie(){const body=new FormData();body.append('file',new Blob(['test-photo'],{type:'image/jpeg'}),'live.jpg');return body;}
   const urls=[1,2,3].map(i=>`https://old.example/uploads/CO_TEST_photo${i}.jpg?expires=1&signature=expired`);
+  assert.equal((await call('/health')).data.attendanceFaceMode,'single_photo_only_v2');
   await t.test('save confirms durable registration and normalizes signed paths',async()=>{
     assert.equal((await call('/users/me/face-enrollment','PUT',{urls:[urls[0],urls[0],urls[0]]})).status,400);
     const r=await call('/users/me/face-enrollment','PUT',{urls});assert.equal(r.status,200,r.message);assert.equal(r.data.faceEnrollmentComplete,true);
@@ -59,27 +59,19 @@ test('registered phone attendance survives persistence, signed URLs and concurre
     assert.equal((await call('/users/me/face-enrollment')).data.complete,true);
     assert.equal((await call('/auth/me')).data.faceEnrollmentComplete,true);
   });
-  await t.test('capture guidance can retry without granting attendance or consuming its live challenge',async()=>{
-    const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin'})).data;
-    const form=(action)=>{const f=selfie();f.append('challengeId',challenge.id);if(action)f.append('actionFile',new Blob([action],{type:'image/jpeg'}),'action.jpg');return f;};
-    assert.equal((await call('/attendance/face-capture-check','POST',form())).data.ready,true);
-    assert.equal((await call('/attendance/face-capture-check','POST',form('test-photo'))).data.ready,false);
-    assert.equal((await call('/attendance/face-capture-check','POST',form('live-action'))).data.ready,true);
-    assert.equal(db.findById('users','EMP').faceVerification,null);
-    assert.equal(db.findById('users','EMP').faceChallenge.usedAt,undefined);
-    assert.equal((await call('/attendance/check-in','POST',{lat:26.7,lng:83.4})).status,400);
-    const verified=await call('/attendance/verify-face','POST',form('live-action'));
-    assert.equal(verified.data.verified,true);
-    assert.equal((await call('/attendance/face-capture-check','POST',form())).status,409);
+  await t.test('retired modes never issue eye or mouth instructions',async()=>{
+    for(const mode of [undefined,'auto_blink','guided','close_eyes']){
+      const response=await call('/attendance/face-challenge','POST',{purpose:'checkin',...(mode?{captureMode:mode}:{})});
+      assert.equal(response.status,426);assert.match(response.message,/Update MyStaff Smart/);
+      assert.equal(response.data,null);
+    }
+    assert.equal((await call('/attendance/face-capture-check','POST',selfie())).status,426);
   });
-  await t.test('automatic blink challenge still requires server face and action verification',async()=>{
-    const c=await call('/attendance/face-challenge','POST',{purpose:'checkout',captureMode:'auto_blink'});
-    assert.equal(c.data.captureMode,'auto_blink');assert.equal(c.data.action,'close_eyes');
-    assert.equal(db.findById('users','EMP').faceVerification,null);
-    const form=selfie();form.append('challengeId',c.data.id);form.append('purpose','checkout');form.append('actionFile',new Blob(['live-action'],{type:'image/jpeg'}),'blink.jpg');
-    const verified=await call('/attendance/verify-face','POST',form);
-    assert.equal(verified.data.verified,true);assert.equal(verified.data.livenessVerified,true);
-    assert.equal((await call('/attendance/verify-face','POST',form)).status,409);
+  await t.test('single-photo verification runs inference once without action metrics',async()=>{
+    let calls=0;beforeLive=async()=>{calls++;};actionMetrics=null;
+    try{const result=await call('/attendance/verify-face','POST',selfie());
+      assert.equal(result.data.verified,true);assert.equal(result.data.livenessVerified,false);assert.equal(calls,1);
+    }finally{beforeLive=async()=>{};actionMetrics={mouth:0.7,eyes:0.08};}
   });
   await t.test('single camera image authorizes both punches only after server identity match',async()=>{
     db.upsert('users',{id:'SINGLE_QA',companyId:'CO_TEST',name:'Single capture QA',role:'fieldOfficer',branch:'Office',workType:'field',isActive:true});
@@ -109,41 +101,10 @@ test('registered phone attendance survives persistence, signed URLs and concurre
     liveValue=0.2;
     try { assert.equal((await verify('checkin')).r.data.verified,false,'wrong identity is rejected with a single photo'); }
     finally {liveValue=0;}
-    const guided=(await call('/attendance/face-challenge','POST',{purpose:'checkin'},actor)).data;
+    const guided={id:'RETIRED_QA',purpose:'checkin',captureMode:'guided',expiresAt:new Date(Date.now()+60000).toISOString()};
+    db.upsert('users',{...db.findById('users','SINGLE_QA'),faceChallenge:guided},{single:true});
     const forged=selfie();forged.append('challengeId',guided.id);forged.append('captureMode','auto_single');
-    assert.equal((await call('/attendance/verify-face','POST',forged,actor)).status,400,'request body cannot change a stored challenge mode');
-  });
-  await t.test('accepted exact captures retain their server decision through final submission',async()=>{
-    const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin'})).data;
-    const form=(text='live-action')=>{const f=selfie();f.append('challengeId',challenge.id);f.append('actionFile',new Blob([text],{type:'image/jpeg'}),'action.jpg');return f;};
-    const accepted=await call('/attendance/face-capture-check','POST',form());assert.equal(accepted.data.ready,true);
-    let inferenceCalls=0;beforeLive=async()=>{inferenceCalls++;};actionMetrics={mouth:0.05,eyes:0.30};
-    try {
-      const final=await call('/attendance/verify-face','POST',form());assert.equal(final.data.verified,true,'same already accepted frames must not fail on a second inference');
-      assert.equal(inferenceCalls,0,'final consumes hash-bound server evidence without repeating inference');
-      assert.equal((await call('/attendance/verify-face','POST',form())).status,409);
-    }finally{beforeLive=async()=>{};actionMetrics={mouth:0.7,eyes:0.08};}
-  });
-  await t.test('action photo with missing geometry is never reported ready',async()=>{
-    const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin'})).data;
-    const f=selfie();f.append('challengeId',challenge.id);f.append('actionFile',new Blob(['live-action'],{type:'image/jpeg'}),'action.jpg');
-    actionMetrics=null;
-    try{const r=await call('/attendance/face-capture-check','POST',f);assert.equal(r.data.ready,false);}finally{actionMetrics={mouth:0.7,eyes:0.08};}
-  });
-  await t.test('accepted capture evidence cannot authorize changed files or changed enrollment',async()=>{
-    async function prepared(){
-      const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin'})).data;
-      const form=(text='live-action')=>{const f=selfie();f.append('challengeId',challenge.id);f.append('actionFile',new Blob([text],{type:'image/jpeg'}),'action.jpg');return f;};
-      assert.equal((await call('/attendance/face-capture-check','POST',form())).data.ready,true);
-      return {challenge,form};
-    }
-    let {form}=await prepared();
-    const changed=await call('/attendance/verify-face','POST',form('different-invalid-action'));
-    assert.equal(changed.data.verified,false,'a different uploaded action cannot inherit the accepted decision');
-    ({form}=await prepared());
-    db.upsert('users',{...db.findById('users','EMP'),faceEnrollmentRevision:'new-enrollment'},{single:true});
-    actionMetrics={mouth:0.05,eyes:0.30};
-    try{assert.equal((await call('/attendance/verify-face','POST',form())).data.verified,false,'old evidence cannot authorize a new enrollment');}finally{actionMetrics={mouth:0.7,eyes:0.08};}
+    assert.equal((await call('/attendance/verify-face','POST',forged,actor)).status,426,'request body cannot revive a retired challenge mode');
   });
   await t.test('legacy photo objects and expiring signatures use the stored face cache',async()=>{
     const u=db.findById('users','EMP');
@@ -174,12 +135,14 @@ test('registered phone attendance survives persistence, signed URLs and concurre
     liveValue=0;
     assert.equal((await call('/attendance/verify-face','POST',selfie())).data.verified,true);
   });
-  await t.test('static photo reuse and replayed live challenges fail closed',async()=>{
-    const challenge=await call('/attendance/face-challenge','POST',{purpose:'checkin'});
-    const make=()=>{const form=selfie();form.append('challengeId',challenge.data.id);form.append('actionFile',new Blob(['test-photo'],{type:'image/jpeg'}),'same.jpg');return form;};
-    const result=await call('/attendance/verify-face','POST',make());assert.equal(result.data.verified,false);assert.equal(result.data.reason,'liveness_failed');
+  await t.test('purpose-bound single photo challenges expire and cannot be reused',async()=>{
+    const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin',captureMode:'auto_single'})).data;
+    const make=(purpose='checkin')=>{const f=selfie();f.append('challengeId',challenge.id);f.append('purpose',purpose);return f;};
+    assert.equal((await call('/attendance/verify-face','POST',make('checkout'))).status,409);
+    assert.equal((await call('/attendance/verify-face','POST',make())).data.verified,true);
     assert.equal((await call('/attendance/verify-face','POST',make())).status,409);
-    assert.equal(db.findById('users','EMP').faceVerification,null);
+    db.upsert('users',{...db.findById('users','EMP'),faceChallenge:{...challenge,expiresAt:new Date(0).toISOString()}},{single:true});
+    assert.equal((await call('/attendance/verify-face','POST',make())).status,409);
   });
   await t.test('dummy manager login, own attendance and face-verified checkout stay separate from team history',async()=>{
     const bcrypt=require('bcryptjs');

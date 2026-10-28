@@ -21,7 +21,7 @@ class AttendanceView extends GetView<AttendanceController> {
         backgroundColor: AppColors.background,
         appBar: const CustomAppBar(
           title: 'Attendance',
-          subtitle: 'Face verify + GPS',
+          subtitle: 'Single-photo face match + GPS',
           bottom: TabBar(
             indicatorColor: Colors.white,
             labelColor: Colors.white,

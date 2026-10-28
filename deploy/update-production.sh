@@ -28,14 +28,14 @@ sudo python3 deploy/refresh-console-cache.py "$SITE_HOST" "$WEB_ROOT" --public-r
 
 echo 'Restarting the API'
 pm2 restart ndfa-api
-if ! python3 deploy/wait-for-api.py http://127.0.0.1:5000/api/v1/health; then
+if ! python3 deploy/wait-for-api.py http://127.0.0.1:5000/api/v1/health --expected-face-mode single_photo_only_v2; then
   pm2 status
   echo 'Inspect startup errors with: pm2 logs ndfa-api --nostream --lines 50'
   echo 'Also check PostgreSQL and the PORT / DATABASE_URL settings in backend/.env.'
   exit 1
 fi
 echo 'Verifying the API through the public HTTPS proxy'
-if ! python3 deploy/wait-for-api.py "$SITE_URL/api/v1/health" --attempts 6; then
+if ! python3 deploy/wait-for-api.py "$SITE_URL/api/v1/health" --attempts 6 --expected-face-mode single_photo_only_v2; then
   echo 'Local API is healthy but public API verification failed. Check Nginx /api/ proxy and TLS.'
   exit 1
 fi
@@ -79,7 +79,7 @@ if ! grep -Eiq '^cache-control:.*no-store' <<< "$HOME_HEADERS"; then
   echo 'ERROR: public homepage cache policy is missing; check the active proxy/CDN.'
   exit 1
 fi
-curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/brand/site.js?v=2" >/dev/null
+curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/brand/site.js?v=3" >/dev/null
 APK_FILE=$(python3 -c 'import json; print(json.load(open("public-site/downloads/release.json"))["file"])')
 APK_HEADERS=$(curl -fsSI --connect-timeout 10 --max-time 30 "$SITE_URL/downloads/$APK_FILE")
 if ! grep -Eiq '^content-type:.*application/vnd.android.package-archive' <<< "$APK_HEADERS"; then

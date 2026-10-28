@@ -19,10 +19,10 @@ def response(payload=None):
 
 
 class ApiReadinessTest(unittest.TestCase):
-    def check(self, sequence, attempts):
+    def check(self, sequence, attempts, **kwargs):
         output = io.StringIO()
         with patch.object(readiness.urllib.request, 'urlopen', side_effect=sequence), patch.object(readiness.time, 'sleep'), contextlib.redirect_stdout(output):
-            result = readiness.wait_for_api('http://127.0.0.1:5000/api/v1/health', attempts=attempts)
+            result = readiness.wait_for_api('http://127.0.0.1:5000/api/v1/health', attempts=attempts, **kwargs)
         return result, output.getvalue()
 
     def test_restart_connection_refusal_then_stable_success(self):
@@ -43,6 +43,16 @@ class ApiReadinessTest(unittest.TestCase):
                 result, text = self.check([bad, urllib.error.URLError('connection refused')], 2)
                 self.assertFalse(result)
                 self.assertIn('did not become ready', text)
+
+    def test_old_backend_cannot_pass_single_photo_deployment_check(self):
+        result, text = self.check([response(), response()], 2, expected_face_mode='single_photo_only_v2')
+        self.assertFalse(result)
+        self.assertIn('Old attendance backend', text)
+
+    def test_current_face_mode_requires_two_matching_responses(self):
+        payload = {'success': True, 'data': {'version': '2.2.0', 'attendanceFaceMode': 'single_photo_only_v2'}}
+        result, text = self.check([response(payload), response(payload)], 2, expected_face_mode='single_photo_only_v2')
+        self.assertTrue(result)
 
 
 if __name__ == '__main__':

@@ -41,6 +41,7 @@ router.get('/health', (_, res) => {
     message: 'MyStaff Smart API is running',
     data: {
       version: '2.2.0',
+      attendanceFaceMode: 'single_photo_only_v2',
       modules: 'rbac,branches,users,customers,listing,calls,attendance,tracking,payslips,settings',
     },
   });

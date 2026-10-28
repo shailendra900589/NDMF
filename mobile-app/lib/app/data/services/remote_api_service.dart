@@ -247,20 +247,6 @@ class RemoteApiService extends GetxService {
   Future<Map<String, dynamic>> requestFaceChallenge(String purpose) async =>
       _unwrapMap(await _http.post('/attendance/face-challenge',
           data: {'purpose': purpose, 'captureMode': 'auto_single'}));
-  Future<Map<String, dynamic>> checkFaceCapture(
-      String neutralPath, String? actionPath, String challengeId) async {
-    final form = FormData.fromMap({
-      'challengeId': challengeId,
-      'file':
-          await MultipartFile.fromFile(neutralPath, filename: 'reference.jpg'),
-      if (actionPath != null)
-        'actionFile':
-            await MultipartFile.fromFile(actionPath, filename: 'action.jpg'),
-    });
-    return _unwrapMap(
-        await _http.upload('/attendance/face-capture-check', form));
-  }
-
   Future<Map<String, dynamic>> verifyLiveAttendanceFace(String neutralPath,
       String? actionPath, String challengeId, String purpose) async {
     final form = FormData.fromMap({

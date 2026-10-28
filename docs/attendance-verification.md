@@ -1,4 +1,4 @@
-# Attendance face verification — mobile 1.6.1 (30)
+# Attendance face verification — mobile 1.6.2 (31)
 
 ## Current employee flow
 
@@ -8,7 +8,7 @@ The server issues a three-minute, single-use challenge in `auto_single` mode, bo
 
 **Single-image face matching does not establish anti-spoof liveness.** A printed photo, screen replay or manipulated image is not reliably distinguished by this flow. Fresh in-app capture is the normal client workflow, not cryptographic proof of a live person. Accordingly single-image results and attendance audit fields record identity verification and `livenessVerified: false`; the product labels this Face verification. This simplified mode was explicitly requested by the owner. Strong anti-spoof requirements need a separately validated passive liveness solution or an interactive challenge.
 
-Existing reference enrollment remains valid. No enrollment reset is required merely to install this update. Wrong identities, missing/multiple/small faces and unreadable captures still fail; matching thresholds have not been relaxed. Previously deployed guided/automatic-blink clients retain their previous challenge validation and should update to receive the single-capture interaction.
+Existing reference enrollment remains valid. No enrollment reset is required merely to install this update. Wrong identities, missing/multiple/small faces and unreadable captures still fail; matching thresholds have not been relaxed. Guided and automatic-blink challenge modes are retired server-side. Requests from those clients return HTTP 426 with an update message; old persisted action challenges cannot be used. The former capture-guidance endpoint also returns 426 and never emits expression instructions. Only `auto_single` is supported.
 
 ## GPS and responsiveness
 
@@ -26,4 +26,4 @@ Fresh coarse observations up to 150 metres may show approximate live positions b
 
 ## Deployment
 
-Deploy the backend first, then install **1.6.1 (30)** from the website. Both are required for `auto_single`. The website chooses its APK from `/downloads/release.json`; deployment verifies the committed binary's size and checksum. Android minimum remains API 24 (Android 7), with armeabi-v7a, arm64-v8a and x86_64 libraries.
+Deploy the backend first, then install **1.6.2 (31)** from the website. Both are required. Profile displays the actual installed native version/build rather than a placeholder. The website labels the available APK version and uses a checksum cache key. The website chooses its APK from `/downloads/release.json`; deployment verifies the committed binary's size and checksum. Deployment also requires local and public `/api/v1/health` to report `attendanceFaceMode: single_photo_only_v2`; an API process pointing at an old checkout cannot pass this check. Android minimum remains API 24 (Android 7), with armeabi-v7a, arm64-v8a and x86_64 libraries.

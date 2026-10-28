@@ -36,7 +36,8 @@ class _DeviceInfoViewState extends State<DeviceInfoView> {
       final supported = await localAuth.isDeviceSupported();
       if (canCheck && supported) {
         final types = await localAuth.getAvailableBiometrics();
-        biometricStatus = types.isEmpty ? 'Supported (not enrolled)' : types.join(', ');
+        biometricStatus =
+            types.isEmpty ? 'Supported (not enrolled)' : types.join(', ');
       }
     } catch (_) {
       biometricStatus = 'Check failed';
@@ -51,6 +52,7 @@ class _DeviceInfoViewState extends State<DeviceInfoView> {
         'Manufacturer': android.manufacturer,
         'App Version': packageInfo.version,
         'Build Number': packageInfo.buildNumber,
+        'Attendance camera': 'Single automatic photo · no gestures',
         'Screenshot Protection': 'Toggle from Profile screen',
         'Biometric Auth': biometricStatus,
       };
@@ -77,8 +79,13 @@ class _DeviceInfoViewState extends State<DeviceInfoView> {
                           boxShadow: AppShadows.card,
                         ),
                         child: ListTile(
-                          title: Text(e.key, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                          subtitle: Text(e.value, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          title: Text(e.key,
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary)),
+                          subtitle: Text(e.value,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600)),
                         ),
                       ))
                   .toList(),
