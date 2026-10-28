@@ -59,6 +59,19 @@ test('registered phone attendance survives persistence, signed URLs and concurre
     assert.equal((await call('/users/me/face-enrollment')).data.complete,true);
     assert.equal((await call('/auth/me')).data.faceEnrollmentComplete,true);
   });
+  await t.test('capture guidance can retry without granting attendance or consuming its live challenge',async()=>{
+    const challenge=(await call('/attendance/face-challenge','POST',{purpose:'checkin'})).data;
+    const form=(action)=>{const f=selfie();f.append('challengeId',challenge.id);if(action)f.append('actionFile',new Blob([action],{type:'image/jpeg'}),'action.jpg');return f;};
+    assert.equal((await call('/attendance/face-capture-check','POST',form())).data.ready,true);
+    assert.equal((await call('/attendance/face-capture-check','POST',form('test-photo'))).data.ready,false);
+    assert.equal((await call('/attendance/face-capture-check','POST',form('live-action'))).data.ready,true);
+    assert.equal(db.findById('users','EMP').faceVerification,null);
+    assert.equal(db.findById('users','EMP').faceChallenge.usedAt,undefined);
+    assert.equal((await call('/attendance/check-in','POST',{lat:26.7,lng:83.4})).status,400);
+    const verified=await call('/attendance/verify-face','POST',form('live-action'));
+    assert.equal(verified.data.verified,true);
+    assert.equal((await call('/attendance/face-capture-check','POST',form())).status,409);
+  });
   await t.test('legacy photo objects and expiring signatures use the stored face cache',async()=>{
     const u=db.findById('users','EMP');
     db.upsert('users',{...u,faceEnrollmentUrls:urls.map(filePath=>({filePath})),faceDescriptorUrls:urls.join('|')},{single:true});

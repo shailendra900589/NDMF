@@ -288,6 +288,24 @@ exports.createFaceChallenge = async (req,res) => {
   upsert('users',{...user,faceChallenge:challenge,faceVerification:null},{single:true});await flush();
   return success(res,challenge,'Follow the live camera instructions');
 };
+// Capture guidance never issues a face pass or marks attendance. Final identity,
+// challenge consumption and anti-replay checks remain in verifyLiveFace.
+exports.checkFaceCapture = async (req,res) => {
+  const user=findById('users',req.user.id), challenge=user?.faceChallenge;
+  if(!challenge || challenge.id!==req.body.challengeId || challenge.usedAt || Date.parse(challenge.expiresAt)<=Date.now())return error(res,'Camera check expired. Go back and start a new check.',409);
+  if((challenge.captureChecks || 0)>=12)return error(res,'Capture retry limit reached. Go back and start a new check.',429);
+  if(!req.files?.file?.[0])return error(res,'A fresh camera reference is required');
+  upsert('users',{...user,faceChallenge:{...challenge,captureChecks:(challenge.captureChecks || 0)+1}},{single:true});
+  await flush();
+  try {
+    const neutral=await describeFace(req.files.file[0].buffer);
+    const action=req.files.actionFile?.[0] ? await describeFace(req.files.actionFile[0].buffer) : null;
+    return success(res,require('../../lib/faceLiveness').captureFeedback(neutral.liveness,action?.liveness,challenge.action));
+  } catch(err) {
+    if(err instanceof FaceCheckError)return success(res,{ready:false,message:err.message});
+    throw err;
+  }
+};
 exports.verifyLiveFace = async (req, res) => {
   if (!requiresFaceVerification(req.user) && !(req.body.purpose === 'checkout' && ['fieldOfficer','branchManager'].includes(req.user.role))) {
     return success(res, { verified: true, matchScore: 1, skipped: true, message: 'Face not required' });
@@ -367,10 +385,8 @@ exports.verifyLiveFace = async (req, res) => {
     throw err;
   }
   const actionMatch=compare(action.descriptor,enrolled);
-  if (!actionMatch.matched || !require('../../lib/faceLiveness').actionPassed(live.liveness,action.liveness,challenge.action)) return fail('Live action did not match. Use your face in the camera and follow the instructions.', 'liveness_failed',{matchScore:Math.min(result.matchScore,actionMatch.matchScore)});
-  if (!result.matched) {
-    return fail('Face does not match the registered employee', 'mismatch', { matchScore: result.matchScore });
-  }
+  if (!actionMatch.matched) return fail('Your face could not be matched in the action photo. Keep your whole face centered with the same lighting.', 'mismatch',{matchScore:Math.min(result.matchScore,actionMatch.matchScore)});
+  if (!require('../../lib/faceLiveness').actionPassed(live.liveness,action.liveness,challenge.action)) return fail(require('../../lib/faceLiveness').captureFeedback(live.liveness,action.liveness,challenge.action).message, 'liveness_failed',{matchScore:Math.min(result.matchScore,actionMatch.matchScore)});
 
   const now = new Date();
   user.faceVerification = {

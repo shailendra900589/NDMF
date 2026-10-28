@@ -12,7 +12,8 @@ import '../routes/app_routes.dart';
 
 /// Refreshes notices while the app is open. Acknowledgement is always explicit.
 class TeamInboxButton extends StatefulWidget {
-  const TeamInboxButton({super.key});
+  const TeamInboxButton({super.key, this.showActions = true});
+  final bool showActions;
   @override
   State<TeamInboxButton> createState() => _TeamInboxButtonState();
 }
@@ -83,27 +84,35 @@ class _TeamInboxButtonState extends State<TeamInboxButton>
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Wrap(spacing: 12, children: [
-        if (AccessControl.canAccess('notices'))
-          TextButton.icon(
-              onPressed: () async {
-                await Get.to(() => const TeamInboxPage(kind: 'notices'));
-                refresh();
-              },
-              icon: const Icon(Icons.notifications_outlined),
-              label: Text('Notices${pending > 0 ? ' ($pending)' : ''}')),
-        if (AccessControl.canAccess('visits'))
-          TextButton.icon(
-              onPressed: () => Get.toNamed(AppRoutes.visits),
-              icon: const Icon(Icons.event_available_outlined),
-              label: const Text('My visits')),
-        TextButton.icon(
-            onPressed: () => Get.to(() => const MySalarySlips()),
-            icon: const Icon(Icons.receipt_long_outlined),
-            label: const Text('Salary slips')),
-      ]));
+  Widget build(BuildContext context) => !widget.showActions
+      ? const SizedBox.shrink()
+      : Card(
+          child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(children: [
+                if (AccessControl.canAccess('notices'))
+                  ListTile(
+                      onTap: () async {
+                        await Get.to(
+                            () => const TeamInboxPage(kind: 'notices'));
+                        refresh();
+                      },
+                      leading: const Icon(Icons.notifications_outlined),
+                      trailing: const Icon(Icons.chevron_right),
+                      title:
+                          Text('Notices${pending > 0 ? ' ($pending)' : ''}')),
+                if (AccessControl.canAccess('visits'))
+                  ListTile(
+                      onTap: () => Get.toNamed(AppRoutes.visits),
+                      leading: const Icon(Icons.event_available_outlined),
+                      trailing: const Icon(Icons.chevron_right),
+                      title: const Text('My visits')),
+                ListTile(
+                    onTap: () => Get.to(() => const MySalarySlips()),
+                    leading: const Icon(Icons.receipt_long_outlined),
+                    trailing: const Icon(Icons.chevron_right),
+                    title: const Text('Salary slips')),
+              ])));
 }
 
 class TeamInboxPage extends StatefulWidget {

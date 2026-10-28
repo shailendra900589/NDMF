@@ -1,4 +1,4 @@
-# Attendance verification — mobile 1.5.1 (27)
+# Attendance verification — mobile 1.5.2 (28)
 
 ## Employee flow
 
@@ -16,7 +16,13 @@ The route is an estimate from GPS observations, not exact road-by-road ground tr
 
 ## Deployment
 
-Pull the backend/frontend and install the published **1.5.1 (27)** APK from the website. Older apps must update. Existing enrolled reference photos remain available; enrollment resets are not required solely for this release.
+Pull the backend/frontend and install the published **1.5.2 (28)** APK from the website. Older apps must update. Existing enrolled reference photos remain available; enrollment resets are not required solely for this release.
+
+## Guided live capture
+
+Each attendance camera frame is checked before moving to the next step. A closed-eye or open-mouth reference can be retaken, and an incomplete action can be retried in the camera with specific guidance. Keep the requested pose throughout the countdown. These guidance requests do not create an attendance pass, count as identity failures, or consume the challenge. They are limited to twelve requests per unexpired challenge. The final two-frame identity, action and anti-replay checks still run; similarity percentage alone never authorizes attendance. No action threshold was relaxed. Both check-in and checkout use this flow.
+
+The home shortcut strip is removed. Notices, visits and salary slips are available as organized rows in Profile; notice refresh and phone notifications remain active while home is open.
 
 ## Tracking recovery and diagnostics
 

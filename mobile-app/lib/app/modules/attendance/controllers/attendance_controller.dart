@@ -160,7 +160,7 @@ class AttendanceController extends GetxController {
       !todayRecord!.isCheckedOut;
 
   Future<bool> _verifyLiveFace({String purpose = 'checkin'}) async {
-    matchPercentage.value=null;
+    matchPercentage.value = null;
     final status = await _api.getFaceEnrollmentStatus();
     if (status['complete'] != true) {
       Get.snackbar(
@@ -171,8 +171,10 @@ class AttendanceController extends GetxController {
       return false;
     }
     final challenge = await _api.requestFaceChallenge(purpose);
-    final capture = await Get.to<LiveFaceCapture>(
-        () => LiveFaceCamera(action: challenge['action']?.toString()));
+    final capture = await Get.to<LiveFaceCapture>(() => LiveFaceCamera(
+        action: challenge['action']?.toString(),
+        validateCapture: (neutral, action) => _api.checkFaceCapture(
+            neutral, action, challenge['id'].toString())));
     if (capture == null || capture.actionPath == null) {
       Get.snackbar('Cancelled', 'Live selfie required for attendance');
       return false;

@@ -35,9 +35,11 @@ class HomeView extends GetView<DashboardController> {
           body: Column(
             children: [
               const OfflineBanner(),
-              const TeamInboxButton(),
+              const TeamInboxButton(showActions: false),
               Expanded(
-                child: showDashboard ? const DashboardView() : const _QuickActionsOnly(),
+                child: showDashboard
+                    ? const DashboardView()
+                    : const _QuickActionsOnly(),
               ),
             ],
           ),

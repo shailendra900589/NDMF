@@ -6,6 +6,7 @@ const { authMiddleware } = require('../../middleware/authMiddleware');
 const { memoryUpload } = require('../../middleware/uploadMemory');
 
 router.post('/face-challenge', authMiddleware, wrap(attendance.createFaceChallenge));
+router.post('/face-capture-check', authMiddleware, memoryUpload.fields([{name:'file',maxCount:1},{name:'actionFile',maxCount:1}]), wrap(attendance.checkFaceCapture));
 router.post('/verify-face', authMiddleware, memoryUpload.fields([{name:'file',maxCount:1},{name:'actionFile',maxCount:1}]), wrap(attendance.verifyLiveFace));
 router.post('/check-in', authMiddleware, wrap(attendance.checkIn));
 router.post('/check-out', authMiddleware, wrap(attendance.checkOut));

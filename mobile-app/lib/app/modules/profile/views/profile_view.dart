@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_tokens.dart';
 import '../../../widgets/custom_app_bar.dart';
+import '../../../widgets/team_inbox.dart';
 import '../../../routes/app_routes.dart';
 import '../../../utils/access_control.dart';
 import '../controllers/profile_controller.dart';
@@ -89,6 +90,7 @@ class ProfileView extends GetView<ProfileController> {
             if (AccessControl.isFieldOfficer || AccessControl.isBranchManager)
               _faceEnrollmentTile(),
             _permissionsSection(),
+            const TeamInboxButton(),
             _menuTile(Icons.lock, 'Change Password',
                 controller.navigateToChangePassword),
             _menuTile(Icons.phone_android, 'Device Info',

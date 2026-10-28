@@ -134,6 +134,9 @@ class NdfaApiService extends GetxService {
 
   Future<Map<String, dynamic>> requestFaceChallenge(String purpose) =>
       Get.find<RemoteApiService>().requestFaceChallenge(purpose);
+  Future<Map<String, dynamic>> checkFaceCapture(
+          String neutral, String? action, String id) =>
+      Get.find<RemoteApiService>().checkFaceCapture(neutral, action, id);
   Future<Map<String, dynamic>> verifyLiveAttendanceFace(
           String neutral, String action, String id, String purpose) =>
       Get.find<RemoteApiService>()
