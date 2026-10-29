@@ -6,7 +6,36 @@ WEB_ROOT="${ADMIN_WEB_ROOT:-/var/www/ndmf}"
 PUBLIC_ROOT="${PUBLIC_WEB_ROOT:-/var/www/ndmf-public}"
 SITE_URL="${SITE_URL:-https://ndclients.co.in}"
 [[ "$WEB_ROOT" = /* && "$WEB_ROOT" != / ]] || { echo 'ADMIN_WEB_ROOT must be an absolute website directory'; exit 1; }
+[[ "$PUBLIC_ROOT" = /* && "$PUBLIC_ROOT" != / ]] || { echo 'PUBLIC_WEB_ROOT must be an absolute website directory'; exit 1; }
 cd "$REPO_ROOT"
+APK_FILE=$(python3 -c 'import json; print(json.load(open("public-site/downloads/release.json"))["file"])')
+[[ "$APK_FILE" =~ ^mystaff-smart-[0-9]+\.[0-9]+\.[0-9]+\.apk$ ]] || { echo 'Invalid APK release manifest'; exit 1; }
+
+# The repository intentionally retains Flutter source for future releases, but
+# production serves only public-site/. Before npm needs temporary disk space,
+# remove superseded public APKs while keeping the currently live download until
+# the new website files are fully published.
+LIVE_APK=''
+if [[ -f "$PUBLIC_ROOT/downloads/release.json" ]]; then
+  LIVE_APK=$(sudo python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("file", ""))' "$PUBLIC_ROOT/downloads/release.json" 2>/dev/null || true)
+fi
+if [[ "$LIVE_APK" =~ ^mystaff-smart-[0-9]+\.[0-9]+\.[0-9]+\.apk$ ]]; then
+  echo "Removing superseded public APKs (keeping $LIVE_APK until publication finishes)"
+  sudo find "$PUBLIC_ROOT/downloads" -maxdepth 1 -type f -name 'mystaff-smart-*.apk' ! -name "$APK_FILE" ! -name "$LIVE_APK" -print -delete 2>/dev/null || true
+else
+  echo 'Removing superseded public APKs'
+  sudo find "$PUBLIC_ROOT/downloads" -maxdepth 1 -type f -name 'mystaff-smart-*.apk' ! -name "$APK_FILE" -print -delete 2>/dev/null || true
+fi
+
+# Generated Flutter/Gradle output is never served and is recreated only by a
+# mobile release build. Remove it before dependency installation so it can free
+# disk space for npm; tracked Dart source remains untouched.
+for GENERATED_DIR in "$REPO_ROOT/mobile-app/build" "$REPO_ROOT/mobile-app/.dart_tool" "$REPO_ROOT/mobile-app/android/.gradle"; do
+  if [[ -d "$GENERATED_DIR" ]]; then
+    echo "Removing generated mobile build cache: $GENERATED_DIR"
+    rm -rf -- "$GENERATED_DIR"
+  fi
+done
 node -e 'if (Number(process.versions.node.split(".")[0]) < 20) { console.error("Node.js 20 or newer is required"); process.exit(1); }'
 
 echo 'Installing backend dependencies'
@@ -16,11 +45,12 @@ echo 'Building the staff console'
 
 echo 'Publishing public website and developer onboarding'
 python3 deploy/verify-mobile-release.py public-site/downloads
-[[ "$PUBLIC_ROOT" = /* && "$PUBLIC_ROOT" != / ]] || { echo 'PUBLIC_WEB_ROOT must be an absolute website directory'; exit 1; }
 sudo mkdir -p "$PUBLIC_ROOT"
 sudo rsync -a --exclude=_preview_server.py --exclude=index.html public-site/ "$PUBLIC_ROOT/"
 sudo install -m 644 public-site/index.html "$PUBLIC_ROOT/index.html.next"
 sudo mv "$PUBLIC_ROOT/index.html.next" "$PUBLIC_ROOT/index.html"
+echo "Keeping only the current public Android release: $APK_FILE"
+sudo find "$PUBLIC_ROOT/downloads" -maxdepth 1 -type f -name 'mystaff-smart-*.apk' ! -name "$APK_FILE" -print -delete
 
 echo 'Updating the active Nginx console cache policy (including HTTPS)'
 SITE_HOST=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).hostname)' "$SITE_URL")
@@ -80,7 +110,6 @@ if ! grep -Eiq '^cache-control:.*no-store' <<< "$HOME_HEADERS"; then
   exit 1
 fi
 curl -fsS --connect-timeout 10 --max-time 30 "$SITE_URL/brand/site.js?v=3" >/dev/null
-APK_FILE=$(python3 -c 'import json; print(json.load(open("public-site/downloads/release.json"))["file"])')
 APK_HEADERS=$(curl -fsSI --connect-timeout 10 --max-time 30 "$SITE_URL/downloads/$APK_FILE")
 if ! grep -Eiq '^content-type:.*application/vnd.android.package-archive' <<< "$APK_HEADERS"; then
   echo 'ERROR: Android download is not being served as an APK; inspect the /downloads/ Nginx route.'
