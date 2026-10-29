@@ -11,7 +11,7 @@ const now=()=>new Date().toISOString();
 function audit(req,action,targetId,companyId){upsert('platformAudit',{id:randomUUID(),actorId:req.user.id,action,targetId,companyId,createdAt:now()},{single:true});}
 router.use((req,res,next)=>{res.set('Cache-Control','no-store');next();});
 router.get('/',wrap(async(req,res)=>success(res,getCollection('packages').filter(p=>p.published && !p.isArchived).map(p=>({
-  id:p.id,name:p.name,description:p.description,monthlyPrice:p.monthlyPrice,includedEmployees:p.includedEmployees,
+  id:p.id,name:p.name,description:p.description,basePeriodPrice:p.basePeriodPrice??p.monthlyPrice*p.billingMonths,monthlyPrice:p.monthlyPrice,includedEmployees:p.includedEmployees,
   extraEmployeeMonthlyPrice:p.extraEmployeeMonthlyPrice,billingMonths:p.billingMonths,currency:'INR',
   features:Object.keys(MODULES).filter(k=>p.modules[k]).map(k=>MODULES[k])
 })))));

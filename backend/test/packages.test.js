@@ -6,6 +6,7 @@ const db=require('../src/lib/db'),{quote,endDate}=require('../src/lib/packages')
 test('packages publish safely, price extra staff and enforce assigned functions',async t=>{
  await db.initDb();const starter=db.findById('packages','PKG_STARTER');
  assert.equal(quote(starter,5).monthlyTotal,1000);assert.equal(quote(starter,6).monthlyTotal,1200);assert.equal(quote(starter,8).monthlyTotal,1600);
+ for(const [id,base,extra,months] of [['QUARTERLY',2500,180,3],['HALF_YEARLY',4500,150,6],['ANNUAL',8000,150,12]]){const plan=db.findById('packages','PKG_'+id);assert.equal(quote(plan,5).periodTotal,base);assert.equal(quote(plan,6).periodTotal,base+extra*months);assert.equal(quote(plan,8).periodTotal,base+3*extra*months);}
  assert.equal(endDate('2026-01-31',1),'2026-02-28');assert.throws(()=>quote(starter,-1));assert.throws(()=>quote(starter,5.5));
  db.upsert('companies',{id:'C',name:'Test company',isActive:true,modules:allModules(),actions:allActions()});
  db.upsert('users',{id:'ADMIN',name:'Admin',role:'admin',companyId:'C',isActive:true});
@@ -19,11 +20,11 @@ test('packages publish safely, price extra staff and enforce assigned functions'
    return {status:r.status,...await r.json()};
  }
  await t.test('public catalog excludes drafts and private records; only root can manage',async()=>{
-   const p=(await call('/packages','GET',undefined,null)).data;assert.equal(p.length,1);assert.equal(p[0].monthlyPrice,1000);assert.ok(!('actions'in p[0]));
+   const p=(await call('/packages','GET',undefined,null)).data;assert.equal(p.length,4);assert.equal(p[0].monthlyPrice,1000);assert.ok(!('actions'in p[0]));
    assert.equal((await call('/super-admin/packages','GET',undefined,'ADMIN')).status,403);
    assert.equal((await call('/super-admin/packages','POST',starter,'ADMIN')).status,403);
    const draft=await call('/super-admin/packages','POST',{...starter,name:'Private draft',published:false});assert.equal(draft.status,201);
-   assert.equal((await call('/packages','GET',undefined,null)).data.length,1);
+   assert.equal((await call('/packages','GET',undefined,null)).data.length,4);
    assert.equal((await call('/super-admin/packages','POST',{...starter,monthlyPrice:-1})).status,400);
  });
  await t.test('assigning a plan caps existing sessions and calculates the actual staff charge',async()=>{
@@ -52,7 +53,7 @@ test('packages publish safely, price extra staff and enforce assigned functions'
  });
  await t.test('archived plans leave the website; expired subscriptions remove feature access',async()=>{
    const p=db.findById('packages',starter.id);await call(`/super-admin/packages/${p.id}`,'PUT',{...p,isArchived:true,published:true});
-   assert.equal((await call('/packages','GET',undefined,null)).data.length,0);
+   assert.equal((await call('/packages','GET',undefined,null)).data.length,3);
    assert.equal((await call('/super-admin/packages/assign/C','POST',{packageId:p.id})).status,400);
    const c=db.findById('companies','C');db.upsert('companies',{...c,packageSubscription:{...c.packageSubscription,endsOn:'2000-01-01'}});
    assert.equal((await call('/auth/me','GET',undefined,'ADMIN')).data.permissions.attendance,false);

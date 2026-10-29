@@ -187,8 +187,9 @@ async function initDb() {
   }
 
   ready = true;
-  if(!cache.packages.length){
-    cache.packages=[require('./packages').starterPackage()];
+  const missingPackages=require('./packages').defaultPackages().filter(p=>!cache.packages.some(existing=>existing.id===p.id));
+  if(missingPackages.length){
+    cache.packages.push(...missingPackages);
     await persistCollection('packages');
   }
   console.log(

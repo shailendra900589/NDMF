@@ -17,7 +17,7 @@ test('package editor saves employee rates, functions and publication; assignment
   await act(async()=>tree.root.findAllByType('input').find(n=>n.props.maxLength===80).props.onChange({target:{value:'Growth'}}));
   await act(async()=>tree.root.findAllByType('input').find(n=>n.props['aria-label']==='Dashboard page access').props.onChange({target:{checked:true}}));
   await act(async()=>tree.root.findAllByType('form')[0].props.onSubmit({preventDefault(){}}));
-  assert.equal(saved.monthlyPrice,1000);assert.equal(saved.includedEmployees,5);assert.equal(saved.extraEmployeeMonthlyPrice,200);assert.equal(saved.modules.dashboard,true);assert.equal(saved.published,false);
+  assert.equal(saved.basePeriodPrice,1000);assert.equal(saved.includedEmployees,5);assert.equal(saved.extraEmployeeMonthlyPrice,200);assert.equal(saved.modules.dashboard,true);assert.equal(saved.published,false);
   await act(async()=>tree.root.findAllByType('select')[0].props.onChange({target:{value:'C'}}));
   await act(async()=>tree.root.findAllByType('select')[1].props.onChange({target:{value:'P'}}));
   assert.match(JSON.stringify(tree.toJSON()),/1,200/);

@@ -11,10 +11,12 @@ function starterPackage(){
 function validatePackage(body){
   const name=String(body.name||'').trim(),description=String(body.description||'').trim();
   if(!name || name.length>80 || description.length>500)fail('Enter a package name (up to 80 characters) and description (up to 500).');
-  for(const k of ['monthlyPrice','extraEmployeeMonthlyPrice','includedEmployees','billingMonths']){
+  const basePeriodPrice=body.basePeriodPrice===undefined?body.monthlyPrice*body.billingMonths:body.basePeriodPrice;
+  if(!Number.isSafeInteger(basePeriodPrice)||basePeriodPrice<0||basePeriodPrice>120000000)fail('Enter a valid base price for the full billing period.');
+  for(const k of ['extraEmployeeMonthlyPrice','includedEmployees','billingMonths']){
     if(!Number.isSafeInteger(body[k]) || body[k]<0)fail(`Invalid ${k}`);
   }
-  if(body.monthlyPrice>10000000 || body.extraEmployeeMonthlyPrice>10000000 || body.includedEmployees>100000 || body.billingMonths<1 || body.billingMonths>12)fail('Package price, employee count or billing period is outside the supported range.');
+  if(body.extraEmployeeMonthlyPrice>10000000 || body.includedEmployees>100000 || body.billingMonths<1 || body.billingMonths>12)fail('Package price, employee count or billing period is outside the supported range.');
   if(typeof body.published!=='boolean' || typeof body.isArchived!=='boolean')fail('Choose publication and archive status.');
   const modules={},actions={};
   for(const k of Object.keys(MODULES)){
@@ -26,7 +28,7 @@ function validatePackage(body){
     }
   }
   if(!Object.values(modules).some(Boolean))fail('Include at least one module.');
-  return {name,description,monthlyPrice:body.monthlyPrice,extraEmployeeMonthlyPrice:body.extraEmployeeMonthlyPrice,
+  return {name,description,basePeriodPrice,monthlyPrice:basePeriodPrice/body.billingMonths,extraEmployeeMonthlyPrice:body.extraEmployeeMonthlyPrice,
     includedEmployees:body.includedEmployees,billingMonths:body.billingMonths,currency:'INR',modules,actions,
     published:body.published && !body.isArchived,isArchived:body.isArchived};
 }
@@ -34,11 +36,14 @@ function quote(plan,employees){
   if(!Number.isSafeInteger(employees)||employees<0||employees>100000)fail('Enter an employee count between 0 and 100000.');
   const additionalEmployees=Math.max(0,employees-plan.includedEmployees);
   const extraMonthlyAmount=additionalEmployees*plan.extraEmployeeMonthlyPrice;
+  const basePeriodAmount=plan.basePeriodPrice??plan.monthlyPrice*plan.billingMonths;
+  const baseMonthlyAmount=basePeriodAmount/plan.billingMonths;
   return {currency:'INR',employees,includedEmployees:plan.includedEmployees,additionalEmployees,
-    baseMonthlyAmount:plan.monthlyPrice,extraEmployeeMonthlyPrice:plan.extraEmployeeMonthlyPrice,extraMonthlyAmount,
-    monthlyTotal:plan.monthlyPrice+extraMonthlyAmount,billingMonths:plan.billingMonths,
-    periodTotal:(plan.monthlyPrice+extraMonthlyAmount)*plan.billingMonths};
+    basePeriodAmount,baseMonthlyAmount,extraEmployeeMonthlyPrice:plan.extraEmployeeMonthlyPrice,extraMonthlyAmount,
+    monthlyTotal:baseMonthlyAmount+extraMonthlyAmount,billingMonths:plan.billingMonths,
+    periodTotal:basePeriodAmount+extraMonthlyAmount*plan.billingMonths};
 }
+function defaultPackages(){return [starterPackage(),...[['QUARTERLY','Quarterly',3,2500,180],['HALF_YEARLY','Half yearly',6,4500,150],['ANNUAL','Annual',12,8000,150]].map(([id,name,billingMonths,basePeriodPrice,extraEmployeeMonthlyPrice])=>({...starterPackage(),id:'PKG_'+id,name,billingMonths,basePeriodPrice,monthlyPrice:basePeriodPrice/billingMonths,extraEmployeeMonthlyPrice,description:`${billingMonths} months of attendance and field team essentials for five employees.`}))];}
 function staffCount(companyId){return require('./db').getCollection('users').filter(u=>u.companyId===companyId &&
   ['fieldOfficer','branchManager'].includes(u.role) && u.isActive!==false && !u.isDeleted).length;}
 function indiaToday(){return new Date(Date.now()+19800000).toISOString().slice(0,10);}
@@ -47,4 +52,4 @@ function endDate(start,months){
   const [y,m,d]=start.split('-').map(Number),last=new Date(Date.UTC(y,m-1+months+1,0)).getUTCDate();
   return new Date(Date.UTC(y,m-1+months,Math.min(d,last))).toISOString().slice(0,10);
 }
-module.exports={starterPackage,validatePackage,quote,staffCount,indiaToday,endDate};
+module.exports={starterPackage,defaultPackages,validatePackage,quote,staffCount,indiaToday,endDate};
