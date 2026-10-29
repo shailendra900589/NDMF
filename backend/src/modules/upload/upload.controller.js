@@ -36,7 +36,7 @@ exports.uploadMiddleware = upload.single('file');
 exports.uploadFile = (req, res) => {
   if (!req.file) return error(res, 'No file uploaded');
 
-  const { latitude, longitude, capturedAt, type } = req.body;
+  const { latitude, longitude, accuracy, capturedAt, type } = req.body;
   const fileUrl = `/uploads/${req.file.filename}`;
 
   return success(res, {
@@ -45,7 +45,9 @@ exports.uploadFile = (req, res) => {
     originalName: req.file.originalname,
     latitude: latitude ? parseFloat(latitude) : null,
     longitude: longitude ? parseFloat(longitude) : null,
+    accuracy: accuracy ? parseFloat(accuracy) : null,
     capturedAt: capturedAt || new Date().toISOString(),
+    receivedAt: new Date().toISOString(),
     type: type || 'photo',
   }, 'File uploaded');
 };

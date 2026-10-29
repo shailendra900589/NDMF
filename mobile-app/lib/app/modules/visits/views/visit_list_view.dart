@@ -98,6 +98,7 @@ class _VisitListViewState extends State<VisitListView> {
   Map<String, dynamic> _position(GpsPhotoCapture photo) => {
         'lat': photo.latitude,
         'lng': photo.longitude,
+        if (photo.accuracy != null) 'accuracy': photo.accuracy,
         'capturedAt': photo.capturedAt.toUtc().toIso8601String()
       };
 
@@ -219,6 +220,7 @@ class _VisitCompletionPageState extends State<VisitCompletionPage> {
   Map<String, dynamic> get _position => {
         'lat': widget.photo.latitude,
         'lng': widget.photo.longitude,
+        if (widget.photo.accuracy != null) 'accuracy': widget.photo.accuracy,
         'capturedAt': widget.photo.capturedAt.toUtc().toIso8601String()
       };
   String _date(DateTime? value) =>
@@ -301,7 +303,7 @@ class _VisitCompletionPageState extends State<VisitCompletionPage> {
                   leading: const Icon(Icons.location_on_outlined),
                   title: const Text('Fresh camera photo with GPS watermark'),
                   subtitle: Text(
-                      '${widget.photo.latitude.toStringAsFixed(6)}, ${widget.photo.longitude.toStringAsFixed(6)} · ${DateFormat('dd MMM yyyy, hh:mm a').format(widget.photo.capturedAt)}'))
+                      '${widget.photo.latitude.toStringAsFixed(6)}, ${widget.photo.longitude.toStringAsFixed(6)}${widget.photo.accuracy == null ? '' : ' · ±${widget.photo.accuracy!.round()} m'} · ${DateFormat('dd MMM yyyy, hh:mm a').format(widget.photo.capturedAt)}'))
             ])),
             const SizedBox(height: 16),
             TextFormField(

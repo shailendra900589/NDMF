@@ -4,7 +4,7 @@
 
 1. Open **My visits** on the mobile home screen.
 2. Select **Start visit & take GPS photo**. The rear camera opens; this flow does not offer a gallery picker.
-3. Allow camera and location permissions. A fresh location fix is required. The saved photo contains a visible latitude, longitude, capture time and scheduled-location watermark.
+3. Allow camera and location permissions. A fresh, precise location fix is required. The saved photo contains a visible latitude, longitude, GPS accuracy, capture time and scheduled-location watermark.
 4. Enter the discussion, purpose, result, optional payment amount/promise date, next follow-up date and remarks.
 5. Select **Complete verified visit**. The app saves the report on the phone before attempting upload.
 
@@ -12,14 +12,14 @@ If the connection fails, the report and photo remain in the app's private storag
 
 ## Administrator flow
 
-Open **Visit schedules** to see assigned employee, customer/lead, contact number, planned time and visit status. Completed reports include purpose, outcome, discussion, payment promise, follow-up date, photo preview and a map link. Capture time and server photo-receipt time are shown separately in India Standard Time. **Schedule visit again** creates a new schedule; **Cancel visit** requires a reason. A manager cannot complete an employee's visit through the previous notes-only endpoint.
+Open **Visit schedules** to see assigned employee, customer/lead, contact number, planned time and visit status. Completed reports include purpose, outcome, discussion, payment promise, follow-up date, photo preview, capture GPS accuracy, separate start/photo map links and planned/start/completed timestamps. Capture time and server photo-receipt time are shown separately in India Standard Time. **Schedule visit again** creates a new schedule; **Cancel visit** requires a reason. A manager cannot complete an employee's visit through the previous notes-only endpoint.
 
 ## Authenticated API
 
 All paths are below `/api/v1`; send `Authorization: Bearer <session-token>`.
 
 - `GET /workspace/visits`: visits visible to the signed-in user.
-- `POST /workspace/visits/:id/start`: `{ "position": { "lat": 26.7, "lng": 83.3, "capturedAt": "2026-10-26T09:00:00Z" } }`.
+- `POST /workspace/visits/:id/start`: `{ "position": { "lat": 26.7, "lng": 83.3, "accuracy": 8.5, "capturedAt": "2026-10-26T09:00:00Z" } }`.
 - `POST /uploads/single`: multipart `file`, with `type=visit_photo`. Keep the returned file URL for completion.
 - `POST /workspace/visits/:id/complete`: `discussion`, `purpose`, `result`, `photo`, `photoGps`, optional `paymentAmount`, `paymentPromiseDate`, `nextFollowUpDate` and `remarks`.
 
@@ -33,4 +33,4 @@ The app captures fresh camera evidence; device GPS, capture time and the locatio
 
 ## Release
 
-Install mobile version **1.6.2 (31)** after deploying the backend and admin frontend. Attendance captures one camera frame automatically without a shutter button or expression challenge, with identity matching on the server. Retired blink/guided clients receive an update message. Single-photo matching does not establish anti-spoof liveness. The app also filters GPS drift and improves background tracking recovery. The website reads `/downloads/release.json` to choose the current APK.
+Install mobile version **1.6.4 (33)** after deploying the backend and admin frontend. Attendance captures one camera frame automatically without a shutter button or expression challenge, with identity matching on the server. Retired blink/guided clients receive an update message. Single-photo matching does not establish anti-spoof liveness. The app also filters GPS drift and improves background tracking recovery. The website reads `/downloads/release.json` to choose the current APK.

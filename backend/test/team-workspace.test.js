@@ -43,7 +43,7 @@ test('notices, visits, re-verification and released payroll respect tenant/emplo
  assert.equal((await call(`/workspace/visits/${v.data.id}/complete`,'POST',{...submission,photo:'/uploads/TWO_foreign.jpg'},'E')).status,400);
  assert.equal((await call(`/workspace/visits/${v.data.id}/complete`,'POST',{...submission,photo:'/uploads/ONE_missing.jpg'},'E')).status,400);
  const completed=await call(`/workspace/visits/${v.data.id}/complete`,'POST',{discussion:'Verified the current shop details.',purpose:'shop_verification',result:'completed',photo:'/uploads/ONE_visit_test.jpg',photoGps:{lat:26.7,lng:83.3,accuracy:8}},'E');
- assert.equal(completed.status,200);assert.equal(completed.data.verification.photoGps.lat,26.7);
+ assert.equal(completed.status,200);assert.equal(completed.data.verification.photoGps.lat,26.7);assert.equal(completed.data.verification.photoGps.accuracy,8);assert.equal(completed.data.startGps.accuracy,8);assert.ok(completed.data.verification.photoGps.receivedAt);
  const retried=await call(`/workspace/visits/${v.data.id}/complete`,'POST',{...submission,discussion:'Retry should not overwrite evidence'},'E');
  assert.equal(retried.status,200);assert.equal(retried.data.verification.discussion,completed.data.verification.discussion);
  assert.equal((await call(`/workspace/visits/${v.data.id}/start`,'POST',{position:{lat:26.7,lng:83.3}},'E')).data.status,'completed');

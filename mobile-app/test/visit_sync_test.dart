@@ -54,9 +54,22 @@ class VisitHttp extends ApiService {
 
 class VisitUploads extends UploadService {
   int uploads = 0;
+  Map<String, dynamic>? metadata;
   @override
-  Future<String?> uploadPlainFile(String? path, {String type = 'photo'}) async {
+  Future<String?> uploadPlainFile(String? path,
+      {String type = 'photo',
+      double? latitude,
+      double? longitude,
+      double? accuracy,
+      String? capturedAt}) async {
     uploads++;
+    metadata = {
+      'latitude': latitude,
+      'longitude': longitude,
+      'accuracy': accuracy,
+      'capturedAt': capturedAt,
+      'type': type,
+    };
     return '/uploads/ONE_visit.jpg';
   }
 }
@@ -79,7 +92,12 @@ void main() {
     await sync.enqueue({
       'visitId': 'V',
       'photoPath': 'missing-local-test-photo.jpg',
-      'position': {'lat': 26.7, 'lng': 83.3},
+      'position': {
+        'lat': 26.7,
+        'lng': 83.3,
+        'accuracy': 9.5,
+        'capturedAt': '2026-10-29T06:00:00.000Z'
+      },
       'payload': {'discussion': 'Talked with customer'}
     });
     await sync.sync();
@@ -99,6 +117,13 @@ void main() {
     await sync.sync();
     expect(sync.pending, isEmpty);
     expect(uploads.uploads, 1);
+    expect(uploads.metadata, {
+      'latitude': 26.7,
+      'longitude': 83.3,
+      'accuracy': 9.5,
+      'capturedAt': '2026-10-29T06:00:00.000Z',
+      'type': 'visit_photo',
+    });
     expect(http.completedCalls, 2);
   });
 }

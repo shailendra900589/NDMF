@@ -117,7 +117,12 @@ class UploadService extends GetxService {
     return normalizeUploadPath(url);
   }
 
-  Future<String?> uploadPlainFile(String? path, {String type = 'photo'}) async {
+  Future<String?> uploadPlainFile(String? path,
+      {String type = 'photo',
+      double? latitude,
+      double? longitude,
+      double? accuracy,
+      String? capturedAt}) async {
     if (path == null || path.isEmpty) return null;
     if (path.startsWith('http') || path.startsWith('/uploads')) {
       return fullUrl(path);
@@ -126,6 +131,10 @@ class UploadService extends GetxService {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(path),
       'type': type,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (accuracy != null) 'accuracy': accuracy,
+      if (capturedAt != null) 'capturedAt': capturedAt,
     });
     final res = await _http.upload(ApiConstants.uploadSingle, formData);
     final body = res.data as Map<String, dynamic>;

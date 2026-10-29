@@ -84,6 +84,7 @@ class LocationService extends GetxService {
       return GpsLocation(
         latitude: position.latitude,
         longitude: position.longitude,
+        accuracy: position.accuracy,
         address:
             '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}',
       );

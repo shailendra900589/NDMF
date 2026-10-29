@@ -57,7 +57,12 @@ class VisitSyncService extends GetxService {
             final photo = item['uploadedPhoto'] ??
                 await Get.find<UploadService>().uploadPlainFile(
                     item['photoPath'] as String,
-                    type: 'visit_photo');
+                    type: 'visit_photo',
+                    latitude: (item['position']?['lat'] as num?)?.toDouble(),
+                    longitude: (item['position']?['lng'] as num?)?.toDouble(),
+                    accuracy:
+                        (item['position']?['accuracy'] as num?)?.toDouble(),
+                    capturedAt: item['position']?['capturedAt']?.toString());
             item['uploadedPhoto'] = photo;
             if (queueKey != key) break;
             final updated = _storage

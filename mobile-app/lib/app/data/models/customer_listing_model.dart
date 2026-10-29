@@ -4,6 +4,9 @@ class GpsPhotoCapture {
   final String filePath;
   final double latitude;
   final double longitude;
+
+  /// Horizontal GPS accuracy in metres, captured with the same fix as the photo.
+  final double? accuracy;
   final DateTime capturedAt;
   final String address;
 
@@ -11,6 +14,7 @@ class GpsPhotoCapture {
     required this.filePath,
     required this.latitude,
     required this.longitude,
+    this.accuracy,
     required this.capturedAt,
     this.address = '',
   });
@@ -19,6 +23,7 @@ class GpsPhotoCapture {
         'filePath': filePath,
         'latitude': latitude,
         'longitude': longitude,
+        'accuracy': accuracy,
         'capturedAt': capturedAt.toIso8601String(),
         'address': address,
       };
@@ -28,6 +33,7 @@ class GpsPhotoCapture {
       filePath: json['filePath'] ?? '',
       latitude: (json['latitude'] ?? 0).toDouble(),
       longitude: (json['longitude'] ?? 0).toDouble(),
+      accuracy: (json['accuracy'] as num?)?.toDouble(),
       capturedAt: DateTime.tryParse(json['capturedAt'] ?? '') ?? DateTime.now(),
       address: json['address'] ?? '',
     );
@@ -139,7 +145,10 @@ class CustomerListingModel {
       shopPhoto4 != null &&
       shopFullAddress.isNotEmpty &&
       hasShopLocation &&
-      neighbors.where((n) => n.shopName.isNotEmpty && n.remarks.isNotEmpty).length >= 2;
+      neighbors
+              .where((n) => n.shopName.isNotEmpty && n.remarks.isNotEmpty)
+              .length >=
+          2;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -164,7 +173,8 @@ class CustomerListingModel {
         'listedAt': listedAt?.toIso8601String(),
         'isSynced': isSynced,
         if (createdBy != null) 'createdBy': createdBy,
-        if (assignedToEmployeeId != null) 'assignedToEmployeeId': assignedToEmployeeId,
+        if (assignedToEmployeeId != null)
+          'assignedToEmployeeId': assignedToEmployeeId,
         if (assignedToName != null) 'assignedToName': assignedToName,
       };
 
@@ -214,7 +224,8 @@ class CustomerListingModel {
         orElse: () => CustomerListingStatus.draft,
       ),
       createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
-      listedAt: json['listedAt'] != null ? DateTime.tryParse(json['listedAt']) : null,
+      listedAt:
+          json['listedAt'] != null ? DateTime.tryParse(json['listedAt']) : null,
       isSynced: json['isSynced'] ?? false,
       createdBy: json['createdBy']?.toString(),
       assignedToEmployeeId: json['assignedToEmployeeId']?.toString(),

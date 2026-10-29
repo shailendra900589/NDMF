@@ -43,6 +43,7 @@ class GpsStampCamera {
         outPath: outPath,
         latitude: loc.latitude,
         longitude: loc.longitude,
+        accuracy: loc.accuracy,
         capturedAtIso: capturedAt.toIso8601String(),
         address: address,
       ),
@@ -52,6 +53,7 @@ class GpsStampCamera {
       filePath: stamped,
       latitude: loc.latitude,
       longitude: loc.longitude,
+      accuracy: loc.accuracy,
       capturedAt: capturedAt,
       address: address,
     );
@@ -64,6 +66,7 @@ String stampGpsPhoto({
   required String outPath,
   required double latitude,
   required double longitude,
+  double? accuracy,
   required String capturedAtIso,
   required String address,
 }) {
@@ -80,11 +83,15 @@ String stampGpsPhoto({
   final lines = <String>[
     'Lat ${latitude.toStringAsFixed(6)}   Lng ${longitude.toStringAsFixed(6)}',
     DateFormat('dd MMM yyyy  HH:mm:ss').format(capturedAt),
+    if (accuracy != null) 'GPS accuracy ±${accuracy.round()} m',
     if (address.trim().isNotEmpty) address.trim(),
   ];
 
-  const barHeight = 78;
-  final canvas = img.Image(width: fitted.width, height: fitted.height + barHeight);
+  // Address is optional, so the evidence footer must grow for all metadata
+  // lines instead of clipping the final line on a GPS-stamped image.
+  final barHeight = 12 + (lines.length * 22);
+  final canvas =
+      img.Image(width: fitted.width, height: fitted.height + barHeight);
   img.fill(canvas, color: img.ColorRgb8(0, 0, 0));
   img.compositeImage(canvas, fitted);
   var y = fitted.height + 8;

@@ -122,7 +122,8 @@ class GuarantorDetails {
     );
   }
 
-  bool get isValid => name.isNotEmpty && mobile.length >= 10 && relation.isNotEmpty;
+  bool get isValid =>
+      name.isNotEmpty && mobile.length >= 10 && relation.isNotEmpty;
 }
 
 class LoanDocuments {
@@ -172,17 +173,20 @@ class LoanDocuments {
 class GpsLocation {
   double latitude;
   double longitude;
+  double? accuracy;
   String address;
 
   GpsLocation({
     this.latitude = 0,
     this.longitude = 0,
+    this.accuracy,
     this.address = '',
   });
 
   Map<String, dynamic> toJson() => {
         'latitude': latitude,
         'longitude': longitude,
+        'accuracy': accuracy,
         'address': address,
       };
 
@@ -190,6 +194,7 @@ class GpsLocation {
     return GpsLocation(
       latitude: (json['latitude'] ?? 0).toDouble(),
       longitude: (json['longitude'] ?? 0).toDouble(),
+      accuracy: (json['accuracy'] as num?)?.toDouble(),
       address: json['address'] ?? '',
     );
   }
@@ -273,7 +278,9 @@ class LoanModel {
         orElse: () => LoanStatus.draft,
       ),
       createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
-      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'])
+          : null,
       isSynced: json['isSynced'] ?? false,
       leadId: json['leadId'],
     );
@@ -294,7 +301,8 @@ class LoanModel {
         'leadId': leadId,
       };
 
-  LoanModel copyWith({LoanStatus? status, bool? isSynced, VerificationData? verification}) {
+  LoanModel copyWith(
+      {LoanStatus? status, bool? isSynced, VerificationData? verification}) {
     return LoanModel(
       id: id,
       customer: customer,
