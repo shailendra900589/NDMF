@@ -68,6 +68,7 @@ export default function Tracking() {
         <div className="workspace-status"><strong>{people.length}</strong><span>Employees</span></div>
       </section>
       {peopleError && <p className="error-msg" role="alert">{peopleError}</p>}
+      {live.team.some(e=>e.onDuty && e.locationEnabled===false)&&<div className="card" role="alert"><strong>Location switched off — last reported by phone</strong><p>{live.team.filter(e=>e.onDuty && e.locationEnabled===false).map(e=>`${e.name}${e.locationOffAt?' · '+new Date(e.locationOffAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}):''}`).join(' | ')}</p><small>Shown from the latest device report. Offline phones may have changed settings since then.</small></div>}
       {selectedId ? <Suspense fallback={<PageLoader label="Loading employee workspace…" />}><EmployeeTracking key={`${selectedId}-${attempt}`} embedded /></Suspense> : <>
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card__header">
@@ -91,7 +92,7 @@ export default function Tracking() {
           <table>
             <thead>
               <tr>
-                <th>Employee</th><th>Location</th><th>Status</th><th>Last update</th><th>GPS accuracy</th><th>Speed</th><th>KM today</th><th>Checked in</th><th />
+                <th>Employee</th><th>Location</th><th>Status</th><th>Last update</th><th>Battery / device</th><th>GPS accuracy</th><th>Speed</th><th>KM today</th><th>Checked in</th><th />
               </tr>
             </thead>
             <tbody>
@@ -104,6 +105,7 @@ export default function Tracking() {
                   <td>{displayLocation(e.branch)}</td>
                   <td title={e.statusReason}><span className={`live-dot live-dot--${e.status}`} style={{ display: 'inline-block', marginRight: 6 }} />{STATUS_LABELS[e.status]}<small style={{display:'block',maxWidth:250,color:'var(--color-text-muted)',fontSize:11,marginTop:5}}>{e.statusReason}</small></td>
                   <td>GPS: {timeAgo(e.lastSeenAt, now)}<small style={{display:'block',fontSize:11,marginTop:5}}>App: {e.appLastSeenAt?timeAgo(e.appLastSeenAt,now):'No heartbeat yet'} · {e.appVersion || 'Update app'}</small>{e.backgroundAllowed===false&&<small style={{display:'block',fontSize:11,color:'#b45309'}}>Allow background location on phone</small>}</td>
+                  <td>{e.batteryPercent!=null?`${e.batteryPercent}%${e.charging?' · Charging':''}`:'Update app for battery status'}<small style={{display:'block'}}>{e.powerSaveMode?'Battery saver on':''}{e.batteryOptimizationExempt===false?' · Battery optimization active':''}</small><small style={{display:'block'}}>{e.trackingEngine==='android_native'?'Android background service':'App tracking'} · As of {e.appLastSeenAt?timeAgo(e.appLastSeenAt,now):'unknown'}</small></td>
                   <td>{e.accuracy != null ? `±${Math.round(e.accuracy)} m` : '—'}</td>
                   <td>{e.speedKmh != null ? `${e.speedKmh} km/h` : '—'}</td>
                   <td><strong>{Number(e.totalKmToday || 0).toFixed(2)} km</strong></td>

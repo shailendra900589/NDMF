@@ -63,6 +63,16 @@ export default function RouteMap({ route, showStops = true, focus = null, replay
     const segments=[];
     (route.points || []).forEach(p=>{if(!segments.length || p.breakBefore)segments.push([]);segments[segments.length-1].push([p.lat,p.lng]);});
     segments.forEach(segment=>{if(segment.length<2)return;L.polyline(segment, { color: '#ffffff', weight: 9, opacity: 0.9 }).addTo(g);L.polyline(segment, { color: '#2563eb', weight: 5, opacity: 0.9 }).addTo(g);});
+    // A gap is deliberately not connected.  Mark its resume point so an
+    // operator can distinguish missing observations from a travelled route.
+    (route.points || []).forEach((p, index) => {
+      if (!index || !p.breakBefore) return;
+      const previous = route.points[index - 1];
+      const elapsed = Math.max(0, Date.parse(p.at) - Date.parse(previous.at));
+      const marker = L.circleMarker([p.lat, p.lng], { radius: 7, color: '#b45309', weight: 3, fillColor: '#fff7ed', fillOpacity: 1 });
+      marker.bindTooltip(`GPS gap · ${fmtDuration(Math.round(elapsed / 60000))}<br/>Route resumes ${fmtTime(p.at)}`, { direction: 'top', className: 'route-stop-label', offset: [12, 0], sticky: true });
+      marker.addTo(g);
+    });
 
     const first = route.points[0];
     const last = route.points[route.points.length - 1];

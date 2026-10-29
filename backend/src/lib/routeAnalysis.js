@@ -25,7 +25,18 @@ function pathMeters(points, from, to) {
  * @param opts    { minStopMinutes, now }
  */
 function analyzeShift(report, att, { minStopMinutes = DEFAULT_MIN_STOP_MIN, now = Date.now() } = {}) {
-  const points = reportPoints(report);
+  // Older reports may predate split markers. Never draw an observed path
+  // across missing samples, stored sync gaps or physically impossible jumps.
+  const points = reportPoints(report).map(p=>({...p}));
+  points.forEach((p,i)=>{
+    if(!i)return;
+    const previous=points[i-1];
+    const leftAt=previous.leftAt ? Date.parse(previous.leftAt) : NaN;
+    const departure=Number.isFinite(leftAt) ? leftAt : previous.at;
+    const elapsed=p.at-departure;
+    const gap=(report?.gaps || []).some(g=>g.from>=departure-1000 && g.to<=p.at+1000 && g.to-g.from>=120000);
+    if(elapsed>120000 || gap || (elapsed>0 && haversineMeters(previous,p)/(elapsed/1000)>55))p.breakBefore=true;
+  });
   const minStopMs = Math.max(1, minStopMinutes) * 60000;
   const checkIn = att?.checkInTime ? Date.parse(att.checkInTime) : points[0]?.at || null;
   const checkOut = att?.checkOutTime ? Date.parse(att.checkOutTime) : null;
@@ -35,7 +46,7 @@ function analyzeShift(report, att, { minStopMinutes = DEFAULT_MIN_STOP_MIN, now 
 
   // Each path point is a place the person reached; they stayed until leftAt.
   const visits = points.map((p, i) => {
-    const departure = p.leftAt || (i < points.length - 1 ? points[i + 1].at : lastFix || p.at);
+    const departure = p.leftAt || (i < points.length - 1 ? (points[i+1].breakBefore?p.at:points[i + 1].at) : lastFix || p.at);
     return { index: i, lat: p.lat, lng: p.lng, arrivedAt: p.at, leftAt: Math.max(p.at, departure) };
   });
 
@@ -86,9 +97,25 @@ function analyzeShift(report, att, { minStopMinutes = DEFAULT_MIN_STOP_MIN, now 
     pushLeg(lastIndex, points[lastIndex].at);
   }
 
-  const gaps = (report?.gaps || [])
+  // Include inferred breaks for older reports too.  This keeps the timeline
+  // honest after the app/server gap policy was tightened: we do not claim a
+  // GPS outage, only that no usable route observation exists in that period.
+  const knownGaps = (report?.gaps || [])
     .filter((g) => g.to - g.from >= MIN_GAP_MS)
-    .map((g) => ({ from: g.from, to: g.to, minutes: minutes(g.to - g.from) }));
+    .map((g) => ({ from: g.from, to: g.to }));
+  for (let i = 1; i < points.length; i += 1) {
+    if (!points[i].breakBefore) continue;
+    const priorLeftAt = points[i - 1].leftAt ? Date.parse(points[i - 1].leftAt) : NaN;
+    const from = Number.isFinite(priorLeftAt) ? priorLeftAt : points[i - 1].at;
+    const to = points[i].at;
+    if (to - from < MIN_GAP_MS) continue;
+    if (!knownGaps.some((g) => Math.abs(g.from - from) < 1000 && Math.abs(g.to - to) < 1000)) {
+      knownGaps.push({ from, to });
+    }
+  }
+  const gaps = knownGaps
+    .sort((a, b) => a.from - b.from)
+    .map((g) => ({ ...g, minutes: minutes(g.to - g.from) }));
 
   const stoppedMs = stops.reduce((s, x) => s + (x.leftAt - x.arrivedAt), 0);
   const movingMs = legs.reduce((s, l) => s + Math.max(0, l.endAt - l.startAt), 0);
@@ -146,6 +173,7 @@ function analyzeShift(report, att, { minStopMinutes = DEFAULT_MIN_STOP_MIN, now 
       longestStopMinutes: longest,
       avgSpeedKmh: movingMs > 60000 ? Math.round((movingKm / (movingMs / 3600000)) * 10) / 10 : 0,
       pointCount: points.length,
+      routeIncomplete:points.some(p=>p.breakBefore) || (report?.gaps || []).length>0,
       firstFixAt: iso(points[0]?.at),
       lastFixAt: iso(lastFix),
       onDuty,

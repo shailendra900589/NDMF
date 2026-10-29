@@ -21,9 +21,12 @@ const MAX_SPEED_MPS = 55;
 /** After this many consistent "jumped" fixes, accept the new place without adding distance. */
 const JUMP_CONFIRMATIONS = 3;
 const MAX_TRAIL_POINTS = 6000;
-/** Android may batch location updates while the device is locked. Short upload
- * gaps are not a GPS outage, so only call a real delayed sync after 12 min. */
-const GAP_MS = 12 * 60 * 1000;
+/**
+ * Never draw a journey through an unobserved interval.  Android may batch
+ * updates while locked, but joining two samples minutes apart invents a route
+ * that the phone never recorded.  The next clear fix starts a new segment.
+ */
+const GAP_MS = 2 * 60 * 1000;
 const FUTURE_TOLERANCE_MS = 2 * 60 * 1000;
 const MAX_AGE_MS = 36 * 60 * 60 * 1000;
 

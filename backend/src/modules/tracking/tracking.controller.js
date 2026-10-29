@@ -153,6 +153,17 @@ exports.livePing = (req, res) => {
 exports.heartbeat=(req,res)=>{
   const body=req.body || {};
   const row={id:req.user.id,userId:req.user.id,receivedAt:new Date().toISOString(),locationEnabled:body.locationEnabled===true,permission:body.permission==='granted'?'granted':'denied',backgroundAllowed:body.backgroundAllowed===true,trackingActive:body.trackingActive===true,appVersion:String(body.appVersion || 'unknown').slice(0,30),issue:String(body.issue || '').slice(0,200)};
+  const previous=findById('trackingDevices',req.user.id);
+  row.batteryPercent=typeof body.batteryPercent==='number'&&Number.isInteger(body.batteryPercent)&&body.batteryPercent>=0&&body.batteryPercent<=100?body.batteryPercent:null;
+  for(const key of ['charging','powerSaveMode','batteryOptimizationExempt'])row[key]=typeof body[key]==='boolean'?body[key]:null;
+  row.trackingEngine=body.trackingEngine==='android_native'?'android_native':'flutter';
+  row.locationOffAt=previous?.locationOffAt || null;
+  row.locationEvents=[...(previous?.locationEvents || [])];
+  if(!previous || previous.locationEnabled!==row.locationEnabled){
+    row.locationEvents.push({enabled:row.locationEnabled,reportedAt:row.receivedAt});
+    row.locationEvents=row.locationEvents.slice(-30);
+    if(!row.locationEnabled)row.locationOffAt=row.receivedAt;
+  }
   upsert('trackingDevices',row,{deferMs:LIVE_WRITE_DELAY_MS});
   return success(res,{receivedAt:row.receivedAt,onDuty:!!currentShift(req.user.id,Date.now()) && !currentShift(req.user.id,Date.now()).checkOutTime},'App heartbeat received');
 };
@@ -264,6 +275,14 @@ exports.getLiveTeam = (req, res) => {
         appLastSeenAt:heartbeat?.receivedAt || null,
         appVersion:heartbeat?.appVersion || null,
         backgroundAllowed:heartbeat?.backgroundAllowed ?? null,
+        batteryPercent:heartbeat?.batteryPercent ?? null,
+        charging:heartbeat?.charging ?? null,
+        powerSaveMode:heartbeat?.powerSaveMode ?? null,
+        batteryOptimizationExempt:heartbeat?.batteryOptimizationExempt ?? null,
+        locationEnabled:heartbeat?.locationEnabled ?? null,
+        locationOffAt:heartbeat?.locationOffAt ?? null,
+        locationEvents:heartbeat?.locationEvents || [],
+        trackingEngine:heartbeat?.trackingEngine || null,
         onDuty: !att.checkOutTime,
         checkInTime: att.checkInTime,
         checkOutTime: att.checkOutTime || null,
@@ -348,6 +367,7 @@ exports.getRoute = (req, res) => {
   const analysis = analyzeShift(report, att, { minStopMinutes: minStopFrom(req.query) });
   return success(res, {
     ...personInfo(target),
+    device:findById('trackingDevices',target.id) || null,
     date: att ? attendanceDay(att.checkInTime) : date || attendanceDay(),
     attendanceId: att?.id || null,
     totalKm: report?.totalKm || 0,

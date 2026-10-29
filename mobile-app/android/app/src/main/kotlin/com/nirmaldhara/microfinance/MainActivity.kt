@@ -37,6 +37,32 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,"com.nirmaldhara.microfinance/duty_location")
+            .setMethodCallHandler { call,result ->
+                try {
+                    when(call.method){
+                        "start" -> {
+                            val token=call.argument<String>("token").orEmpty()
+                            val base=call.argument<String>("baseUrl").orEmpty()
+                            if(token.isBlank()||!base.startsWith("https://")){result.success(false)}
+                            else {
+                                val duty=Intent(this,DutyLocationService::class.java)
+                                    .putExtra("token",token).putExtra("baseUrl",base)
+                                    .putExtra("owner",call.argument<String>("owner"))
+                                    .putExtra("version",call.argument<String>("version"))
+                                if(Build.VERSION.SDK_INT>=26)startForegroundService(duty) else startService(duty)
+                                result.success(true)
+                            }
+                        }
+                        "stop" -> {
+                            getSharedPreferences("duty_location",MODE_PRIVATE).edit().putBoolean("active",false).remove("token").commit()
+                            stopService(Intent(this,DutyLocationService::class.java));result.success(true)
+                        }
+                        "running" -> result.success(DutyLocationService.running)
+                        else -> result.notImplemented()
+                    }
+                }catch(e:Exception){result.error("DUTY_LOCATION",e.message,null)}
+            }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, securityChannel)
             .setMethodCallHandler { call, result ->

@@ -78,6 +78,12 @@
             android:value="YOUR_GOOGLE_MAPS_API_KEY_HERE"/>
 
         <service
+            android:name=".DutyLocationService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="location"/>
+
+        <service
             android:name=".CallRecordService"
             android:exported="false"
             android:stopWithTask="false"

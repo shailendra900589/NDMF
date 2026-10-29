@@ -13,10 +13,11 @@ test('GPS stream and independent device heartbeat update live status in real HTT
  const before=live.lastSeenAt;
  const at=new Date().toISOString();await call('/tracking/live-ping',{lat:26.7,lng:83.3,accuracy:95,recordedAt:at});
  live=(await call('/tracking/live',null,'A'))[0];assert.equal(live.status,'weak_gps');assert.notEqual(live.lastSeenAt,before);assert.equal(live.totalKmToday,0);
- await call('/tracking/heartbeat',{locationEnabled:false,permission:'granted',trackingActive:true,appVersion:'1.5.1'});
+ await call('/tracking/heartbeat',{locationEnabled:false,permission:'granted',trackingActive:true,appVersion:'1.6.3',batteryPercent:46,charging:false,powerSaveMode:true,batteryOptimizationExempt:false,trackingEngine:'android_native'});
  live=(await call('/tracking/live',null,'A'))[0];assert.equal(live.status,'location_off');assert.equal(live.deviceOnline,true);assert.ok(live.appLastSeenAt);
- await call('/tracking/heartbeat',{locationEnabled:true,permission:'granted',trackingActive:true,backgroundAllowed:true,appVersion:'1.5.1'});
+ assert.equal(live.batteryPercent,46);assert.equal(live.powerSaveMode,true);assert.equal(live.trackingEngine,'android_native');assert.ok(live.locationOffAt);assert.equal(live.locationEvents.at(-1).enabled,false);
+ await call('/tracking/heartbeat',{locationEnabled:true,permission:'granted',trackingActive:true,backgroundAllowed:true,appVersion:'1.6.3',batteryPercent:47,charging:true,trackingEngine:'android_native'});
  await call('/tracking/live-ping',{lat:26.7001,lng:83.3001,accuracy:8,recordedAt:new Date().toISOString()});
- live=(await call('/tracking/live',null,'A'))[0];assert.equal(live.status,'live');assert.equal(live.appVersion,'1.5.1');assert.equal(live.accuracy,8);
+ live=(await call('/tracking/live',null,'A'))[0];assert.equal(live.status,'live');assert.equal(live.appVersion,'1.6.3');assert.equal(live.accuracy,8);assert.equal(live.batteryPercent,47);assert.equal(live.charging,true);assert.equal(live.locationEvents.at(-1).enabled,true);
  const stored=db.getCollection('liveLocations').find(r=>r.userId==='E');assert.equal(live.lastSeenAt,stored.at);
 });

@@ -346,6 +346,8 @@ export default function EmployeeTracking({ embedded = false }) {
         </div>
       ) : route ? (
         <>
+          {route.device&&<section className="card" aria-label="Latest phone status"><h3>Latest phone status</h3><p>Battery: <strong>{route.device.batteryPercent!=null?`${route.device.batteryPercent}%`:'Not reported'}</strong>{route.device.charging?' · Charging':''}{route.device.powerSaveMode?' · Battery saver on':''} · Location: <strong>{route.device.locationEnabled?'On':'Off'}</strong> · {route.device.trackingEngine==='android_native'?'Android background service':'App tracking'}</p><small>Last app report: {new Date(route.device.receivedAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}. Device status is current reporting, independent of the selected route date.</small>{route.device.locationOffAt&&<p>Location-off last reported: {new Date(route.device.locationOffAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}</p>}</section>}
+          {route.summary?.routeIncomplete&&<p className="card" role="status">Route contains missing observations. Blue lines show connected observations only; gaps are left open. The exact road taken during a gap cannot be determined.</p>}
           <div className="rt-stats">
             {stats.map((x) => (
               <article key={x.label} className={`rt-stat rt-stat--${x.tone}`}>

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:flutter/services.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
@@ -122,6 +123,7 @@ class StorageService extends GetxService {
 
   // Logout all sessions
   Future<void> logoutAllSessions() async {
+    try{await const MethodChannel('com.nirmaldhara.microfinance/duty_location').invokeMethod('stop');}catch(_){}
     clearAuthSession();
     _box.erase();
     await _prefs.clear();
