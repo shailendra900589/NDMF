@@ -36,7 +36,7 @@ exports.adjust = async(req,res)=>{
   if(!target || target.role==='admin' || target.isDeleted)return error(res,'Employee not found',404);
   if(!canCorrect(req.user,target))return error(res,'You cannot correct this employee attendance',403);
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !Number.isFinite(Date.parse(`${date}T00:00:00Z`)) || new Date(`${date}T00:00:00Z`).toISOString().slice(0,10)!==date || date>dateKey())return error(res,'Select a valid date, today or earlier');
-  if(!['present','absent','paid_leave','unpaid_leave','holiday','automatic'].includes(status) || typeof reason!=='string' || reason.trim().length<3 || reason.length>500)return error(res,'Choose a status and enter a reason (3–500 characters)');
+  if(!['present','half_day','absent','paid_leave','unpaid_leave','holiday','automatic'].includes(status) || typeof reason!=='string' || reason.trim().length<3 || reason.length>500)return error(res,'Choose a status and enter a reason (3–500 characters)');
   const id=`ADJ_${target.id}_${date}`,previous=findById('attendanceAdjustments',id);
   const record={id,userId,date,status,reason:reason.trim(),branch:target.branch,updatedAt:new Date().toISOString(),updatedBy:req.user.id};
   upsert('attendanceAdjustments',record,{single:true});
@@ -115,7 +115,7 @@ exports.checkIn = async (req, res) => {
   const schedule = resolveSchedule(user);
   const policy = schedule.policy;
   const timing = require('../../lib/attendanceTiming').timingAt(policy);
-  if (!timing.allowed) return error(res, `Check-in is available ${policy.opensAt}–${policy.closesAt} IST. Contact your administrator for an attendance correction.`, 403);
+  if (!timing.allowed) return error(res, `Check-in is available ${timing.opensAt}–${policy.closesAt} IST. Contact your administrator for an attendance correction.`, 403);
   const { lat, lng, accuracy } = req.body;
   if (lat == null || lng == null) return error(res, 'GPS location required');
   if (!validPosition(lat, lng)) {
@@ -173,6 +173,8 @@ exports.checkIn = async (req, res) => {
   record.attendanceTiming = policy;
   record.attendanceSchedule = { id: schedule.id, name: schedule.name, scope: schedule.scope };
   record.lateMinutes = timing.lateMinutes;
+  record.attendanceStatus=timing.attendanceStatus;
+  // Older mobile builds use status=Present for a successful punch; arrival/pay classification is separate.
   record.checkInLat = Number(lat);
   record.checkInLng = Number(lng);
   record.distanceFromBranch = place.distanceMeters;
@@ -190,7 +192,7 @@ exports.checkIn = async (req, res) => {
 
   upsert('attendance', record);
   await flush();
-  return success(res, record, 'Checked in successfully');
+  return success(res, record, timing.attendanceStatus==='half_day'?'Checked in · Half day (50% day pay)':timing.attendanceStatus==='late'?'Checked in · Late (full day pay)':'Checked in successfully');
 };
 
 exports.checkOut = async (req, res) => {
@@ -447,7 +449,8 @@ exports.getMonthly = (req, res) => {
     const uid = a.userId;
     if (!uid || !d) return;
     if (!byUserDay[uid]) byUserDay[uid] = {};
-    byUserDay[uid][d] = a;
+    const first=byUserDay[uid][d];
+    if(!first?.checkInTime || (a.checkInTime && Date.parse(a.checkInTime)<Date.parse(first.checkInTime)))byUserDay[uid][d] = a;
   });
 
   const employees = team.map((u) => {
@@ -472,6 +475,7 @@ exports.getMonthly = (req, res) => {
         status = 'today';
       }
       const festival = resolveFestival(u, key);
+      if(rec?.checkInTime){const arrival=require('../../lib/attendanceTiming').arrivalStatus(rec);if(arrival!=='present')status=arrival;}
       if (festival && festival.leaveType !== 'working_day' && !rec?.checkInTime) {
         status = festival.leaveType;
       }
@@ -502,14 +506,16 @@ exports.getMonthly = (req, res) => {
       branch: u.branch,
       workType: workTypeOf(u),
       ...(canCorrect(req.user,u)?{monthlySalary:u.monthlySalary || null,salaryHistory:u.salaryHistory || []}:{}),
-      presentDays: present,
+      presentDays:Object.values(days).reduce((sum,d)=>sum+(['present','partial','late'].includes(d.status)?1:d.status==='half_day'?0.5:0),0),
+      lateDays:Object.values(days).filter(d=>d.status==='late').length,
+      halfDayDays:Object.values(days).filter(d=>d.status==='half_day').length,
       partialDays: partial,
       paidLeaveDays:Object.values(days).filter(d=>d.status==='paid_leave').length,
       unpaidLeaveDays:Object.values(days).filter(d=>d.status==='unpaid_leave').length,
       absentDays:Object.values(days).filter(d=>d.status==='absent').length,
       holidayDays:Object.values(days).filter(d=>d.status==='holiday').length,
       workingDaysSoFar: Object.values(days).filter((d) =>
-        ['present', 'partial', 'absent'].includes(d.status)
+        ['present', 'partial', 'late','half_day','absent'].includes(d.status)
       ).length,
       days,
     };
@@ -519,7 +525,7 @@ exports.getMonthly = (req, res) => {
   const presentToday = employees.filter((e) => {
     if (!todayKey.startsWith(prefix)) return false;
     const d = e.days[dayNum];
-    return d && (d.status === 'present' || d.status === 'partial');
+    return d && ['present','partial','late','half_day'].includes(d.status);
   }).length;
 
   return success(res, {

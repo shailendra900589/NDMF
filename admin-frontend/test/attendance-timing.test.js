@@ -15,6 +15,7 @@ test('attendance policy editor sends enabled IST timings and displays validation
     let submitted;
     attendanceApi.saveSchedule=async body=>{submitted=body;return{data:{}};};
     await act(async()=>{tree=create(React.createElement(Editor));});
+    assert.ok(tree.root.findAllByType('input').some(i=>i.props.type==='number' && i.props.max==='480' && i.props.value===60));
     await act(async()=>tree.root.findAllByType('input').find(i=>i.props.type==='checkbox').props.onChange({target:{checked:true}}));
     await act(async()=>tree.root.findAllByType('form')[0].props.onSubmit({preventDefault(){}}));
     assert.deepEqual(submitted,{scope:'default',branch:undefined,userId:undefined,name:'Default company shift',weekdays:[0,1,2,3,4,5,6],policy:{...policy,enabled:true}});

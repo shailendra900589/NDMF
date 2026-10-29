@@ -105,6 +105,8 @@ function buildRecord(id, body, actor, existing) {
       attendanceRecord[key]=value;
     }
     if(Object.values(attendanceRecord).reduce((a,b)=>a+b,0)>totalDays)return {error:'Total payroll days exceed calendar days in this month'};
+    attendanceRecord.halfDayDays=payroll?.halfDayDays || 0;
+    attendanceRecord.lateDays=payroll?.lateDays || 0;
     attendanceRecord.calendarDays=totalDays;attendanceRecord.note=String(attendance.note || '').slice(0,500);
   }
   const { earnings, deductions, grossSalary, totalDeductions, netPay } = compute(

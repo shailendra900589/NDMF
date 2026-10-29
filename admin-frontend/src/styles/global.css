@@ -2013,3 +2013,6 @@ tbody tr:last-child td { border-bottom: none; }
   object-fit: contain;
   background: #fff;
 }
+
+.att-dot--late{background:#d97706}.att-dot--half_day{background:#9333ea}.att-cal-cell--late,.att-matrix__cell--late{background:#fffbeb;border-color:#fcd34d;color:#92400e}.att-cal-cell--half_day,.att-matrix__cell--half_day{background:#faf5ff;border-color:#d8b4fe;color:#7e22ce}.att-cal-cell--half_day .att-cal-cell__mark,.att-cal-cell--late .att-cal-cell__mark{color:inherit}
+[data-theme=dark] .att-cal-cell--half_day,[data-theme=dark] .att-matrix__cell--half_day{background:#382346;border-color:#79538d;color:#e9c4ff}[data-theme=dark] .att-cal-cell--late,[data-theme=dark] .att-matrix__cell--late{background:#433b24;border-color:#726438;color:#e3cd8c}

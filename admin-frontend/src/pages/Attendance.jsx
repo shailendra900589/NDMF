@@ -22,6 +22,8 @@ function statusLabel(status) {
   switch (status) {
     case 'present':
       return 'Present';
+    case 'late': return 'Late · full day';
+    case 'half_day': return 'Half day · 50% pay';
     case 'partial':
       return 'Checkout not recorded';
     case 'absent':
@@ -106,13 +108,15 @@ export default function Attendance() {
       if (report?.today?.startsWith(prefix)) {
         list = list.filter((e) => {
           const d = e.days[day];
-          return d && (d.status === 'present' || d.status === 'partial');
+          return d && ['present','partial','late','half_day'].includes(d.status);
         });
       }
     } else if (filterStatus === 'has_absent') {
       list = list.filter((e) =>
         Object.values(e.days || {}).some((d) => d.status === 'absent')
       );
+    } else if (['late','half_day'].includes(filterStatus)) {
+      list=list.filter(e=>Object.values(e.days || {}).some(d=>d.status===filterStatus));
     } else if (filterStatus === 'full_present') {
       list = list.filter(
         (e) => e.workingDaysSoFar > 0 && e.presentDays === e.workingDaysSoFar
@@ -165,7 +169,7 @@ export default function Attendance() {
     const day = new Date(report.today).getDate();
     return filteredEmployees.filter((e) => {
       const d = e.days[day];
-      return d && (d.status === 'present' || d.status === 'partial');
+      return d && ['present','partial','late','half_day'].includes(d.status);
     }).length;
   }, [filteredEmployees, report]);
 
@@ -302,6 +306,8 @@ export default function Attendance() {
               <option value="all">All</option>
               <option value="present_today">Present today</option>
               <option value="has_absent">Has absent days</option>
+              <option value="late">Has late arrivals</option>
+              <option value="half_day">Has half days</option>
               <option value="full_present">Full present (so far)</option>
             </SearchableSelect>
           </div>
@@ -392,7 +398,7 @@ export default function Attendance() {
         </aside>
 
         <div className="att-main">
-          {selected && ['admin','branchManager'].includes(me.role) && (me.role==='admin' || selected.role==='fieldOfficer') && canPerformStored('attendance','update') && <details className="card attendance-adjustment"><summary><span><strong>Attendance correction</strong><small>Mark a manual present, absence or leave for {selected.name}</small></span><span className="attendance-adjustment__action">Open form</span></summary><div className="attendance-adjustment__body"><p className="muted">Original check-in, GPS and face records stay unchanged. Every correction needs a reason and is kept in the audit history.</p><form onSubmit={async e=>{e.preventDefault();setAdjusting(true);setAdjustError('');try{await attendanceApi.adjust({...correction,date:new FormData(e.currentTarget).get('date'),userId:selected.id});setCorrection({...correction,reason:''});load(year,month);}catch(err){setAdjustError(err.response?.data?.message || err.message);}finally{setAdjusting(false);}}}><div className="form-grid-2"><label>Date<input type="date" name="date" required defaultValue={correction.date} max={report.today}/></label><label>Status<SearchableSelect value={correction.status} onChange={e=>setCorrection({...correction,status:e.target.value})}>{[['present','Present'],['absent','Absent'],['paid_leave','Paid leave'],['unpaid_leave','Unpaid leave'],['holiday','Weekly off / holiday'],['automatic','Use original attendance']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</SearchableSelect></label></div><label>Reason<input required minLength={3} maxLength={500} value={correction.reason} placeholder="Explain why this change is required" onChange={e=>setCorrection({...correction,reason:e.target.value})}/></label>{adjustError && <p role="alert" className="error-msg">{adjustError}</p>}<button type="submit" className="btn btn-primary" disabled={adjusting}>{adjusting?'Saving…':'Save attendance correction'}</button></form></div></details>}
+          {selected && ['admin','branchManager'].includes(me.role) && (me.role==='admin' || selected.role==='fieldOfficer') && canPerformStored('attendance','update') && <details className="card attendance-adjustment"><summary><span><strong>Attendance correction</strong><small>Mark a manual present, absence or leave for {selected.name}</small></span><span className="attendance-adjustment__action">Open form</span></summary><div className="attendance-adjustment__body"><p className="muted">Original check-in, GPS and face records stay unchanged. Select Full day / Present to convert a half day to a full paid day. Every correction needs a reason and is kept in the audit history. Recalculate payroll after correcting attendance.</p><form onSubmit={async e=>{e.preventDefault();setAdjusting(true);setAdjustError('');try{await attendanceApi.adjust({...correction,date:new FormData(e.currentTarget).get('date'),userId:selected.id});setCorrection({...correction,reason:''});load(year,month);}catch(err){setAdjustError(err.response?.data?.message || err.message);}finally{setAdjusting(false);}}}><div className="form-grid-2"><label>Date<input type="date" name="date" required defaultValue={correction.date} max={report.today}/></label><label>Status<SearchableSelect value={correction.status} onChange={e=>setCorrection({...correction,status:e.target.value})}>{[['present','Full day / Present'],['half_day','Half day (50% pay)'],['absent','Absent'],['paid_leave','Paid leave'],['unpaid_leave','Unpaid leave'],['holiday','Weekly off / holiday'],['automatic','Use original attendance']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</SearchableSelect></label></div><label>Reason<input required minLength={3} maxLength={500} value={correction.reason} placeholder="Explain why this change is required" onChange={e=>setCorrection({...correction,reason:e.target.value})}/></label>{adjustError && <p role="alert" className="error-msg">{adjustError}</p>}<button type="submit" className="btn btn-primary" disabled={adjusting}>{adjusting?'Saving…':'Save attendance correction'}</button></form></div></details>}
           {selected && (
             <section className="card att-calendar-card">
               <div className="att-calendar-card__head">
@@ -400,11 +406,11 @@ export default function Attendance() {
                   <span className="att-calendar-card__eyebrow">MONTHLY ATTENDANCE · {report?.monthLabel}</span>
                   <h3>{selected.name}</h3>
                   <p>{selected.employeeId} · {selected.mobile} · {displayRole(selected.role)}</p>
-                  <div className="att-calendar-card__metrics"><span><b>{selected.presentDays}</b> Present</span><span><b>{selected.paidLeaveDays || 0}</b> Paid leave</span><span><b>{selected.unpaidLeaveDays || 0}</b> Unpaid leave</span><span><b>{selected.absentDays || 0}</b> Absent</span></div>
+                  <div className="att-calendar-card__metrics"><span><b>{selected.presentDays}</b> Present</span><span><b>{selected.halfDayDays || 0}</b> Half days</span><span><b>{selected.lateDays || 0}</b> Late days</span><span><b>{selected.paidLeaveDays || 0}</b> Paid leave</span><span><b>{selected.unpaidLeaveDays || 0}</b> Unpaid leave</span><span><b>{selected.absentDays || 0}</b> Absent</span></div>
                 </div>
                 <div className="att-legend">
                   <span className="att-dot att-dot--present" /> Present
-                  <span className="att-dot att-dot--partial" /> In only
+                  <span className="att-dot att-dot--late" /> Late (full day) <span className="att-dot att-dot--half_day" /> Half day (50%) <span className="att-dot att-dot--partial" /> In only
                   <span className="att-dot att-dot--absent" /> Absent
                   <span className="att-dot att-dot--holiday" /> Sunday
                   <span className="att-dot att-dot--paid_leave" /> Festival / paid leave
@@ -429,7 +435,7 @@ export default function Attendance() {
                       <span className="att-cal-cell__day">{cell.day}</span>
                       <span className="att-cal-cell__mark">
                         {cell.status === 'paid_leave' && 'PL'}{cell.status === 'unpaid_leave' && 'UL'}
-                        {cell.status === 'present' && 'P'}
+                        {cell.status === 'present' && 'P'}{cell.status === 'late' && 'L'}{cell.status === 'half_day' && 'HD'}
                         {cell.status === 'partial' && 'I'}
                         {cell.status === 'absent' && 'A'}
                         {cell.status === 'holiday' && 'S'}
@@ -504,7 +510,7 @@ export default function Attendance() {
                         return (
                           <td key={d} className={`att-matrix__cell att-matrix__cell--${cell?.status || 'none'}`}>
                             {cell?.status === 'present' && 'P'}
-                            {cell?.status === 'partial' && 'I'}
+                            {cell?.status === 'partial' && 'I'}{cell?.status === 'late' && 'L'}{cell?.status === 'half_day' && 'HD'}
                             {cell?.status === 'absent' && 'A'}
                             {cell?.status === 'holiday' && '·'}
                             {cell?.status === 'paid_leave' && 'PL'}{cell?.status === 'unpaid_leave' && 'UL'}
