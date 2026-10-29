@@ -6,7 +6,10 @@
   var estimate=document.getElementById('package-estimate'),status=document.getElementById('package-request-status');
   var period=function(p){return p.basePeriodPrice===undefined?p.monthlyPrice*p.billingMonths:p.basePeriodPrice;};
   var money=function(n){return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(n);};
+  var moduleNames={dashboard:'Live dashboard',attendance:'Face attendance',tracking:'GPS tracking',customerListings:'Customer listings',customers:'Customer records',users:'Employee & permissions',branches:'Branch management',payroll:'Payroll & pay slips',calls:'Call logs',visits:'Visit schedules',notices:'Notices'};
   function node(tag,text,cls){var n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
+  function includedModules(p){return Object.keys(p.modules||{}).filter(function(key){return p.modules[key];}).map(function(key){return moduleNames[key]||key.replace(/([A-Z])/g,' $1');});}
+  function savingsFor(p){var monthly=plans.find(function(x){return x.billingMonths===1&&x.includedEmployees===p.includedEmployees;});if(!monthly||p.billingMonths<=1)return 0;return Math.max(0,period(monthly)*p.billingMonths-period(p));}
   function calculate(){
     var p=plans.find(function(x){return x.id===select.value;}),employees=Number(count.value);
     if(!p||!Number.isSafeInteger(employees)||employees<0){estimate.textContent='Choose a package and team size to see your estimate.';return;}
@@ -17,9 +20,19 @@
     var selected=select.value;root.replaceChildren();select.replaceChildren(node('option','Choose a package'));select.firstChild.value='';
     plans.forEach(function(p){
       var option=node('option',p.name);option.value=p.id;select.append(option);
-      var card=node('article',undefined,'pricing-card');card.append(node('span',p.billingMonths===1?'MONTHLY PLAN':p.billingMonths+' MONTH PLAN','eyebrow'),node('h3',p.name),node('p',p.description),node('strong',money(period(p)),'pricing-amount'),node('p',p.billingMonths===1?'per month · billed monthly':'total for '+p.billingMonths+' months'),node('p',p.includedEmployees+' employees included'),node('p','Extra employees: '+money(p.extraEmployeeMonthlyPrice)+' each / month'));
-      var list=node('ul');p.features.forEach(function(feature){list.append(node('li',feature));});card.append(list);
-      var button=node('button','Request this package','button');button.type='button';button.addEventListener('click',function(){select.value=p.id;calculate();form.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'center'});form.elements.name.focus({preventScroll:true});});card.append(button);root.append(card);
+      var save=savingsFor(p),featured=p.billingMonths===3;
+      var card=node('article',undefined,'pricing-card'+(featured?' pricing-card--featured':''));
+      var head=node('div',undefined,'pricing-card__head');
+      var label=node('span',p.billingMonths===1?'FLEXIBLE MONTHLY':p.billingMonths+'-MONTH ACCESS','pricing-plan-label');head.append(label);
+      if(featured)head.append(node('span','Most popular','pricing-ribbon'));
+      card.append(head,node('h3',p.name),node('p',p.description,'pricing-card__description'));
+      var price=node('div',undefined,'pricing-price');price.append(node('strong',money(period(p))),node('span',p.billingMonths===1?'per month · billed monthly':'total for '+p.billingMonths+' months'));card.append(price);
+      if(save>0)card.append(node('p','Save '+money(save)+' compared with monthly billing','pricing-saving'));
+      var team=node('div',undefined,'pricing-team');team.append(node('strong',p.includedEmployees+' employees included'),node('span','Then '+money(p.extraEmployeeMonthlyPrice)+' per extra employee / month'));card.append(team);
+      var divider=document.createElement('hr');card.append(divider);
+      var included=node('p','Included in your workspace','pricing-included-title');card.append(included);
+      var list=node('ul','', 'pricing-features');var features=(p.features&&p.features.length?p.features:includedModules(p));features.forEach(function(feature){var item=node('li');var icon=node('span','✓','pricing-check');item.append(icon,document.createTextNode(feature));list.append(item);});card.append(list);
+      var button=node('button','Choose '+p.name,'button pricing-cta');button.type='button';button.addEventListener('click',function(){select.value=p.id;calculate();form.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'center'});form.elements.name.focus({preventScroll:true});});card.append(button);root.append(card);
     });
     if(plans.some(function(p){return p.id===selected;}))select.value=selected;
     if(!plans.length)root.append(node('p','Packages are being updated. Please check back shortly.'));
