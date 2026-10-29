@@ -5,7 +5,7 @@ import './SuperAdmin.css';
 
 const emptyCompany = { name: '', code: '', email: '', adminName: '', adminEmail: '', adminPassword: '', adminMobile: '' };
 const roleLabels = { admin: 'Company administrator', branchManager: 'Manager', fieldOfficer: 'Employee' };
-function AccessMatrix({ modules, actions, moduleActions, value = {}, limits, onChange }) {
+export function AccessMatrix({ modules, actions, moduleActions, value = {}, limits, onChange }) {
   return <div className="sa-matrix-wrap"><table className="sa-matrix"><thead><tr><th>Page / module</th><th>Access</th>{Object.entries(actions).map(([key, label]) => <th key={key}>{label}</th>)}</tr></thead>
     <tbody>{Object.entries(modules).map(([key, label]) => {
       const enabled = value.modules?.[key] !== false;

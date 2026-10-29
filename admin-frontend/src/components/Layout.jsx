@@ -102,7 +102,7 @@ export default function Layout() {
   const isSuperAdmin = user.role === 'superAdmin';
   const isAdmin = user.role === 'admin';
 
-  let navItems = isSuperAdmin ? [{ to:'/super-admin', label:'Companies & Access', icon:'branches', end:true }, { to:'/super-admin/api', label:'Developer API access', icon:'branches' }] : filterNavByPermissions(NAV_ITEMS, user);
+  let navItems = isSuperAdmin ? [{ to:'/super-admin', label:'Companies & Access', icon:'branches', end:true }, { to:'/super-admin/packages', label:'Packages & pricing', icon:'payslips' }, { to:'/super-admin/api', label:'Developer API access', icon:'branches' }] : filterNavByPermissions(NAV_ITEMS, user);
   navItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   const logout = async () => {

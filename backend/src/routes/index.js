@@ -20,6 +20,8 @@ const settingsRoutes = require('../modules/settings/settings.routes');
 
 router.use('/developer', require('../modules/platform/developer.routes'));
 router.use('/super-admin', require('../modules/platform/platform.routes'));
+router.use('/packages', require('../modules/platform/packages.routes').publicRouter);
+router.use('/super-admin/packages', require('../modules/platform/packages.routes').adminRouter);
 router.use('/auth', authRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/workspace', require('../modules/workspace/workspace.routes'));

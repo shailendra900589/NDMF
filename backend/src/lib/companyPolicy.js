@@ -12,7 +12,17 @@ const allModules = () => Object.fromEntries(Object.keys(MODULES).map(k => [k, tr
 const allActions = () => Object.fromEntries(Object.keys(MODULES).map(k => [k, Object.fromEntries(Object.keys(ACTIONS).map(a => [a, true]))]));
 function companyFor(user) {
   if (!user?.companyId) return null;
-  return require('./db').getCollection('companies').find(c => c.id === user.companyId) || null;
+  const company=require('./db').getCollection('companies').find(c => c.id === user.companyId) || null;
+  const subscription=company?.packageSubscription;
+  if(!subscription)return company;
+  const day=require('./packages').indiaToday();
+  const active=subscription.startsOn<=day && day<subscription.endsOn;
+  const modules={},actions={};
+  for(const key of Object.keys(MODULES)){
+    modules[key]=active && subscription.modules?.[key]===true && company.modules?.[key]!==false;
+    actions[key]=Object.fromEntries(Object.keys(ACTIONS).map(a=>[a,modules[key] && subscription.actions?.[key]?.[a]===true && company.actions?.[key]?.[a]!==false]));
+  }
+  return {...company,modules,actions};
 }
 function actionAllowed(user, module, action) {
   const company = companyFor(user);

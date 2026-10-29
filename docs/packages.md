@@ -1,0 +1,15 @@
+# Packages and employee pricing
+
+Super Admin → Packages & pricing manages names, descriptions, prices, included staff, additional staff rates, billing months, page access and function access. New packages start as drafts. Publishing exposes their public fields on the homepage; drafts and archived plans remain private. The homepage reloads the catalog every minute and when its tab becomes visible. Enquiry contact details are available only to Super Admin.
+
+The first startup seeds Starter once: ₹1,000 per month for five employees, ₹200 per additional employee per month, one-month billing period. Included modules are Dashboard, Attendance, GPS tracking, Employee & Permission and Branch Management. Editing or archiving Starter is preserved on subsequent startups.
+
+Monthly amount = base monthly price + max(0, active staff − included employees) × additional employee monthly price. Thus five employees cost ₹1,000, six cost ₹1,200 and eight cost ₹1,600. Active field employees and branch managers count; company administrators, Super Admin, disabled and deleted accounts do not. Additional staff are priced rather than blocked by a hard seat limit. Prices are integer INR amounts. A multi-month period multiplies the monthly total by its number of months.
+
+Assigning a package explicitly activates it for a company. No existing company is assigned or charged automatically by this migration. Activation replaces the current subscription with a snapshot of the selected plan's prices and functions for a current service period. Existing permissions may restrict those functions further, but cannot expand beyond the purchased package. The start date is inclusive and renewal/end date is exclusive, using India dates; month arithmetic clamps to the last valid day. After expiry, package modules are unavailable while sign-in/profile remain available. Super Admin can activate a new current period.
+
+Published package edits affect the website and future activations. Existing subscriptions keep their saved prices and functions until replaced. Company monthly estimates use current active staff counts, so adding a sixth employee immediately changes the estimate to ₹1,200 on refresh. These are service pricing estimates and activation terms, not evidence of a payment transaction or a collected payment.
+
+Homepage visitors can choose a package, calculate a team-size estimate and send an enquiry. The server validates the contact fields, computes its own estimate from the published package and rate-limits requests. Super Admin can mark enquiries New, Contacted or Closed. Publishing, assigning and editing packages require the Super Admin role. Changes are recorded in the platform audit.
+
+Deploy with the normal production update script. PostgreSQL's JSONB collection storage requires no separate table migration. Collections added are `packages` and `packageRequests`; both are platform-wide, with request data protected by Super Admin routes. No mobile rebuild is needed for this feature; assigned permission changes apply to existing sessions through the current company policy.
