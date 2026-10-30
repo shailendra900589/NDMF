@@ -10,7 +10,7 @@ test('arrival boundaries allow 30-minute early check-in, then late and half-day 
  assert.equal(at('09:30:00').opensAt,'09:30');assert.equal(at('10:15:00').attendanceStatus,'present');
  assert.equal(at('10:15:01').attendanceStatus,'late');
  assert.equal(at('10:16:00').attendanceStatus,'late');assert.equal(at('10:59:00').attendanceStatus,'late');
- assert.equal(at('11:00:00').attendanceStatus,'half_day');assert.equal(at('13:00:00').attendanceStatus,'half_day');
+ assert.equal(at('11:00:00').attendanceStatus,'half_day');assert.equal(at('13:00:00').attendanceStatus,'half_day');assert.equal(at('17:59:00').allowed,true);assert.equal(at('17:59:00').attendanceStatus,'half_day');assert.equal(at('18:01:00').allowed,false);
  assert.throws(()=>validateTiming({...policy,halfDayAfterMinutes:15}));
  const branch={...policy,startsAt:'11:00',opensAt:'11:00'};assert.equal(timingAt(branch,new Date('2026-10-01T10:30:00+05:30')).allowed,true);
 });

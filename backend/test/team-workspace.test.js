@@ -11,7 +11,8 @@ test('timing boundaries are India time, validated and opt-in',()=>{
  assert.equal(timingAt(p,new Date('2026-10-26T00:29:00Z')).allowed,false);
  assert.equal(timingAt(p,new Date('2026-10-26T00:30:00Z')).allowed,true);
  assert.equal(timingAt(p,new Date('2026-10-26T03:46:00Z')).lateMinutes,1);
- assert.equal(timingAt(p,new Date('2026-10-26T06:31:00Z')).allowed,false);
+ assert.equal(timingAt(p,new Date('2026-10-26T06:31:00Z')).allowed,true);
+ assert.equal(timingAt(p,new Date('2026-10-26T12:31:00Z')).allowed,false);
  assert.equal(timingAt(DEFAULT_TIMING,new Date('2026-10-26T06:31:00Z')).allowed,true);
  assert.throws(()=>validateTiming({...p,closesAt:'08:00'}));
  assert.throws(()=>validateTiming({...p,graceMinutes:-1}));

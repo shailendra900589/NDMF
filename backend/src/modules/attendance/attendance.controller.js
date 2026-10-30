@@ -115,7 +115,7 @@ exports.checkIn = async (req, res) => {
   const schedule = resolveSchedule(user);
   const policy = schedule.policy;
   const timing = require('../../lib/attendanceTiming').timingAt(policy);
-  if (!timing.allowed) return error(res, `Check-in is available ${timing.opensAt}–${policy.closesAt} IST. Contact your administrator for an attendance correction.`, 403);
+  if (!timing.allowed) return error(res, `Check-in is available ${timing.opensAt}–${policy.endsAt} IST. Arrivals after the half-day threshold are recorded as Half Day.`, 403);
   const { lat, lng, accuracy } = req.body;
   if (lat == null || lng == null) return error(res, 'GPS location required');
   if (!validPosition(lat, lng)) {

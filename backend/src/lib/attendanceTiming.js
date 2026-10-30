@@ -19,7 +19,13 @@ function timingAt(policy, now = new Date()) {
   const current = minutes(parts);
   const start=minutes(policy.startsAt),opening=Math.max(0,Math.min(minutes(policy.opensAt),start-30));
   const precise=current+now.getUTCSeconds()/60,halfDayAt=start+(policy.halfDayAfterMinutes??60),lateMinutes=Math.max(0,Math.ceil(precise-start-policy.graceMinutes));
-  return { allowed: !policy.enabled || (current >= opening && current <= minutes(policy.closesAt)), opensAt:`${String(Math.floor(opening/60)).padStart(2,'0')}:${String(opening%60).padStart(2,'0')}`, attendanceStatus:current>=halfDayAt?'half_day':lateMinutes>0?'late':'present',lateMinutes, earlyDepartureMinutes: policy.enabled ? Math.max(0, minutes(policy.endsAt) - current) : 0 };
+  // `closesAt` is the regular-arrival cutoff retained for reporting and
+  // backwards-compatible schedules.  It must not reject an employee who
+  // arrives after the half-day threshold: they still need to be able to punch
+  // in and receive the correct half-day attendance/pay classification.
+  // A same-day attendance punch is therefore accepted from the opening window
+  // through shift end; arrivals are classified below.
+  return { allowed: !policy.enabled || (current >= opening && current <= minutes(policy.endsAt)), opensAt:`${String(Math.floor(opening/60)).padStart(2,'0')}:${String(opening%60).padStart(2,'0')}`, attendanceStatus:current>=halfDayAt?'half_day':lateMinutes>0?'late':'present',lateMinutes, earlyDepartureMinutes: policy.enabled ? Math.max(0, minutes(policy.endsAt) - current) : 0 };
 }
 function arrivalStatus(record){return record.attendanceStatus || (record.attendanceTiming && record.checkInTime?timingAt(record.attendanceTiming,new Date(record.checkInTime)).attendanceStatus:'present');}
 module.exports = { DEFAULT_TIMING, validateTiming, timingAt, arrivalStatus };
