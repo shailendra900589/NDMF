@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
+import '../team_inbox.dart';
 
 /// Teal dashboard header — brand title + date (no menu / alerts / profile row).
 class HomePremiumHeader extends StatelessWidget {
@@ -52,6 +53,7 @@ class HomePremiumHeader extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const TeamInboxBell(),
                   IconButton(
                     tooltip: 'Profile',
                     visualDensity: VisualDensity.compact,

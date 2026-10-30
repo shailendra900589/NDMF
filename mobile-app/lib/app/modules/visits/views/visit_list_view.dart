@@ -8,6 +8,7 @@ import '../../../data/models/customer_listing_model.dart';
 import '../../../data/services/api_service.dart';
 import '../../../data/services/gps_stamp_camera.dart';
 import '../../../data/services/location_service.dart';
+import '../../../data/services/maps_navigation_service.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/services/visit_sync_service.dart';
 import '../../../utils/api_errors.dart';
@@ -159,15 +160,24 @@ class _VisitListViewState extends State<VisitListView> {
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Expanded(
-                    child: Text(visit['title']?.toString() ?? 'Field visit',
+                    child: Text(visit['targetName']?.toString() ?? visit['title']?.toString() ?? 'Field visit',
                         style: Theme.of(context).textTheme.titleLarge)),
                 _StatusChip(status: status)
               ]),
               const SizedBox(height: 8),
-              Text(visit['targetName']?.toString() ??
-                  visit['location']?.toString() ??
-                  ''),
-              Text('Location: ${visit['location'] ?? 'Not specified'}'),
+              if (visit['targetMobile']?.toString().isNotEmpty == true)
+                Text('Customer mobile: ${visit['targetMobile']}'),
+              const SizedBox(height: 4),
+              Text('Visit location: ${visit['location'] ?? 'Not specified'}'),
+              if (_hasDestination(visit))
+                TextButton.icon(
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    onPressed: () => Get.find<MapsNavigationService>().openInGoogleMaps(
+                        latitude: (visit['destinationGps']['lat'] as num).toDouble(),
+                        longitude: (visit['destinationGps']['lng'] as num).toDouble(),
+                        label: visit['targetName']?.toString()),
+                    icon: const Icon(Icons.directions_outlined),
+                    label: const Text('Open customer location & directions')),
               if (scheduled != null)
                 Text(
                     'Scheduled: ${DateFormat('dd MMM yyyy, hh:mm a').format(scheduled.toLocal())}'),
@@ -185,6 +195,15 @@ class _VisitListViewState extends State<VisitListView> {
                             ? 'Continue verified visit'
                             : 'Start visit & take GPS photo'))),
             ])));
+  }
+
+  bool _hasDestination(Map<String, dynamic> visit) {
+    final destination = visit['destinationGps'];
+    return destination is Map &&
+        destination['lat'] is num &&
+        destination['lng'] is num &&
+        (destination['lat'] as num) != 0 &&
+        (destination['lng'] as num) != 0;
   }
 }
 

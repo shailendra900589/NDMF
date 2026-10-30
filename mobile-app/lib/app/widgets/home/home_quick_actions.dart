@@ -46,6 +46,15 @@ class HomeQuickAction {
         color: Color(0xFF42A5F5),
       ));
     }
+    if (AccessControl.canAccess('visits')) {
+      actions.add(const HomeQuickAction(
+        title: 'My visits',
+        subtitle: 'Scheduled customer visits',
+        icon: Icons.event_available_outlined,
+        route: AppRoutes.visits,
+        color: Color(0xFF7E57C2),
+      ));
+    }
     if (AccessControl.canManageTeam) {
       actions.add(const HomeQuickAction(
         title: 'Team',

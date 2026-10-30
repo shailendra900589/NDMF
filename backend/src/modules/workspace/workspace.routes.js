@@ -29,7 +29,10 @@ router.post('/:kind', wrap(async(req,res)=>{
   if (!['notices','visits'].includes(kind)) return error(res,'Not found',404);
   if (!manager(req.user) || (kind==='notices' && !isAdmin(req.user))) return error(res,'Only administrators can publish notices; managers can schedule branch visits',403);
   const title=String(body.title || '').trim(), description=String(body.description || '').trim();
-  if (!title || title.length>150 || !description || description.length>4000) return error(res,'Enter a title (up to 150 characters) and details (up to 4000 characters)');
+  // Notices have a human-written heading. Visits deliberately use the selected
+  // customer's name as their heading so a field employee always sees a useful,
+  // unambiguous destination rather than a free-text title.
+  if ((kind==='notices' && (!title || title.length>150)) || !description || description.length>4000) return error(res,kind==='notices'?'Enter a title (up to 150 characters) and details (up to 4000 characters)':'Enter visit details (up to 4000 characters)');
   const branch=isAdmin(req.user) ? String(body.branch || '') : req.user.branch;
   let people=getCollection('users').filter(u=>u.isActive!==false && !u.isDeleted && u.role!=='superAdmin' && (!branch || sameBranch(u, branch)));
   if (body.userId) people=people.filter(u=>u.id===body.userId);
@@ -41,15 +44,28 @@ router.post('/:kind', wrap(async(req,res)=>{
     record.branch=branch || people[0].branch;
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(body.scheduledAt || '') || !Number.isFinite(Date.parse(body.scheduledAt))) return error(res,'Choose a valid visit date and time');
     record.scheduledAt=new Date(body.scheduledAt).toISOString(); record.location=String(body.location || '').trim();
-    if (!record.location || record.location.length>500) return error(res,'Enter visit location (up to 500 characters)');
+    if (record.location.length>500) return error(res,'Visit location can contain up to 500 characters');
     const customerIds=[...new Set([body.customerId,...(Array.isArray(body.customerIds)?body.customerIds:[])].filter(Boolean))];
     const leadIds=[...new Set((Array.isArray(body.leadIds)?body.leadIds:[]).filter(Boolean))];
     const targets=[];
-    for (const id of customerIds) { const customer=findById('customers',id); if (!customer || !sameBranch(people[0],customer.branch)) return error(res,'Every customer must be in the employee’s assigned branch'); targets.push({customerId:customer.id,targetType:'customer',targetName:customer.name,location:customer.address || record.location}); }
-    for (const id of leadIds) { const lead=findById('leads',id); if (!lead || !sameBranch(people[0],lead.branch)) return error(res,'Every lead must be in the employee’s assigned branch'); targets.push({leadId:lead.id,targetType:'lead',targetName:lead.name || lead.mobile || 'Lead',location:lead.address || record.location}); }
+    for (const id of customerIds) {
+      const customer=findById('customers',id);
+      // A branch manager may only schedule their own branch. A company admin can
+      // assign any active employee to a customer from any company branch.
+      if (!customer || (!isAdmin(req.user) && !sameBranch(req.user,customer.branch))) return error(res,'A selected customer is unavailable in your branch');
+      targets.push({customerId:customer.id,targetType:'customer',targetName:customer.name,branch:customer.branch,location:customer.address || record.location,destinationGps:Number(customer.latitude) && Number(customer.longitude) ? {lat:Number(customer.latitude),lng:Number(customer.longitude)} : null});
+    }
+    for (const id of leadIds) {
+      const lead=findById('leads',id);
+      if (!lead || (!isAdmin(req.user) && !sameBranch(req.user,lead.branch))) return error(res,'A selected lead is unavailable in your branch');
+      targets.push({leadId:lead.id,targetType:'lead',targetName:lead.name || lead.mobile || 'Lead',branch:lead.branch,location:lead.address || record.location,destinationGps:Number(lead.latitude) && Number(lead.longitude) ? {lat:Number(lead.latitude),lng:Number(lead.longitude)} : null});
+    }
     record.status='scheduled'; record.completionNote='';
-    if (!targets.length) targets.push({targetType:'general',targetName:'General visit',location:record.location});
-    const visits=targets.map(target=>({...record,...target,targetMobile:target.customerId?findById('customers',target.customerId)?.mobile || '':target.leadId?findById('leads',target.leadId)?.mobile || '':'',id:randomUUID(),location:target.location || record.location}));
+    // Retain the older API form for integrations that already create a general
+    // location visit. The staff console only creates customer-backed visits.
+    if (!targets.length && record.location) targets.push({targetType:'general',targetName:title || 'General visit',location:record.location,branch:record.branch,destinationGps:null});
+    if (!targets.length) return error(res,'Select at least one existing customer for this visit');
+    const visits=targets.map(target=>({...record,...target,title:target.targetType==='general' ? target.targetName : `Visit · ${target.targetName}`,targetMobile:target.customerId?findById('customers',target.customerId)?.mobile || '':target.leadId?findById('leads',target.leadId)?.mobile || '':'',id:randomUUID(),location:target.location || record.location}));
     visits.forEach(visit=>upsert('visits',visit,{single:true})); await flush();
     return success(res,visits.length === 1 ? visits[0] : visits,`${visits.length} visit${visits.length===1?'':'s'} scheduled`,201);
   }

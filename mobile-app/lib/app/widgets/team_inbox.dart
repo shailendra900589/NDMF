@@ -18,6 +18,78 @@ class TeamInboxButton extends StatefulWidget {
   State<TeamInboxButton> createState() => _TeamInboxButtonState();
 }
 
+/// Compact notification entry point for the home header. Notices no longer
+/// need to be buried in Profile, while acknowledgement stays in the inbox.
+class TeamInboxBell extends StatefulWidget {
+  const TeamInboxBell({super.key});
+  @override
+  State<TeamInboxBell> createState() => _TeamInboxBellState();
+}
+
+class _TeamInboxBellState extends State<TeamInboxBell>
+    with WidgetsBindingObserver {
+  Timer? _timer;
+  int _pending = 0;
+  bool _fetching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) => _refresh());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    if (_fetching || !mounted || !AccessControl.canAccess('notices')) return;
+    _fetching = true;
+    try {
+      final response = await Get.find<ApiService>().get('/workspace/notices');
+      final records = List<Map<String, dynamic>>.from(
+          (response.data['data'] as List).map((e) => Map<String, dynamic>.from(e)));
+      final uid = Get.find<StorageService>().getUser()?.id;
+      final unread = records.where((r) =>
+          r['acknowledgedAt'] == null &&
+          (r['acknowledgements'] as Map?)?[uid] == null &&
+          (r['recipientIds'] == null || (r['recipientIds'] as List).contains(uid))).length;
+      if (mounted) setState(() => _pending = unread);
+    } catch (_) {
+      // Connectivity errors must not affect the dashboard.
+    } finally {
+      _fetching = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!AccessControl.canAccess('notices')) return const SizedBox.shrink();
+    return IconButton(
+      tooltip: _pending > 0 ? '$_pending unread notice(s)' : 'Notices',
+      onPressed: () async {
+        await Get.to(() => const TeamInboxPage(kind: 'notices'));
+        _refresh();
+      },
+      icon: Badge(
+        isLabelVisible: _pending > 0,
+        label: Text(_pending > 99 ? '99+' : '$_pending'),
+        child: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+      ),
+    );
+  }
+}
+
 class _TeamInboxButtonState extends State<TeamInboxButton>
     with WidgetsBindingObserver {
   Timer? timer;

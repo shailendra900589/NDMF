@@ -33,6 +33,9 @@ test('notices, visits, re-verification and released payroll respect tenant/emplo
  const visit={title:'Shop visit',description:'Verify current details',userId:'E',location:'Test shop',scheduledAt:'2026-10-27T09:00:00+05:30'};
  assert.equal((await call('/workspace/visits','POST',visit,'B')).status,400);
  const v=await call('/workspace/visits','POST',visit);assert.equal(v.status,201);
+ db.upsert('customers',{id:'C_CROSS',name:'Cross branch shop',mobile:'9000000009',companyId:'ONE',branch:'Other',address:'Other branch market',latitude:26.71,longitude:83.31});
+ const multiVisit=await call('/workspace/visits','POST',{description:'Verify the shop and collect an update.',userId:'E',customerIds:['C_CROSS'],scheduledAt:'2026-10-27T10:00:00+05:30'});
+ assert.equal(multiVisit.status,201);assert.equal(multiVisit.data.targetName,'Cross branch shop');assert.equal(multiVisit.data.destinationGps.lat,26.71);
  assert.equal((await call(`/workspace/visits/${v.data.id}/start`,'POST',{position:{lat:26.7,lng:83.3}},'A')).status,403);
  assert.equal((await call(`/workspace/visits/${v.data.id}/start`,'POST',{position:{lat:null,lng:null}},'E')).status,400);
  assert.equal((await call(`/workspace/visits/${v.data.id}/complete`,'POST',{},'E')).status,409);
@@ -55,7 +58,7 @@ test('notices, visits, re-verification and released payroll respect tenant/emplo
  await call('/settings/attendance-face','PUT',{enabled:false});assert.deepEqual((await call('/settings/public')).data.attendanceTiming,policy);
  db.upsert('customers',{id:'C',name:'Customer',mobile:'9000000000',companyId:'ONE',branch:'Office',documentPaths:['/uploads/old.jpg'],loanHistory:[{id:'old'}]});
  const re=await call('/customers/C/reverify','POST',{reason:'Periodic verification'});assert.equal(re.status,201);
- assert.equal((await call('/customers')).data.length,0);assert.equal((await call('/customer-listings')).data[0].status,'draft');
+ assert.equal((await call('/customers')).data.some(customer=>customer.id==='C'),false);assert.equal((await call('/customer-listings')).data[0].status,'draft');
  assert.equal((await call('/customers/C/reverify','POST',{reason:'Again'})).status,409);
  assert.equal(db.findById('customers','C').documentPaths.length,1);
  const body={id:'DEVICE_SUBMISSION',name:'Customer',mobile:'9000000000',branch:'Office',shopFullAddress:'Test address',shopLatitude:26,shopLongitude:83,neighbors:[{shopName:'One',remarks:'Checked'},{shopName:'Two',remarks:'Checked'}]};
@@ -64,7 +67,7 @@ test('notices, visits, re-verification and released payroll respect tenant/emplo
  assert.equal((await call('/customer-listings','POST',body,'E')).data.id,re.data.id,'offline retries retain the same re-verification request');
  assert.equal(db.getCollection('customerListings').length,1);
  await call('/customer-listings/approve','POST',{id:re.data.id,action:'approve'});await call('/customer-listings/approve','POST',{id:re.data.id,action:'finalApprove'});
- assert.equal((await call('/customers')).data.length,1);assert.equal(db.findById('customers','C').loanHistory[0].id,'old');
+ assert.ok((await call('/customers')).data.some(customer=>customer.id==='C'));assert.equal(db.findById('customers','C').loanHistory[0].id,'old');
  const slip=await call('/payslips','POST',{employeeName:'E',employeeNo:'E',month:'2026-10',earnings:{basic:1000},deductions:{}});assert.equal(slip.status,201);
  assert.equal((await call('/payslips/mine','GET',undefined,'E')).data.length,0);
  assert.equal((await call(`/payslips/${slip.data.id}/release`,'PUT',{kind:'salary',reference:'BANK-123'})).status,200);
