@@ -7,16 +7,23 @@ class ApiConstants {
 
   /// Live production API (HTTPS).
   static const String productionBaseUrl = 'https://ndclients.co.in/api/v1';
+  static const String publicSiteUrl = 'https://ndclients.co.in';
+  static const String releaseManifestUrl =
+      '$publicSiteUrl/downloads/release.json';
+
   /// Emergency fallback only — keep false while SSL works.
   static const String productionIpBaseUrl = 'http://13.60.224.155/api/v1';
   static const bool useProductionIp = false;
 
   /// true = live https://ndclients.co.in — false = local backend.
   static const bool useProduction = true;
+
   /// Flutter web debug: use local API (run backend on port 5000) for settings/CORS tests.
   static const bool useLocalApiOnWebDebug = false;
+
   /// true = Android emulator (10.0.2.2). false = real phone on same WiFi as PC.
   static const bool useEmulatorHost = true;
+
   /// PC LAN IP — run `ipconfig` and set this when useEmulatorHost is false.
   static const String deviceHost = '192.168.1.19';
 
@@ -38,6 +45,7 @@ class ApiConstants {
 
   static const Duration connectTimeout = Duration(seconds: 12);
   static const Duration receiveTimeout = Duration(seconds: 20);
+
   /// Long call recordings (up to 15 min).
   static const Duration uploadTimeout = Duration(minutes: 15);
 

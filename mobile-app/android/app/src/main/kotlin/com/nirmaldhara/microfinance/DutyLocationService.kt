@@ -26,6 +26,7 @@ class DutyLocationService : Service(), LocationListener {
     private var wake: PowerManager.WakeLock? = null
     private var registered = false
     private var issue = "Waiting for a fresh GPS fix"
+    @Volatile private var lastNetworkIssue = ""
     private val providerChange = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             subscribe()
@@ -77,15 +78,20 @@ class DutyLocationService : Service(), LocationListener {
         }
         if(!prefs.getBoolean("active",false)){stopSelf();return START_NOT_STICKY}
         subscribe()
-        return START_STICKY
+        // Redeliver the original start intent after process recovery. The
+        // token is also durably stored, so a locked-screen process restart
+        // can resume the same on-duty queue without waiting for Flutter.
+        return START_REDELIVER_INTENT
     }
     @Suppress("MissingPermission")
     private fun subscribe(){
         try {
             locations.removeUpdates(this)
             if(!precisePermission()){issue="Precise location permission missing";return}
-            for(provider in listOf(LocationManager.GPS_PROVIDER,LocationManager.NETWORK_PROVIDER)){
-                if(locations.allProviders.contains(provider)&&locations.isProviderEnabled(provider))locations.requestLocationUpdates(provider,10000L,0f,this,Looper.getMainLooper())
+            // Attendance requires a real GPS route. Do not mix coarse
+            // network-provider fixes into a route that is shown to admins.
+            if(locations.allProviders.contains(LocationManager.GPS_PROVIDER)&&locations.isProviderEnabled(LocationManager.GPS_PROVIDER)){
+                locations.requestLocationUpdates(LocationManager.GPS_PROVIDER,10000L,0f,this,Looper.getMainLooper())
             }
             issue=if(enabled())"Waiting for a fresh GPS fix" else "Device location is switched off"
         }catch(_: Exception){issue="Location permission or provider unavailable"}
@@ -93,6 +99,7 @@ class DutyLocationService : Service(), LocationListener {
     @Suppress("DEPRECATION")
     override fun onLocationChanged(location: Location){
         if(!prefs.getBoolean("active",false))return
+        if(location.provider != LocationManager.GPS_PROVIDER)return
         val age=SystemClock.elapsedRealtimeNanos()-location.elapsedRealtimeNanos
         if(age<0||age>60L*1000000000L||location.isFromMockProvider||!location.hasAccuracy())return
         val point=JSONObject().put("lat",location.latitude).put("lng",location.longitude).put("accuracy",location.accuracy.toDouble())
@@ -126,8 +133,10 @@ class DutyLocationService : Service(), LocationListener {
             connection.outputStream.use{it.write(body.toString().toByteArray(Charsets.UTF_8))}
             val code=connection.responseCode
             if(code==401){prefs.edit().putBoolean("active",false).remove("token").commit();main.post{stopSelf()};return null}
-            if(code !in 200..299)return null
+            if(code !in 200..299){lastNetworkIssue="Server rejected $path (HTTP $code)";return null}
+            lastNetworkIssue=""
             return JSONObject(connection.inputStream.bufferedReader().use{it.readText()})
+        }catch(e:Exception){lastNetworkIssue="Server unavailable: ${e.javaClass.simpleName}";return null
         }finally{connection.disconnect()}
     }
     private fun heartbeat(){
@@ -138,7 +147,7 @@ class DutyLocationService : Service(), LocationListener {
         val power=getSystemService(POWER_SERVICE) as PowerManager
         val payload=JSONObject().put("locationEnabled",enabled()).put("permission",if(precisePermission())"granted" else "denied")
             .put("backgroundAllowed",true).put("trackingActive",running).put("appVersion",prefs.getString("version","unknown"))
-            .put("issue",issue).put("powerSaveMode",power.isPowerSaveMode).put("batteryOptimizationExempt",power.isIgnoringBatteryOptimizations(packageName))
+            .put("issue",if(lastNetworkIssue.isNotBlank())lastNetworkIssue else issue).put("powerSaveMode",power.isPowerSaveMode).put("batteryOptimizationExempt",power.isIgnoringBatteryOptimizations(packageName))
             .put("charging",status==BatteryManager.BATTERY_STATUS_CHARGING||status==BatteryManager.BATTERY_STATUS_FULL).put("trackingEngine","android_native")
         if(level>=0&&scale>0)payload.put("batteryPercent",(level*100/scale).coerceIn(0,100))
         val response=post("/tracking/heartbeat",payload)
@@ -161,5 +170,15 @@ class DutyLocationService : Service(), LocationListener {
         worker.shutdownNow()
         if(wake?.isHeld==true)wake?.release()
         super.onDestroy()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // `stopWithTask=false` keeps the foreground service when the employee
+        // swipes the UI away. Asking the system to keep it sticky here closes
+        // an OEM-specific task-removal gap without starting a hidden service.
+        if(prefs.getBoolean("active",false)){
+            try { startService(Intent(this,DutyLocationService::class.java)) } catch(_: Exception) {}
+        }
+        super.onTaskRemoved(rootIntent)
     }
 }

@@ -4,6 +4,7 @@ import '../../../widgets/app_logo.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/services/ndfa_api_service.dart';
 import '../../../data/services/api_constants.dart';
+import '../../../data/services/app_update_service.dart';
 import '../../../routes/app_routes.dart';
 import '../../../utils/access_control.dart';
 
@@ -44,6 +45,15 @@ class _SplashViewState extends State<SplashView>
   Future<void> _navigate() async {
     await Future.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
+    // Do this before login/home navigation. The dialog cannot be dismissed;
+    // users download the current APK before they can use changed APIs.
+    if (Get.isRegistered<AppUpdateService>()) {
+      final update = Get.find<AppUpdateService>();
+      if (await update.checkForRequiredUpdate()) {
+        await update.enforceRequiredUpdate();
+        return;
+      }
+    }
     final storage = Get.find<StorageService>();
     if (storage.isLoggedIn) {
       if (ApiConstants.useRemoteApi && Get.isRegistered<NdfaApiService>()) {

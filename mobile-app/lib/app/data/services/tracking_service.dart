@@ -24,6 +24,12 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
 
   static const Duration _pingInterval = Duration(seconds: 15);
 
+  /// The Android foreground service owns collection while the phone is locked.
+  /// Keep a lightweight watchdog while Flutter is visible so an OEM-killed
+  /// service is restarted instead of silently leaving an employee on duty with
+  /// only the check-in point.
+  static const Duration _nativeWatchInterval = Duration(seconds: 30);
+
   /// A fix older than this is replaced by asking the GPS directly.
   static const Duration _staleFix = Duration(seconds: 25);
   String get _pendingKey =>
@@ -50,18 +56,32 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
   String? _trackingOwner;
   bool _ticking = false, _heartbeatBusy = false, _restartNeeded = false;
   String? _appVersion;
-  static const _nativeChannel=MethodChannel('com.nirmaldhara.microfinance/duty_location');
-  bool _nativeActive=false;
+  static const _nativeChannel =
+      MethodChannel('com.nirmaldhara.microfinance/duty_location');
+  bool _nativeActive = false;
   Future<void> _startNative() async {
-    if(!GetPlatform.isAndroid || !ApiConstants.useRemoteApi)return;
+    if (!GetPlatform.isAndroid || !ApiConstants.useRemoteApi) return;
     try {
-      _appVersion??=(await PackageInfo.fromPlatform()).version;
-      _nativeActive=await _nativeChannel.invokeMethod<bool>('start',{'token':_storage.getToken(),'owner':_storage.getUser()?.id,'baseUrl':ApiConstants.baseUrl,'version':_appVersion})??false;
-    }catch(_){_nativeActive=false;gpsStatus.value='Open Attendance to enable background GPS';}
+      _appVersion ??= (await PackageInfo.fromPlatform()).version;
+      _nativeActive = await _nativeChannel.invokeMethod<bool>('start', {
+            'token': _storage.getToken(),
+            'owner': _storage.getUser()?.id,
+            'baseUrl': ApiConstants.baseUrl,
+            'version': _appVersion
+          }) ??
+          false;
+    } catch (_) {
+      _nativeActive = false;
+      gpsStatus.value = 'Open Attendance to enable background GPS';
+    }
   }
+
   Future<void> _stopNative() async {
-    if(GetPlatform.isAndroid)try{await _nativeChannel.invokeMethod('stop');}catch(_){}
-    _nativeActive=false;
+    if (GetPlatform.isAndroid)
+      try {
+        await _nativeChannel.invokeMethod('stop');
+      } catch (_) {}
+    _nativeActive = false;
   }
 
   Future<TrackingService> init() async {
@@ -74,14 +94,17 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      if(isTracking.value)unawaited(_startNative());
+      if (isTracking.value) {
+        unawaited(_startNative());
+        unawaited(_tick());
+      }
       unawaited(_resumeFromAttendanceIfNeeded());
       if (isTracking.value) unawaited(_tick());
     }
   }
 
   Future<void> _heartbeat() async {
-    if(_nativeActive)return;
+    if (_nativeActive) return;
     if (_heartbeatBusy || !_storage.isLoggedIn || !ApiConstants.useRemoteApi)
       return;
     _heartbeatBusy = true;
@@ -303,18 +326,21 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
       gpsStatus.value = 'Searching for GPS…';
       final now = DateTime.now();
 
-      // Android owns on-duty collection in a foreground service.  Keeping a
-      // second Geolocator foreground stream here wastes battery and can make
-      // devices compete for callbacks.  The service keeps its own durable
-      // queue, reports GPS-off/battery state and survives a locked screen.
+      // Android owns on-duty collection in a foreground service.  Keep a
+      // small watchdog in Flutter while the app is open. If an aggressive OEM
+      // stops that service, the app restarts it or falls back to its own
+      // stream; it never silently stops sending route points.
       if (_nativeActive) {
         await _positionStream?.cancel();
         _positionStream = null;
         _trackingTimer?.cancel();
-        _trackingTimer = null;
+        _trackingTimer =
+            Timer.periodic(_nativeWatchInterval, (_) => unawaited(_tick()));
         gpsStatus.value = 'On duty — background GPS sharing is active';
         unawaited(_heartbeat());
-        if (!silent) Get.snackbar('Duty tracking on', 'Background GPS is active until check-out');
+        if (!silent)
+          Get.snackbar(
+              'Duty tracking on', 'Background GPS is active until check-out');
         return;
       }
 
@@ -384,11 +410,39 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
         : 'GPS connected · ${p.accuracy.round()} m accuracy';
     _addDrawPoint(p);
     // Stream callbacks can arrive while screen-off timers are throttled.
-    if(!_nativeActive)unawaited(_sendLatest());
+    if (!_nativeActive) unawaited(_sendLatest());
   }
 
   Future<void> _tick() async {
-    if(_nativeActive){try{_nativeActive=await _nativeChannel.invokeMethod<bool>('running')??false;}catch(_){_nativeActive=false;}}
+    if (_nativeActive) {
+      try {
+        _nativeActive =
+            await _nativeChannel.invokeMethod<bool>('running') ?? false;
+      } catch (_) {
+        _nativeActive = false;
+      }
+      if (_nativeActive) {
+        unawaited(_heartbeat());
+        return;
+      }
+      // A foreground service can be stopped by an OEM battery manager. Try to
+      // restore the durable native collector first; if it cannot start, use
+      // Flutter's stream while this app remains open.
+      gpsStatus.value = 'Restoring background GPS sharing…';
+      await _startNative();
+      if (_nativeActive) {
+        gpsStatus.value = 'On duty — background GPS sharing is active';
+        unawaited(_heartbeat());
+        return;
+      }
+      try {
+        await _restartStream();
+      } catch (_) {
+        _restartNeeded = true;
+      }
+      _trackingTimer?.cancel();
+      _trackingTimer = Timer.periodic(_pingInterval, (_) => unawaited(_tick()));
+    }
     unawaited(_heartbeat());
     if (_ticking) return;
     _ticking = true;
@@ -439,7 +493,7 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
 
   /// Sends the newest fix. Without internet it is kept and sent later in order.
   Future<void> _sendLatest() async {
-    if(_nativeActive)return;
+    if (_nativeActive) return;
     final p = _latest;
     if (_sending || !_storage.isLoggedIn) return;
     if (_trackingOwner != null && _trackingOwner != _storage.getUser()?.id)

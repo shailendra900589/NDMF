@@ -8,6 +8,7 @@ import 'app/bindings/initial_binding.dart';
 import 'app/routes/app_pages.dart';
 import 'app/theme/app_colors.dart';
 import 'app/theme/app_theme.dart';
+import 'app/data/services/app_update_service.dart';
 
 void main() {
   runZonedGuarded(_startApp, (error, stackTrace) {
@@ -58,8 +59,34 @@ Future<void> _startDeferredServices() async {
   }
 }
 
-class MyStaffSmartApp extends StatelessWidget {
+class MyStaffSmartApp extends StatefulWidget {
   const MyStaffSmartApp({super.key});
+
+  @override
+  State<MyStaffSmartApp> createState() => _MyStaffSmartAppState();
+}
+
+class _MyStaffSmartAppState extends State<MyStaffSmartApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        Get.isRegistered<AppUpdateService>()) {
+      unawaited(Get.find<AppUpdateService>().enforceRequiredUpdate());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +104,8 @@ class MyStaffSmartApp extends StatelessWidget {
         final page = child ?? const SizedBox.shrink();
         return MediaQuery(
           data: media.copyWith(
-            textScaler: media.textScaler.clamp(minScaleFactor: 0.85, maxScaleFactor: 1.15),
+            textScaler: media.textScaler
+                .clamp(minScaleFactor: 0.85, maxScaleFactor: 1.15),
           ),
           child: ColoredBox(
             color: AppColors.background,

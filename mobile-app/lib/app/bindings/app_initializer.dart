@@ -18,6 +18,7 @@ import '../data/services/upload_service.dart';
 import '../data/services/call_service.dart';
 import '../data/services/data_refresh_service.dart';
 import '../data/services/visit_sync_service.dart';
+import '../data/services/app_update_service.dart';
 
 /// Fast cold start: only storage/connectivity/API before first frame.
 /// Network sync & notifications run after UI is visible.
@@ -30,12 +31,15 @@ class AppInitializer {
   static Future<void> initCritical() async {
     if (Get.isRegistered<StorageService>()) return;
 
-    await Get.putAsync<StorageService>(() => StorageService().init(), permanent: true);
-    await Get.putAsync<ConnectivityService>(() => ConnectivityService().init(), permanent: true);
+    await Get.putAsync<StorageService>(() => StorageService().init(),
+        permanent: true);
+    await Get.putAsync<ConnectivityService>(() => ConnectivityService().init(),
+        permanent: true);
 
     Get.put<LocationService>(LocationService(), permanent: true);
     Get.put<ImageWatermarkService>(ImageWatermarkService(), permanent: true);
-    Get.put<SecurityPlatformService>(SecurityPlatformService(), permanent: true);
+    Get.put<SecurityPlatformService>(SecurityPlatformService(),
+        permanent: true);
     Get.put<MapsNavigationService>(MapsNavigationService(), permanent: true);
     Get.put<CameraService>(CameraService(), permanent: true);
     Get.put<VoiceRecordingService>(VoiceRecordingService(), permanent: true);
@@ -43,6 +47,8 @@ class AppInitializer {
 
     await Get.putAsync<ApiService>(() => ApiService().init(), permanent: true);
     Get.put<VisitSyncService>(VisitSyncService(), permanent: true);
+    await Get.putAsync<AppUpdateService>(() => AppUpdateService().init(),
+        permanent: true);
 
     Get.put<DummyApiService>(DummyApiService(), permanent: true);
     Get.put<RemoteApiService>(RemoteApiService(), permanent: true);
