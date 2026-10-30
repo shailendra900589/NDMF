@@ -46,7 +46,15 @@ echo 'Building the staff console'
 echo 'Publishing public website and developer onboarding'
 python3 deploy/verify-mobile-release.py public-site/downloads
 sudo mkdir -p "$PUBLIC_ROOT"
-sudo rsync -a --exclude=_preview_server.py --exclude=index.html public-site/ "$PUBLIC_ROOT/"
+# Downloads are released atomically below. Never mirror the repository's
+# historical APKs into production: apart from wasting the small server disk,
+# this could make a stale package public during a deployment.
+sudo rsync -a --exclude=_preview_server.py --exclude=index.html --exclude=downloads/ public-site/ "$PUBLIC_ROOT/"
+sudo mkdir -p "$PUBLIC_ROOT/downloads"
+sudo install -m 644 "public-site/downloads/$APK_FILE" "$PUBLIC_ROOT/downloads/$APK_FILE.next"
+sudo mv "$PUBLIC_ROOT/downloads/$APK_FILE.next" "$PUBLIC_ROOT/downloads/$APK_FILE"
+sudo install -m 644 public-site/downloads/release.json "$PUBLIC_ROOT/downloads/release.json.next"
+sudo mv "$PUBLIC_ROOT/downloads/release.json.next" "$PUBLIC_ROOT/downloads/release.json"
 sudo install -m 644 public-site/index.html "$PUBLIC_ROOT/index.html.next"
 sudo mv "$PUBLIC_ROOT/index.html.next" "$PUBLIC_ROOT/index.html"
 echo "Keeping only the current public Android release: $APK_FILE"
