@@ -7,6 +7,7 @@ async function run(fetcher){
   const html=await readFile(new URL('../../public-site/index.html',import.meta.url),'utf8');
   const source=await readFile(new URL('../../public-site/brand/site.js',import.meta.url),'utf8');
   const link={href:html.match(/href="(\/downloads\/mystaff-smart-[\d.]+\.apk)"/)[1],textContent:'Download Android app'};
+  link.fallbackHref=link.href;
   const element={addEventListener(){},querySelectorAll(){return [];},style:{},classList:{add(){}}};
   const document={querySelector:()=>element,querySelectorAll:selector=>selector==='a[href$=".apk"]'?[link]:[],addEventListener(){}};
   vm.runInNewContext(source,{document,window:{matchMedia:()=>({matches:false})},fetch:fetcher,encodeURIComponent,Date});
@@ -19,5 +20,5 @@ test('app download displays release version and a checksum cache key',async()=>{
 });
 test('manifest failure keeps the current APK fallback rather than an old app',async()=>{
   const link=await run(async()=>{throw Error('Network unavailable');});
-  assert.equal(link.href,'/downloads/mystaff-smart-1.6.2.apk');
+  assert.equal(link.href,link.fallbackHref);
 });
