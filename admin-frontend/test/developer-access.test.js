@@ -17,9 +17,9 @@ test('developer approval submits explicit limits and shows the one-time secret',
     await act(async()=>{tree=create(React.createElement(Page));});
     const selects=()=>tree.root.findAllByType('select');
     await act(async()=>selects()[0].props.onChange({target:{value:'APP_TEST'}}));
-    await act(async()=>selects()[1].props.onChange({target:{value:'CO_TEST'}}));
+    await act(async()=>selects()[2].props.onChange({target:{value:'CO_TEST'}}));
     await act(async()=>tree.root.findByType('form').props.onSubmit({preventDefault(){}}));
-    assert.deepEqual(submitted,{path:'applications/APP_TEST/approve',body:{companyId:'CO_TEST',days:30,requestsPerMinute:60,scopes:['customers:read']}});
+    assert.deepEqual(submitted,{path:'applications/APP_TEST/approve',body:{companyId:'CO_TEST',days:30,requestsPerMinute:60,scopes:['customers:read'],billing:{plan:'monthly',users:5}}});
     assert.match(JSON.stringify(tree.toJSON()),/ndfa_one_time_test_secret/);
     const dismiss=tree.root.findAllByType('button').find(b=>b.children.includes('Dismiss secret'));
     await act(async()=>dismiss.props.onClick());
@@ -30,9 +30,9 @@ test('developer approval submits explicit limits and shows the one-time secret',
     developerApi.action=async(path,body)=>{submitted={path,body};return {data:{token:'ndfa_direct_test_secret'}};};
     await act(async()=>tree.root.findAllByType('button').find(b=>b.children.includes('Create directly')).props.onClick());
     await act(async()=>tree.root.findAllByType('button').find(b=>b.children.includes('Fill test account details')).props.onClick());
-    await act(async()=>selects()[0].props.onChange({target:{value:'CO_TEST'}}));
+    await act(async()=>selects()[1].props.onChange({target:{value:'CO_TEST'}}));
     await act(async()=>tree.root.findByType('form').props.onSubmit({preventDefault(){}}));
-    assert.deepEqual(submitted,{path:'grants',body:{name:'Test developer',email:'developer@example.test',organization:'API test integration',purpose:'Verify scoped API access with dummy company data',companyId:'CO_TEST',days:1,requestsPerMinute:10,scopes:['locations:read']}});
+    assert.deepEqual(submitted,{path:'grants',body:{name:'Test developer',email:'developer@example.test',organization:'API test integration',purpose:'Verify scoped API access with dummy company data',companyId:'CO_TEST',days:1,requestsPerMinute:10,scopes:['locations:read'],billing:{plan:'monthly',users:5}}});
     assert.match(JSON.stringify(tree.toJSON()),/ndfa_direct_test_secret/);
   } finally { if(tree) await act(async()=>tree.unmount());await server.close(); }
 });

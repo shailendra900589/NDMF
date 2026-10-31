@@ -5,7 +5,7 @@ document.querySelector('#onboarding').addEventListener('submit', async event => 
   if (!scopes.length) { result.textContent='Select at least one resource.'; return; }
   button.disabled=true;result.textContent='Submitting your application…';
   try {
-    const response=await fetch('/api/v1/developer/applications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:values.get('name'),email:values.get('email'),organization:values.get('organization'),purpose:values.get('purpose'),scopes,requestedDays:Number(values.get('requestedDays')),consent:values.get('consent')==='on'})});
+    const response=await fetch('/api/v1/developer/applications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:values.get('name'),email:values.get('email'),organization:values.get('organization'),purpose:values.get('purpose'),scopes,requestedDays:Number(values.get('requestedDays')),billing:{plan:values.get('billingPlan'),users:Number(values.get('licensedUsers'))},consent:values.get('consent')==='on'})});
     const data=await response.json();
     if (!response.ok) throw new Error(data.message || 'Unable to submit request');
     result.textContent=`Application submitted. Save this reference: ${data.data.id}. The Super Admin will review your request and contact you using the email provided.`;

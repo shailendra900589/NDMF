@@ -26,7 +26,7 @@ test('Developer onboarding, permission boundaries, expiry, rotation and revocati
     return {status:r.status,headers:r.headers,...await r.json()};
   }
   const application={name:'Developer',email:'dev@example.test',organization:'Example',purpose:'Reporting',scopes:['customers:read'],requestedDays:30,consent:true};
-  const direct={name:'Test developer',email:'developer@example.test',organization:'Dummy integration',purpose:'Isolated API verification',companyId:'ONE',scopes:['customers:read'],days:1,requestsPerMinute:10};
+  const direct={name:'Test developer',email:'developer@example.test',organization:'Dummy integration',purpose:'Isolated API verification',companyId:'ONE',scopes:['customers:read'],days:1,requestsPerMinute:10,billing:{plan:'monthly',users:7}};
   assert.equal((await call('/developer/manage/grants','POST',direct,staff)).status,403);
   assert.equal((await call('/developer/manage/grants','POST',{...direct,email:'invalid'},sa)).status,400);
   assert.equal((await call('/developer/manage/grants','POST',{...direct,days:0},sa)).status,400);
@@ -34,6 +34,7 @@ test('Developer onboarding, permission boundaries, expiry, rotation and revocati
   assert.equal(directResult.status,201,directResult.message);
   const testKey=directResult.data.token,testId=directResult.data.grant.id;
   assert.equal(directResult.data.grant.source,'super_admin');
+  assert.deepEqual(directResult.data.grant.billing,{plan:'monthly',label:'Monthly',licensedUsers:7,includedUsers:5,extraUsers:2,registrationFee:5000,recurringMonthly:750,periodMonths:1,periodCharge:750,firstInvoiceTotal:5750,includedUserRate:100,extraUserRate:125,currency:'INR',calculatedAt:directResult.data.grant.billing.calculatedAt});
   assert.equal((await call('/developer/data/customers','GET',undefined,testKey)).data.total,1);
   assert.equal((await call('/developer/data/employees','GET',undefined,testKey)).status,403);
   assert.equal((await call('/developer/manage','GET',undefined,testKey)).status,401);
@@ -42,7 +43,7 @@ test('Developer onboarding, permission boundaries, expiry, rotation and revocati
   assert.equal((await call('/developer/data/customers','GET',undefined,testKey)).status,401);
   assert.equal((await call('/developer/applications','POST',{...application,consent:false})).status,400);
   assert.equal((await call('/developer/applications','POST',{...application,scopes:['users:write']})).status,400);
-  const pending=await call('/developer/applications','POST',application);assert.equal(pending.status,201);
+  const pending=await call('/developer/applications','POST',{...application,billing:{plan:'annual',users:6}});assert.equal(pending.status,201);
   const id=pending.data.id;
   assert.equal((await call('/developer/manage')).status,401);
   assert.equal((await call('/developer/manage','GET',undefined,staff)).status,403);
@@ -50,6 +51,7 @@ test('Developer onboarding, permission boundaries, expiry, rotation and revocati
   const approval={companyId:'ONE',scopes:['customers:read'],days:30,requestsPerMinute:2};
   assert.equal((await call(`/developer/manage/applications/${id}/approve`,'POST',{...approval,days:0},sa)).status,400);
   const issued=await call(`/developer/manage/applications/${id}/approve`,'POST',approval,sa);assert.equal(issued.status,201,issued.message);
+  assert.equal(issued.data.grant.billing.plan,'annual');assert.equal(issued.data.grant.billing.periodCharge,5760);assert.equal(issued.data.grant.billing.firstInvoiceTotal,10760);
   let token=issued.data.token;const grantId=issued.data.grant.id;
   assert.ok(token.startsWith('ndfa_'));assert.equal(issued.data.grant.tokenHash,undefined);
   const overview=await call('/developer/manage','GET',undefined,sa);

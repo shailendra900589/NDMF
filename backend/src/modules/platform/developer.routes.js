@@ -8,6 +8,24 @@ const admin = express.Router();
 const wrap = fn => (req, res, next) => Promise.resolve().then(() => fn(req, res)).catch(next);
 const now = () => new Date().toISOString();
 const hash = value => createHash('sha256').update(value).digest('hex');
+const API_BILLING = {
+  registrationFee: 5000,
+  includedUsers: 5,
+  monthly: { label: 'Monthly', months: 1, includedUserRate: 100, extraUserRate: 125 },
+  annual: { label: 'Annual', months: 12, includedUserRate: 80, extraUserRate: 80 },
+};
+function billingFor(input = {}) {
+  const plan = input.plan === 'annual' ? 'annual' : input.plan === 'monthly' || input.plan === undefined ? 'monthly' : null;
+  const selectedUsers = input.users === undefined ? input.licensedUsers : input.users;
+  const users = Number(selectedUsers === undefined ? API_BILLING.includedUsers : selectedUsers);
+  if (!plan || !Number.isInteger(users) || users < 1 || users > 10000) throw Object.assign(new Error('Choose a billing plan and 1–10,000 licensed users'), { status: 400 });
+  const terms = API_BILLING[plan], standardUsers = Math.min(users, API_BILLING.includedUsers), extraUsers = Math.max(0, users - API_BILLING.includedUsers);
+  const recurringMonthly = standardUsers * terms.includedUserRate + extraUsers * terms.extraUserRate;
+  return { plan, label: terms.label, licensedUsers: users, includedUsers: API_BILLING.includedUsers, extraUsers,
+    registrationFee: API_BILLING.registrationFee, recurringMonthly, periodMonths: terms.months,
+    periodCharge: recurringMonthly * terms.months, firstInvoiceTotal: API_BILLING.registrationFee + recurringMonthly * terms.months,
+    includedUserRate: terms.includedUserRate, extraUserRate: terms.extraUserRate, currency: 'INR', calculatedAt: now() };
+}
 // An explicit output contract prevents credentials, biometric templates and private files leaking.
 const catalog = {
   customers: { module: 'customers', collection: 'customers', fields: ['id','name','mobile','branch','status','createdAt'] },
@@ -39,13 +57,14 @@ router.post('/applications', wrap(async (req, res) => {
     || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || consent !== true
     || !Array.isArray(scopes) || !scopes.length || scopes.length > 5 || scopes.some(s => !Object.keys(catalog).some(k => s === `${k}:read`))
     || !Number.isInteger(requestedDays) || requestedDays < 1 || requestedDays > 365) return error(res,'Enter valid contact details, purpose, scopes, duration (1–365 days) and consent.');
+  let billing; try { billing = billingFor(req.body.billing); } catch (e) { return error(res, e.message, e.status || 400); }
   const record = { id: `APP_${randomUUID()}`, name: name.trim(), email: email.trim().toLowerCase(), organization: organization.trim(),
-    purpose: purpose.trim(), scopes: [...new Set(scopes)], requestedDays, status:'pending', consentAt:now(), createdAt:now() };
+    purpose: purpose.trim(), scopes: [...new Set(scopes)], requestedDays, billing, status:'pending', consentAt:now(), createdAt:now() };
   upsert('apiApplications',record,{single:true}); await flush();
   return success(res,{ id:record.id, status:record.status },'Application submitted. Keep your reference; approval does not happen automatically.',201);
 }));
 admin.use(authMiddleware, requireRole('superAdmin'));
-admin.get('/', (_,res) => success(res,{ applications: [...getCollection('apiApplications')].reverse(), grants: getCollection('apiGrants').map(safe).reverse(), companies:getCollection('companies').map(c => ({id:c.id,name:c.name,isActive:c.isActive})), scopes:Object.keys(catalog).map(k => `${k}:read`) }));
+admin.get('/', (_,res) => success(res,{ applications: [...getCollection('apiApplications')].reverse(), grants: getCollection('apiGrants').map(safe).reverse(), companies:getCollection('companies').map(c => ({id:c.id,name:c.name,isActive:c.isActive})), scopes:Object.keys(catalog).map(k => `${k}:read`), billing:API_BILLING }));
 admin.post('/applications/:id/reject', wrap(async (req,res) => {
   const a = findById('apiApplications',req.params.id);
   if (!a || a.status !== 'pending') return error(res,'Pending application not found',404);
@@ -65,9 +84,11 @@ function issue(req, res, rotate = false, directSource = null) {
       || !Number.isInteger(days) || days < 1 || days > 365 || !Number.isInteger(requestsPerMinute) || requestsPerMinute < 1 || requestsPerMinute > 600)) return error(res,'Choose scopes, 1–365 days and 1–600 requests per minute');
     const id = rotate ? source.id : `KEY_${randomUUID()}`;
     const token = `ndfa_${randomBytes(32).toString('hex')}`;
+    let billing;
+    try { billing = rotate ? billingFor(source.billing) : billingFor(req.body.billing || source.billing); } catch (e) { return error(res, e.message, e.status || 400); }
     const grant = { ...(rotate ? source : {id,applicationId:source.id,companyId,organization:source.organization,email:source.email,
       name:source.name,source:directSource ? 'super_admin' : 'onboarding',scopes:[...new Set(scopes)],expiresAt:new Date(Date.now()+days*86400000).toISOString(),requestsPerMinute,createdAt:now(),createdBy:req.user.id}),
-      status:'active',tokenHash:hash(token), keyHint:token.slice(-6), rotatedAt:rotate ? now() : null };
+      billing, status:'active',tokenHash:hash(token), keyHint:token.slice(-6), rotatedAt:rotate ? now() : null };
     upsert('apiGrants',grant,{single:true});
     if (!rotate) upsert('apiApplications',{...source,status:'approved',reviewedAt:now(),reviewedBy:req.user.id},{single:true});
     audit(req,rotate ? 'api.key.rotated' : directSource ? 'api.access.created' : 'api.application.approved',grant); await flush();
