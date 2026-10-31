@@ -54,6 +54,13 @@ test('Super Admin lifecycle, company isolation and live permission enforcement',
     const r = await call('/super-admin/companies', 'POST', { name:'Second Company', code:'SECOND', adminName:'Company owner', adminEmail:'owner@example.test', adminPassword:'CompanyTest432!' }, sa);
     assert.equal(r.status, 201, r.message); co = r.data;
     admin = await login('owner@example.test', 'CompanyTest432!');
+    const updated = await call(`/super-admin/companies/${co.id}`, 'PUT', { name:'Second Company Workspace', logoUrl:'/uploads/platform_123e4567-e89b-12d3-a456-426614174000.png' }, sa);
+    assert.equal(updated.status, 200, updated.message);
+    assert.equal(updated.data.logoUrl, '/uploads/platform_123e4567-e89b-12d3-a456-426614174000.png');
+    const companySession = await call('/auth/me', 'GET', undefined, admin);
+    assert.equal(companySession.data.company.name, 'Second Company Workspace');
+    assert.equal(companySession.data.company.logoUrl, updated.data.logoUrl);
+    assert.equal((await call(`/super-admin/companies/${co.id}`, 'PUT', { logoUrl:'/uploads/not-a-platform-logo.png' }, sa)).status, 400);
     const dup = await call('/super-admin/companies', 'POST', { name:'Duplicate', code:'DUP', adminName:'Other', adminEmail:'owner@example.test', adminPassword:'CompanyTest432!' }, sa);
     assert.equal(dup.status, 409);
   });
@@ -197,7 +204,7 @@ test('Super Admin lifecycle, company isolation and live permission enforcement',
   await t.test('bulk pay slips respect create versus edit policies and use the company name', async () => {
     const payload = { employeeName:'Sample employee', employeeNo:'PAY001', months:[{month:'2026-10',earnings:{basic:12000}}] };
     const r = await call('/payslips/bulk', 'POST', payload, admin);
-    assert.equal(r.status, 200, r.message); assert.equal(r.data[0].companyName, 'Second Company');
+    assert.equal(r.status, 200, r.message); assert.equal(r.data[0].companyName, 'Second Company Workspace');
     await call(`/super-admin/companies/${co.id}`, 'PUT', {actions:{payslips:{update:false}}}, sa);
     assert.equal((await call('/payslips/bulk', 'POST', payload, admin)).status, 403);
     await call(`/super-admin/companies/${co.id}`, 'PUT', {actions:{payslips:{update:true,create:false}}}, sa);

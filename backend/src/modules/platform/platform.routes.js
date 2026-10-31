@@ -18,6 +18,14 @@ function audit(req, action, companyId, targetId) {
 }
 const wrap = fn => (req, res, next) => Promise.resolve().then(() => fn(req, res)).catch(next);
 function company(id) { const c = findById('companies', id); if (!c) fail('Company not found', 404); return c; }
+function logoUrl(value, fallback = '') {
+  if (value === undefined) return fallback || '';
+  const url = text(value);
+  if (!url) return '';
+  // Only allow a Super Admin-uploaded image to become public company branding.
+  if (!/^\/uploads\/platform_[0-9a-f-]+\.(?:png|jpe?g|webp)$/i.test(url)) fail('Choose a valid company logo uploaded from this panel');
+  return url;
+}
 function cleanModules(input, base = allModules()) {
   const result = { ...base };
   for (const key of Object.keys(MODULES)) {
@@ -69,7 +77,7 @@ router.post('/companies', wrap(async (req, res) => {
   const adminName = text(body.adminName), email = text(body.adminEmail).toLowerCase();
   if (!adminName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof body.adminPassword !== 'string' || body.adminPassword.length < 8) fail('Administrator name, valid email and password of at least 8 characters are required');
   assertLoginAvailable([email, body.adminMobile]);
-  const c = { id: id('CO'), name, code, email: text(body.email), isActive: true,
+  const c = { id: id('CO'), name, code, email: text(body.email), logoUrl: logoUrl(body.logoUrl), isActive: true,
     modules: cleanModules(body.modules), actions: cleanActions(body.actions), createdAt: now(), updatedAt: now() };
   const admin = { id: id('U'), companyId: c.id, name: adminName, email, employeeId: email,
     mobile: text(body.adminMobile), role: 'admin', branch: null, isActive: true,
@@ -86,6 +94,7 @@ router.put('/companies/:id', wrap(async (req, res) => {
   if (b.isActive !== undefined && typeof b.isActive !== 'boolean') fail('Invalid company status');
   const next = { ...current, name: b.name === undefined ? current.name : text(b.name),
     email: b.email === undefined ? current.email : text(b.email),
+    logoUrl: logoUrl(b.logoUrl, current.logoUrl),
     isActive: b.isActive === undefined ? current.isActive : b.isActive,
     modules: cleanModules(b.modules, current.modules), actions: cleanActions(b.actions, current.actions), updatedAt: now() };
   upsert('companies', next, { single: true });

@@ -45,7 +45,13 @@ const MIME_TYPES = {
   '.webm': 'audio/webm',
 };
 
-app.use('/uploads', require('./lib/privateUploads').privateUploadAccess, (req, res, next) => {
+// Platform branding is intentionally public: a company logo is shown before a
+// user opens any private module. All other uploaded media remains signed and
+// tenant-scoped below.
+app.use('/uploads', (req, res, next) => {
+  if (path.basename(req.path).startsWith('platform_')) return next();
+  return require('./lib/privateUploads').privateUploadAccess(req, res, next);
+}, (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
   const ext = path.extname(req.path).toLowerCase();

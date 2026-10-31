@@ -103,10 +103,10 @@ export const callLogsApi = {
 
 export async function uploadMedia(file, fields = {}) {
   const body = new FormData();
-  body.append('file', file);
   Object.entries(fields).forEach(([key, value]) => {
     if (value != null && value !== '') body.append(key, String(value));
   });
+  body.append('file', file);
   const res = await api.post('/uploads/single', body, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });

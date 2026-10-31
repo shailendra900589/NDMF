@@ -1,10 +1,15 @@
 import SearchableSelect from '../components/SearchableSelect';
 import { useEffect, useState } from 'react';
-import { platformApi } from '../api/api';
+import { platformApi, uploadMedia } from '../api/api';
 import './SuperAdmin.css';
 
 const emptyCompany = { name: '', code: '', email: '', adminName: '', adminEmail: '', adminPassword: '', adminMobile: '' };
 const roleLabels = { admin: 'Company administrator', branchManager: 'Manager', fieldOfficer: 'Employee' };
+function PasswordInput({ value, onChange, required = false, minLength = 8, placeholder = '' }) {
+  const [visible, setVisible] = useState(false);
+  return <span className="sa-password-field"><input type={visible ? 'text' : 'password'} required={required} minLength={minLength} autoComplete="new-password" value={value} placeholder={placeholder} onChange={onChange} />
+    <button type="button" onClick={() => setVisible(v => !v)} aria-label={visible ? 'Hide password' : 'Show password'}>{visible ? 'Hide' : 'Show'}</button></span>;
+}
 export function AccessMatrix({ modules, actions, moduleActions, value = {}, limits, onChange }) {
   return <div className="sa-matrix-wrap"><table className="sa-matrix"><thead><tr><th>Page / module</th><th>Access</th>{Object.entries(actions).map(([key, label]) => <th key={key}>{label}</th>)}</tr></thead>
     <tbody>{Object.entries(modules).map(([key, label]) => {
@@ -23,6 +28,7 @@ export default function SuperAdmin() {
   const [detail, setDetail] = useState({ users: [], branches: [] });
   const [draft, setDraft] = useState(null);
   const [create, setCreate] = useState(null);
+  const [createLogoFile, setCreateLogoFile] = useState(null);
   const [employee, setEmployee] = useState(null);
   const [tab, setTab] = useState('access');
   const [search, setSearch] = useState('');
@@ -52,6 +58,17 @@ export default function SuperAdmin() {
     catch(e) { setMessage({ error: true, text: e.message || 'Unable to save changes' }); }
     finally { setBusy(false); }
   }
+  async function saveCompanySettings() {
+    let logoUrl = draft.logoUrl || '';
+    if (draft.logoFile) logoUrl = (await uploadMedia(draft.logoFile, { type: 'company-logo' })).fileUrl;
+    return platformApi.updateCompany(draft.id, { name: draft.name, email: draft.email, logoUrl, isActive: draft.isActive });
+  }
+  async function createCompany() {
+    const created = (await platformApi.createCompany(create)).data;
+    if (!createLogoFile) return { data: created };
+    const uploaded = await uploadMedia(createLogoFile, { type: 'company-logo' });
+    return platformApi.updateCompany(created.id, { logoUrl: uploaded.fileUrl });
+  }
   const counts = { companies: data.companies.length, active: data.companies.filter(c => c.isActive).length,
     employees: data.companies.reduce((s,c) => s + c.employeeCount, 0), branches: data.companies.reduce((s,c) => s + c.branchCount, 0) };
   if (loading) return <div className="sa-loading">Loading your company portfolio…</div>;
@@ -74,14 +91,17 @@ export default function SuperAdmin() {
         <input aria-label="Search company users" className="sa-user-search" placeholder="Search people by name or login…" value={userSearch} onChange={e => setUserSearch(e.target.value)} />
         <div className="sa-matrix-wrap"><table className="sa-matrix"><thead><tr><th>Person</th><th>Role / location</th><th>Status</th><th>Access</th></tr></thead><tbody>{detail.users.filter(u => `${u.name} ${u.employeeId}`.toLowerCase().includes(userSearch.toLowerCase())).map(u => <tr key={u.id}><td><strong>{u.name}</strong><small>{u.email || u.employeeId}</small></td><td>{roleLabels[u.role]}<small>{u.branch || 'All company locations'}</small></td><td><span className={`sa-status ${u.isActive ? '' : 'is-paused'}`}>{u.isActive ? 'Active' : 'Disabled'}</span></td><td><button disabled={busy} className="btn btn-secondary" onClick={() => setEmployee({ ...structuredClone(u), password:'' })}>Manage</button></td></tr>)}</tbody></table></div>
         {!detail.users.length && <p className="sa-empty">No users in this company.</p>}</>}
-      {tab === 'settings' && <form className="sa-settings" onSubmit={e => { e.preventDefault(); perform(() => platformApi.updateCompany(draft.id, { name:draft.name, email:draft.email, isActive:draft.isActive }), 'Company settings saved'); }}>
+      {tab === 'settings' && <form className="sa-settings" onSubmit={e => { e.preventDefault(); perform(saveCompanySettings, 'Company branding and settings saved'); }}>
         <label>Company name<input required maxLength={120} value={draft.name} onChange={e => setDraft({ ...draft, name:e.target.value })} /></label><label>Contact email<input type="email" value={draft.email || ''} onChange={e => setDraft({ ...draft, email:e.target.value })} /></label>
+        <section className="sa-branding"><div className="sa-branding__preview"><img src={draft.logoFile ? URL.createObjectURL(draft.logoFile) : (draft.logoUrl || '/mystaff-smart-official-logo.jpeg')} alt={`${draft.name || 'Company'} logo preview`} /></div><div><strong>Company logo</strong><p>This logo and company name appear in this company's dashboard after the member's next refresh or sign-in.</p><input aria-label="Company logo" type="file" accept="image/png,image/jpeg,image/webp" onChange={e => setDraft({ ...draft, logoFile: e.target.files?.[0] || null })} />{draft.logoUrl && <button className="sa-link-button" type="button" onClick={() => setDraft({ ...draft, logoUrl:'', logoFile:null })}>Remove custom logo</button>}</div></section>
         <div className="sa-suspend"><label><input type="checkbox" checked={draft.isActive} onChange={e => setDraft({ ...draft, isActive:e.target.checked })} /> Company is active</label><p>Suspending a company blocks sign-in and API access for all its users. Company data is retained.</p></div><button disabled={busy} className="btn btn-primary">{busy ? 'Saving…' : 'Save company settings'}</button></form>}
       {tab === 'activity' && <div className="sa-activity">{data.audit.filter(a => a.companyId === selectedId).map(a => <div key={a.id}><span className="sa-activity-dot" /><div><strong>{a.action}</strong><small>{a.actorName} · {new Date(a.createdAt).toLocaleString()}</small></div></div>)}{!data.audit.some(a => a.companyId === selectedId) && <p>No recent changes recorded.</p>}</div>}
     </section>}</div>
-    {create && <div className="sa-modal-backdrop"><form role="dialog" aria-modal="true" aria-label="Add a company" className="sa-modal" onSubmit={e => { e.preventDefault(); perform(() => platformApi.createCompany(create), 'Company and administrator created. They can sign in from the same login page.', () => setCreate(null)); }}>
+    {create && <div className="sa-modal-backdrop"><form role="dialog" aria-modal="true" aria-label="Add a company" className="sa-modal" onSubmit={e => { e.preventDefault(); perform(createCompany, 'Company and administrator created. Their dashboard branding is ready.', () => { setCreate(null); setCreateLogoFile(null); }); }}>
       <div className="sa-panel-heading"><div><span className="sa-eyebrow">NEW ORGANISATION</span><h2>Add a company</h2></div><button type="button" disabled={busy} onClick={() => setCreate(null)} aria-label="Close company form">×</button></div><p>Create its first administrator. Page and function access can be configured immediately afterwards.</p>
-      <div className="sa-form-grid">{[['name','Company name','text'],['code','Company code','text'],['email','Company contact email','email'],['adminName','Administrator name','text'],['adminEmail','Administrator login email','email'],['adminMobile','Administrator mobile (optional)','tel'],['adminPassword','Initial administrator password','password']].map(([key,label,type]) => <label key={key}>{label}<input type={type} required={!['email','adminMobile'].includes(key)} minLength={key === 'adminPassword' ? 8 : undefined} autoComplete={key === 'adminPassword' ? 'new-password' : 'off'} value={create[key]} onChange={e => setCreate({ ...create, [key]:e.target.value })} /></label>)}</div>
+      <div className="sa-form-grid">{[['name','Company name','text'],['code','Company code','text'],['email','Company contact email','email'],['adminName','Administrator name','text'],['adminEmail','Administrator login email','email'],['adminMobile','Administrator mobile (optional)','tel']].map(([key,label,type]) => <label key={key}>{label}<input type={type} required={!['email','adminMobile'].includes(key)} autoComplete="off" value={create[key]} onChange={e => setCreate({ ...create, [key]:e.target.value })} /></label>)}
+        <label>Initial administrator password<PasswordInput required value={create.adminPassword} onChange={e => setCreate({ ...create, adminPassword:e.target.value })} /></label>
+        <label>Company logo (optional)<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => setCreateLogoFile(e.target.files?.[0] || null)} /></label></div>
       {message?.error && <p className="error-msg" role="alert">{message.text}</p>}<div className="sa-save"><span>All pages enabled initially.</span><button className="btn btn-primary" disabled={busy}>{busy ? 'Creating…' : 'Create company'}</button></div></form></div>}
     {employee && <div className="sa-modal-backdrop"><form role="dialog" aria-modal="true" aria-label="Company user access" className="sa-modal sa-modal--wide" onSubmit={e => { e.preventDefault(); const payload = { ...employee, permissions:employee.permissions }; perform(() => employee.id ? platformApi.updateUser(selectedId, employee.id, payload) : platformApi.createUser(selectedId, payload), 'User access saved', () => setEmployee(null)); }}>
       <div className="sa-panel-heading"><div><span className="sa-eyebrow">{draft?.name}</span><h2>{employee.id ? 'Manage user access' : 'Add company user'}</h2></div><button type="button" disabled={busy} onClick={() => setEmployee(null)} aria-label="Close user form">×</button></div>
@@ -89,7 +109,7 @@ export default function SuperAdmin() {
         {!employee.id && <><label>Email (optional)<input type="email" value={employee.email} onChange={e => setEmployee({ ...employee, email:e.target.value })} /></label><label>Mobile (optional)<input value={employee.mobile} onChange={e => setEmployee({ ...employee, mobile:e.target.value })} /></label></>}
         <label>Role<SearchableSelect value={employee.role} onChange={e => setEmployee({ ...employee, role:e.target.value, permissions:data.roleDefaults[e.target.value] })}>{Object.entries(roleLabels).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</SearchableSelect></label>
         <label>Location<SearchableSelect required={employee.role !== 'admin'} value={employee.branch || ''} onChange={e => setEmployee({ ...employee, branch:e.target.value })}><option value="">All locations (administrator)</option>{detail.branches.map(b => <option key={b.id}>{b.name}</option>)}</SearchableSelect></label>
-        <label>{employee.id ? 'New password (leave blank to keep)' : 'Password'}<input type="password" required={!employee.id} minLength={8} autoComplete="new-password" value={employee.password} onChange={e => setEmployee({ ...employee, password:e.target.value })} /></label>
+        <label>{employee.id ? 'New password (leave blank to keep)' : 'Password'}<PasswordInput required={!employee.id} value={employee.password} placeholder={employee.id ? 'Leave blank to keep current password' : ''} onChange={e => setEmployee({ ...employee, password:e.target.value })} /></label>
         <label className="sa-check"><input type="checkbox" checked={employee.isActive} onChange={e => setEmployee({ ...employee, isActive:e.target.checked })} /> Account is active</label></div>
       <p className="sa-muted">{employee.role !== 'admin' && !detail.branches.length ? 'Create a company location in the company administrator console before adding managers or employees. ' : ''}Company policy is the maximum available access. Disabled company functions cannot be enabled for an individual.</p>
       <AccessMatrix modules={data.modules} actions={data.actions} moduleActions={data.moduleActions} limits={data.companies.find(c => c.id === selectedId)} value={{ modules:employee.permissions, actions:employee.actions }} onChange={v => setEmployee({ ...employee, permissions:v.modules, actions:v.actions })} />

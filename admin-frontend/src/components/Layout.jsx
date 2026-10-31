@@ -113,6 +113,8 @@ export default function Layout() {
   };
 
   const scopeLabel = isSuperAdmin ? 'All companies' : isAdmin ? (user.company?.name || 'All locations') : displayLocation(user.branch);
+  const companyName = user.company?.name || 'MyStaff Smart';
+  const brandLogo = !isSuperAdmin && user.company?.logoUrl ? user.company.logoUrl : '/mystaff-smart-official-logo.jpeg';
   const initials = (user.name || 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   const onProfile = location.pathname === '/profile';
   const groups = isSuperAdmin ? [['Platform', navItems]] : [
@@ -128,10 +130,10 @@ export default function Layout() {
       {menuOpen && <button className="mobile-menu-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
       <aside className="sidebar" id="operations-navigation">
         <div className="sidebar__brand">
-          <img className="sidebar__brand-icon sidebar__brand-icon--official" src="/mystaff-smart-official-logo.jpeg" width="40" height="54" alt="MyStaff Smart" />
+          <img className="sidebar__brand-icon sidebar__brand-icon--official" src={brandLogo} width="40" height="54" alt={companyName} />
           <div>
-            <div className="sidebar__title">MyStaff <span>Smart</span></div>
-            <div className="sidebar__subtitle">{isSuperAdmin ? 'Platform administration' : user.company?.name || 'Operations workspace'}</div>
+            <div className="sidebar__title">{isSuperAdmin ? <>MyStaff <span>Smart</span></> : companyName}</div>
+            <div className="sidebar__subtitle">{isSuperAdmin ? 'Platform administration' : 'Operations workspace'}</div>
           </div>
         </div>
 

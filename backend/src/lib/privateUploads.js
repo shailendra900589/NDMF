@@ -15,6 +15,8 @@ function signMedia(data) {
   const match = data.match(/^(?:https?:\/\/[^/]+)?\/uploads\/([^\s/?#]+)(?:[?#].*)?$/);
   if (!match) return data;
   const filename = match[1];
+  // Platform-owned branding is deliberately public and is not tenant media.
+  if (filename.startsWith('platform_')) return `/uploads/${filename}`;
   if (!ownsUpload(filename, scope.companyId)) return null;
   const expires = String(Math.floor(Date.now() / 1000) + 86400);
   const module = scope.mediaModule || 'profile';
