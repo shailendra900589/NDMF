@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { branchesApi, customersApi } from "../api/api";
 import CustomerDetails from "../components/CustomerDetails";
+import ReverifyCustomerModal from "../components/ReverifyCustomerModal";
 import PageHeader from "../components/PageHeader";
 import PageLoader from "../components/PageLoader";
 import SearchableSelect from "../components/SearchableSelect";
@@ -31,6 +32,9 @@ export default function Customers() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [detailId, setDetailId] = useState(null);
+  const [reverifyTarget, setReverifyTarget] = useState(null);
+  const [reverifyReason, setReverifyReason] = useState("");
+  const [reverifyError, setReverifyError] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -240,11 +244,22 @@ export default function Customers() {
                     >
                       View details
                     </button>
-                    {isAdmin && canPerformStored('customers','create') && canPerformStored('customerListings','create') && <button className="btn btn-outline btn-sm" disabled={saving} onClick={async()=>{
-                      const reason=window.prompt(`Send ${c.name} for fresh verification. Previous records will be preserved. Enter reason:`);
-                      if (!reason) return;
-                      setSaving(true); try { await customersApi.reverify(c.id,reason); await load(); } catch(e) { setError(e.message); } finally { setSaving(false); }
-                    }}>Re-verify</button>}
+                    {isAdmin &&
+                      canPerformStored("customers", "create") &&
+                      canPerformStored("customerListings", "create") && (
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          disabled={saving}
+                          onClick={() => {
+                            setReverifyError("");
+                            setReverifyReason("");
+                            setReverifyTarget(c);
+                          }}
+                        >
+                          Re-verify
+                        </button>
+                      )}
                   </td>
                   <td>{c.mobile}</td>
                   <td>{c.address || "—"}</td>
@@ -376,6 +391,39 @@ export default function Customers() {
           onClose={() => setDetailId(null)}
         />
       )}
+
+      <ReverifyCustomerModal
+        customer={reverifyTarget}
+        reason={reverifyReason}
+        onReasonChange={setReverifyReason}
+        busy={saving}
+        error={reverifyError}
+        onClose={() => {
+          if (saving) return;
+          setReverifyTarget(null);
+          setReverifyReason("");
+          setReverifyError("");
+        }}
+        onConfirm={async () => {
+          const reason = reverifyReason.trim();
+          if (reason.length < 3) {
+            setReverifyError("Enter a reason (at least 3 characters).");
+            return;
+          }
+          setSaving(true);
+          setReverifyError("");
+          try {
+            await customersApi.reverify(reverifyTarget.id, reason);
+            setReverifyTarget(null);
+            setReverifyReason("");
+            await load();
+          } catch (e) {
+            setReverifyError(e.message || "Re-verification request failed");
+          } finally {
+            setSaving(false);
+          }
+        }}
+      />
     </div>
   );
 }

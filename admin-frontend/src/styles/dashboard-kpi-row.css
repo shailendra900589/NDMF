@@ -1,0 +1,36 @@
+/* Loaded after premium.css — wins cascade for dashboard KPI layout */
+
+.stats-grid--dashboard.stats-grid--compact {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.stats-grid--dashboard.stats-grid--compact .stat-card.stat-card--compact {
+  min-width: 0;
+  min-height: 128px;
+}
+
+@media (max-width: 1100px) {
+  .stats-grid--dashboard.stats-grid--compact {
+    grid-template-columns: repeat(6, minmax(136px, 1fr));
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    padding-bottom: 6px;
+  }
+
+  .stats-grid--dashboard.stats-grid--compact .stat-card.stat-card--compact {
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: 600px) {
+  .stats-grid--dashboard.stats-grid--compact {
+    gap: 10px;
+  }
+
+  .stats-grid--dashboard.stats-grid--compact .stat-card--compact .stat-card__value {
+    font-size: 24px;
+  }
+}
