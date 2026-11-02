@@ -29,7 +29,7 @@ test('packages publish safely, price extra staff and enforce assigned functions'
  });
  await t.test('assigning a plan caps existing sessions and calculates the actual staff charge',async()=>{
    assert.equal((await call('/auth/me','GET',undefined,'ADMIN')).data.permissions.customers,true);
-   const r=await call('/super-admin/packages/assign/C','POST',{packageId:starter.id});assert.equal(r.status,200);assert.equal(r.data.quote.employees,6);assert.equal(r.data.quote.monthlyTotal,1200);
+   const r=await call('/super-admin/packages/assign/C','POST',{packageId:starter.id,paymentStatus:'paid'});assert.equal(r.status,200);assert.equal(r.data.quote.employees,6);assert.equal(r.data.quote.monthlyTotal,1200);assert.equal(r.data.subscription.status,'active');
    const user=(await call('/auth/me','GET',undefined,'ADMIN')).data;assert.equal(user.permissions.customers,false);assert.equal(user.permissions.attendance,true);
    assert.equal((await call('/customers','GET',undefined,'ADMIN')).status,403);
    db.upsert('users',{id:'EXTRA',role:'fieldOfficer',companyId:'C',isActive:true});
@@ -54,8 +54,11 @@ test('packages publish safely, price extra staff and enforce assigned functions'
  await t.test('archived plans leave the website; expired subscriptions remove feature access',async()=>{
    const p=db.findById('packages',starter.id);await call(`/super-admin/packages/${p.id}`,'PUT',{...p,isArchived:true,published:true});
    assert.equal((await call('/packages','GET',undefined,null)).data.length,3);
-   assert.equal((await call('/super-admin/packages/assign/C','POST',{packageId:p.id})).status,400);
+   assert.equal((await call('/super-admin/packages/assign/C','POST',{packageId:p.id,paymentStatus:'paid'})).status,400);
    const c=db.findById('companies','C');db.upsert('companies',{...c,packageSubscription:{...c.packageSubscription,endsOn:'2000-01-01'}});
    assert.equal((await call('/auth/me','GET',undefined,'ADMIN')).data.permissions.attendance,false);
+   const subscription=await call('/packages/subscription','GET',undefined,'ADMIN');assert.equal(subscription.status,200);assert.equal(subscription.data.subscription.status,'expired');assert.equal(subscription.data.subscription.isActive,false);assert.ok(!('modules'in subscription.data.subscription));
+   const renewal=await call('/packages/renewal-requests','POST',{},'ADMIN');assert.equal(renewal.status,201);assert.equal((await call('/packages/subscription','GET',undefined,'ADMIN')).data.renewalRequest.status,'requested');
+   const overview=await call('/super-admin/packages');assert.equal(overview.data.renewalRequests.length,1);assert.equal((await call(`/super-admin/packages/renewal-requests/${overview.data.renewalRequests[0].id}/status`,'PUT',{status:'contacted'})).status,200);
  });
 });

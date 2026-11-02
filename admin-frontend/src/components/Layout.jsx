@@ -8,6 +8,13 @@ import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-do
 import { authApi } from '../api/api';
 import { filterNavByPermissions } from '../utils/permissions';
 import { displayLocation, displayRole, displayPersonName } from '../utils/displayLabels';
+import '../pages/Subscription.css';
+
+function planDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 const NAV_ITEMS = [
   { to: '/notices', label: 'Notice & Announcement', permission: 'notices', icon: 'listing' },
@@ -21,6 +28,7 @@ const NAV_ITEMS = [
   { to: '/users', label: 'Employee & Permission', permission: 'users', icon: 'users' },
   { to: '/branches', label: 'Branch Management', permission: 'branches', adminOnly: true, icon: 'branches' },
   { to: '/payroll', label: 'Payroll', permission: 'payslips', icon: 'payslips' },
+  { to: '/subscription', label: 'Plan & Billing', icon: 'payslips' },
 ];
 
 function NavIcon({ name }) {
@@ -121,9 +129,11 @@ export default function Layout() {
     ['Overview', navItems.filter(i => i.to === '/')],
     ['Customers & applications', navItems.filter(i => ['/customer-listings', '/customers'].includes(i.to))],
     ['Team operations', navItems.filter(i => ['/attendance', '/tracking', '/call-logs', '/notices', '/visits'].includes(i.to))],
-    ['Administration', navItems.filter(i => ['/users', '/branches', '/payroll'].includes(i.to))],
+    ['Administration', navItems.filter(i => ['/users', '/branches', '/payroll', '/subscription'].includes(i.to))],
   ];
   const currentPage = onProfile ? 'My Profile' : location.pathname.startsWith('/tracking/employee') ? 'Employee route history' : navItems.find(i => i.to === location.pathname)?.label || 'Workspace';
+  const sub = !isSuperAdmin ? user.company?.subscription : null;
+  const showPlanBar = sub && sub.status && sub.status !== 'not_assigned';
 
   return (
     <div className={`layout${menuOpen ? ' layout--menu-open' : ''}`}>
@@ -186,8 +196,21 @@ export default function Layout() {
           </div>
         </header>
         <main className="content">
+          {showPlanBar && (
+            <div className={`plan-bar plan-bar--${sub.status}`} role="status">
+              <div>
+                <strong>{sub.isActive ? `Plan: ${sub.name}` : `Service stopped · ${sub.name || 'Package'}`}</strong>
+                <span>
+                  {sub.isActive
+                    ? `Expires ${planDate(sub.endsOn)} · ${sub.daysRemaining ?? 0} day(s) remaining`
+                    : `Expired / inactive since ${planDate(sub.endsOn)}. Renew from Plan & Billing to restart modules.`}
+                </span>
+              </div>
+              {location.pathname !== '/subscription' && <Link to="/subscription">{sub.isActive ? 'View plan' : 'Renew plan'}</Link>}
+            </div>
+          )}
           <PageErrorBoundary resetKey={location.pathname}>
-            <Outlet key={JSON.stringify([user.id, user.role, user.companyId, user.permissions, user.actions])} />
+            <Outlet key={JSON.stringify([user.id, user.role, user.companyId, user.permissions, user.actions, sub?.status, sub?.endsOn])} />
           </PageErrorBoundary>
         </main>
       </div>

@@ -15,7 +15,7 @@ const JSON_FALLBACK_PATH = path.join(__dirname, '../../data/db.json');
 const COLLECTIONS = [
   'notices', 'visits',
   'companies',
-  'packages', 'packageRequests',
+  'packages', 'packageRequests', 'packageRenewalRequests',
   'platformAudit',
   'apiApplications',
   'apiGrants',
@@ -42,7 +42,7 @@ const COLLECTIONS = [
 const defaultDb = () => ({
   notices: [], visits: [],
   companies: [],
-  packages: [], packageRequests: [],
+  packages: [], packageRequests: [], packageRenewalRequests: [],
   platformAudit: [],
   apiApplications: [],
   apiGrants: [],

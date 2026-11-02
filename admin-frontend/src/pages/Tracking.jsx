@@ -11,7 +11,7 @@ import { displayLocation } from '../utils/displayLabels';
 
 
 export default function Tracking() {
-  const live = useLiveTeam(15000);
+  const live = useLiveTeam(10000);
   const now = useNow();
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -68,7 +68,25 @@ export default function Tracking() {
         <div className="workspace-status"><strong>{people.length}</strong><span>Employees</span></div>
       </section>
       {peopleError && <p className="error-msg" role="alert">{peopleError}</p>}
-      {live.team.some(e=>e.onDuty && e.locationEnabled===false)&&<div className="card" role="alert"><strong>Location switched off — last reported by phone</strong><p>{live.team.filter(e=>e.onDuty && e.locationEnabled===false).map(e=>`${e.name}${e.locationOffAt?' · '+new Date(e.locationOffAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}):''}`).join(' | ')}</p><small>Shown from the latest device report. Offline phones may have changed settings since then.</small></div>}
+      {live.team.some(e => e.onDuty && (e.locationEnabled === false || e.airplaneMode === true || e.status === 'airplane_mode' || e.status === 'location_off')) && (
+        <div className="card" role="alert" style={{ borderColor: '#f0b4a8', background: '#fff8f5' }}>
+          <strong>GPS / airplane mode alert</strong>
+          <p>
+            {live.team
+              .filter((e) => e.onDuty && (e.locationEnabled === false || e.airplaneMode === true || e.status === 'airplane_mode' || e.status === 'location_off'))
+              .map((e) => `${e.name} · ${STATUS_LABELS[e.status] || e.status}${e.locationOffAt ? ' · since ' + new Date(e.locationOffAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : ''}`)
+              .join(' | ')}
+          </p>
+          <small>From the latest phone heartbeat. Duty GPS must stay on after check-in; employees should turn location back on immediately.</small>
+        </div>
+      )}
+      {live.team.some((e) => e.onDuty && e.backgroundAllowed === false) && (
+        <div className="card" role="alert" style={{ borderColor: '#f0d48a', background: '#fffbeb' }}>
+          <strong>Background location missing</strong>
+          <p>{live.team.filter((e) => e.onDuty && e.backgroundAllowed === false).map((e) => e.name).join(' · ')}</p>
+          <small>Ask them to set location permission to “Allow all the time” so sharing continues with the screen off.</small>
+        </div>
+      )}
       {selectedId ? <Suspense fallback={<PageLoader label="Loading employee workspace…" />}><EmployeeTracking key={`${selectedId}-${attempt}`} embedded /></Suspense> : <>
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card__header">

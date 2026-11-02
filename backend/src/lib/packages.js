@@ -43,6 +43,17 @@ function quote(plan,employees){
     monthlyTotal:baseMonthlyAmount+extraMonthlyAmount,billingMonths:plan.billingMonths,
     periodTotal:basePeriodAmount+extraMonthlyAmount*plan.billingMonths};
 }
+function subscriptionSummary(subscription, day=indiaToday()){
+  if(!subscription)return {status:'not_assigned',isActive:false,label:'No active package'};
+  const paymentStatus=subscription.paymentStatus || 'paid';
+  const scheduled=day<subscription.startsOn;
+  const expired=day>=subscription.endsOn;
+  const isActive=!scheduled&&!expired&&paymentStatus==='paid';
+  const status=expired?'expired':scheduled?'scheduled':paymentStatus==='paid'?'active':'payment_pending';
+  const label={active:'Active',expired:'Expired',scheduled:'Scheduled',payment_pending:'Payment pending'}[status];
+  const remaining=expired?0:Math.max(0,Math.ceil((Date.parse(`${subscription.endsOn}T00:00:00Z`)-Date.parse(`${day}T00:00:00Z`))/86400000));
+  return {status,isActive,label,packageId:subscription.packageId,name:subscription.name,startsOn:subscription.startsOn,endsOn:subscription.endsOn,paymentStatus,daysRemaining:remaining};
+}
 function defaultPackages(){return [starterPackage(),...[['QUARTERLY','Quarterly',3,2500,180],['HALF_YEARLY','Half yearly',6,4500,150],['ANNUAL','Annual',12,8000,150]].map(([id,name,billingMonths,basePeriodPrice,extraEmployeeMonthlyPrice])=>({...starterPackage(),id:'PKG_'+id,name,billingMonths,basePeriodPrice,monthlyPrice:basePeriodPrice/billingMonths,extraEmployeeMonthlyPrice,description:`${billingMonths} months of attendance and field team essentials for five employees.`}))];}
 function staffCount(companyId){return require('./db').getCollection('users').filter(u=>u.companyId===companyId &&
   ['fieldOfficer','branchManager'].includes(u.role) && u.isActive!==false && !u.isDeleted).length;}
@@ -52,4 +63,4 @@ function endDate(start,months){
   const [y,m,d]=start.split('-').map(Number),last=new Date(Date.UTC(y,m-1+months+1,0)).getUTCDate();
   return new Date(Date.UTC(y,m-1+months,Math.min(d,last))).toISOString().slice(0,10);
 }
-module.exports={starterPackage,defaultPackages,validatePackage,quote,staffCount,indiaToday,endDate};
+module.exports={starterPackage,defaultPackages,validatePackage,quote,staffCount,indiaToday,endDate,subscriptionSummary};

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -12,6 +13,7 @@ import 'api_constants.dart';
 import 'location_service.dart';
 import 'ndfa_api_service.dart';
 import 'api_service.dart';
+import '../../utils/access_control.dart';
 import '../../utils/api_errors.dart';
 import '../../utils/attendance_state.dart';
 
@@ -48,6 +50,8 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
   final Rxn<DateTime> lastGpsFixAt = Rxn<DateTime>();
   final Rxn<DateTime> lastUploadAt = Rxn<DateTime>();
   Timer? _trackingTimer;
+  Timer? _heartbeatTimer;
+  static const Duration _heartbeatInterval = Duration(seconds: 20);
   StreamSubscription<Position>? _positionStream;
   Position? _latest;
   DateTime? _lastSentFix;
@@ -103,8 +107,15 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _heartbeat() async {
-    if (_nativeActive) return;
+  void _ensureHeartbeatTimer() {
+    _heartbeatTimer?.cancel();
+    if (!isTracking.value || !_storage.isLoggedIn) return;
+    _heartbeatTimer = Timer.periodic(
+        _heartbeatInterval, (_) => unawaited(_heartbeat(force: true)));
+  }
+
+  Future<void> _heartbeat({bool force = false}) async {
+    if (!force && _nativeActive) return;
     if (_heartbeatBusy || !_storage.isLoggedIn || !ApiConstants.useRemoteApi)
       return;
     _heartbeatBusy = true;
@@ -115,16 +126,29 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
         _appVersion ??= 'unknown';
       }
       final permission = await Geolocator.checkPermission();
+      var networkAvailable = true;
+      var airplaneMode = false;
+      try {
+        final results = await Connectivity().checkConnectivity();
+        networkAvailable = results.any((r) =>
+            r == ConnectivityResult.mobile ||
+            r == ConnectivityResult.wifi ||
+            r == ConnectivityResult.ethernet);
+        airplaneMode = results.length == 1 && results.first == ConnectivityResult.none;
+      } catch (_) {}
       await Get.find<ApiService>().post('/tracking/heartbeat', data: {
         'locationEnabled': await Geolocator.isLocationServiceEnabled(),
         'permission': permission == LocationPermission.always ||
                 permission == LocationPermission.whileInUse
             ? 'granted'
             : 'denied',
-        'backgroundAllowed': permission == LocationPermission.always,
+        'backgroundAllowed': permission == LocationPermission.always ||
+            await _locationService.isBackgroundAllowed(),
         'trackingActive': isTracking.value,
         'appVersion': _appVersion,
-        'issue': gpsStatus.value
+        'issue': gpsStatus.value,
+        'networkAvailable': networkAvailable,
+        'airplaneMode': airplaneMode,
       });
     } catch (_) {
       /* Network recovery retries independently of GPS fixes. */
@@ -217,8 +241,34 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
   }
 
   /// Align tracking with today's attendance (check-in open → track, check-out → stop).
+  /// Returns true when background duty GPS (native or Flutter stream) is active.
+  Future<bool> ensureDutyTrackingStarted() async {
+    if (!isTracking.value) return false;
+    if (_nativeActive) {
+      try {
+        _nativeActive =
+            await _nativeChannel.invokeMethod<bool>('running') ?? false;
+      } catch (_) {
+        _nativeActive = false;
+      }
+    }
+    if (_nativeActive) return true;
+    if (_positionStream != null) return true;
+    await _startNative();
+    if (_nativeActive) return true;
+    try {
+      await _restartStream();
+      _trackingTimer?.cancel();
+      _trackingTimer =
+          Timer.periodic(_pingInterval, (_) => unawaited(_tick()));
+      return _positionStream != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> syncWithAttendanceState(AttendanceModel? today) async {
-    unawaited(_heartbeat());
+    unawaited(_heartbeat(force: true));
     if (_trackingOwner != null && _trackingOwner != _storage.getUser()?.id) {
       await stopTracking(silent: true);
       _latest = null;
@@ -230,9 +280,13 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
     final onDuty = today != null && today.isCheckedIn && !today.isCheckedOut;
     if (onDuty) {
       if (!isTracking.value) await startTracking(silent: true);
+      _ensureHeartbeatTimer();
+      unawaited(ensureDutyTrackingStarted());
     } else if (isTracking.value) {
       await stopTracking(silent: true);
     } else {
+      _heartbeatTimer?.cancel();
+      _heartbeatTimer = null;
       await _stopNative();
       await _loadTodayReport();
     }
@@ -292,44 +346,57 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
 
   Future<void> startTracking({bool silent = false}) async {
     if (isTracking.value || _starting) return;
+    if (AccessControl.serviceStopped) {
+      gpsStatus.value = 'Service stopped — company plan inactive';
+      return;
+    }
     _starting = true;
     try {
       _trackingOwner = _storage.getUser()?.id;
+      // Once on duty, tracking stays marked active until check-out even if GPS
+      // is temporarily off — heartbeats keep reporting that state to admin.
+      isTracking.value = true;
 
+      final locationOn = await Geolocator.isLocationServiceEnabled();
       final existingPermission = await Geolocator.checkPermission();
-      if (silent &&
-          (!await Geolocator.isLocationServiceEnabled() ||
-              (existingPermission != LocationPermission.always &&
-                  existingPermission != LocationPermission.whileInUse))) {
-        gpsStatus.value =
-            'Enable precise location permission to resume duty GPS';
+      final hasUse = existingPermission == LocationPermission.always ||
+          existingPermission == LocationPermission.whileInUse;
+      if (!locationOn || !hasUse) {
+        gpsStatus.value = !locationOn
+            ? 'Device location is switched off'
+            : 'Enable precise location permission to resume duty GPS';
+        // Keep native heartbeat alive so admin still sees GPS-off / airplane status.
+        await _startNative();
+        _trackingTimer?.cancel();
+        _trackingTimer =
+            Timer.periodic(_nativeWatchInterval, (_) => unawaited(_tick()));
         unawaited(_heartbeat());
+        if (!silent) {
+          Get.snackbar('Duty tracking', gpsStatus.value);
+        }
         return;
       }
-      final hasPermission =
-          silent ? true : await _locationService.requestPermission();
-      if (!hasPermission) {
-        if (!silent) Get.snackbar('Tracking', 'Location permission required');
-        return;
+      if (!silent) {
+        final hasPermission = await _locationService.requestPermission();
+        if (!hasPermission) {
+          gpsStatus.value = 'Location permission required';
+          unawaited(_heartbeat());
+          return;
+        }
       }
       if (GetPlatform.isAndroid) {
         try {
           await Permission.notification.request();
         } catch (_) {}
       }
-      // This also runs when tracking resumes after check-in. Previously the
-      // silent resume path skipped battery/background preparation altogether.
       unawaited(_prepareBackgroundTracking());
 
-      isTracking.value = true;
       await _startNative();
       gpsStatus.value = 'Searching for GPS…';
       final now = DateTime.now();
 
-      // Android owns on-duty collection in a foreground service.  Keep a
-      // small watchdog in Flutter while the app is open. If an aggressive OEM
-      // stops that service, the app restarts it or falls back to its own
-      // stream; it never silently stops sending route points.
+      // Android owns on-duty collection in a foreground service. Keep a
+      // watchdog so OEM kills cannot silently end sharing before check-out.
       if (_nativeActive) {
         await _positionStream?.cancel();
         _positionStream = null;
@@ -337,16 +404,18 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
         _trackingTimer =
             Timer.periodic(_nativeWatchInterval, (_) => unawaited(_tick()));
         gpsStatus.value = 'On duty — background GPS sharing is active';
-        unawaited(_heartbeat());
+        _ensureHeartbeatTimer();
+        unawaited(_heartbeat(force: true));
         if (!silent)
           Get.snackbar(
-              'Duty tracking on', 'Background GPS is active until check-out');
+              'Duty tracking on', 'Background GPS stays on until check-out');
         return;
       }
 
       _trackingTimer?.cancel();
       _trackingTimer = Timer.periodic(_pingInterval, (_) => unawaited(_tick()));
-      unawaited(_heartbeat());
+      _ensureHeartbeatTimer();
+      unawaited(_heartbeat(force: true));
       try {
         await _restartStream();
       } catch (e) {
@@ -447,15 +516,29 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
     if (_ticking) return;
     _ticking = true;
     try {
+      // Stay on duty until check-out. Logout is blocked while checked in; if the
+      // session was cleared externally, keep reporting GPS-off/offline to admin
+      // via native service rather than stopping here.
       if (!_storage.isLoggedIn) {
-        await stopTracking(silent: true);
+        gpsStatus.value = 'Session ended — finish check-out from Attendance';
         return;
       }
       final enabled = await Geolocator.isLocationServiceEnabled();
       if (!enabled) {
         gpsStatus.value = 'Device location is switched off';
-        await _sendLatest();
+        // Do not stop tracking — keep the duty session and heartbeats alive.
         return;
+      }
+      // If GPS came back after being off, restore native/stream collectors.
+      if (!_nativeActive && _positionStream == null) {
+        await _startNative();
+        if (!_nativeActive) {
+          try {
+            await _restartStream();
+          } catch (_) {
+            _restartNeeded = true;
+          }
+        }
       }
       if (_latest != null &&
           DateTime.now().difference(_latest!.timestamp) >
@@ -597,6 +680,8 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
     await _stopNative();
     if (!isTracking.value) return;
 
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
     _trackingTimer?.cancel();
     _trackingTimer = null;
     await _positionStream?.cancel();
@@ -641,6 +726,7 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
   @override
   void onClose() {
     WidgetsBinding.instance.removeObserver(this);
+    _heartbeatTimer?.cancel();
     _trackingTimer?.cancel();
     _positionStream?.cancel();
     super.onClose();

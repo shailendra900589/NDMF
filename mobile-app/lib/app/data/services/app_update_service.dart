@@ -1,17 +1,26 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'api_constants.dart';
 
-/// Checks the signed public release manifest. A newer published build is a
-/// mandatory update: route/API changes are not allowed to run on old clients.
+/// Checks the public release manifest and installs newer APKs inside the app.
 class AppUpdateService extends GetxService {
+  static const _installChannel =
+      MethodChannel('com.nirmaldhara.microfinance/app_update');
+
   final RxBool updateRequired = false.obs;
+  final RxDouble downloadProgress = 0.0.obs;
+  final RxBool isDownloading = false.obs;
+
   String? _downloadUrl;
   String? _publishedVersion;
+  String? _expectedFileName;
   bool _dialogOpen = false;
 
   Future<AppUpdateService> init() async => this;
@@ -37,12 +46,11 @@ class AppUpdateService extends GetxService {
         return false;
       }
       _publishedVersion = '${json['version'] ?? remoteCode}';
+      _expectedFileName = file;
       _downloadUrl = '${ApiConstants.publicSiteUrl}/downloads/$file';
       updateRequired.value = true;
       return true;
     } catch (_) {
-      // An offline employee must not be locked out only because the version
-      // server is temporarily unreachable. The next launch/resume rechecks.
       return updateRequired.value;
     }
   }
@@ -56,25 +64,94 @@ class AppUpdateService extends GetxService {
         canPop: false,
         child: AlertDialog(
           title: const Text('Update required'),
-          content: Text(
-            'MyStaff Smart $_publishedVersion is ready. Update now to continue securely with attendance, GPS and visits.',
-          ),
+          content: Obx(() {
+            if (isDownloading.value) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Downloading MyStaff Smart $_publishedVersion…',
+                  ),
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(value: downloadProgress.value),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${(downloadProgress.value * 100).round()}%',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              );
+            }
+            return Text(
+              'MyStaff Smart $_publishedVersion is ready. Update now to continue with attendance, live GPS and visits.',
+            );
+          }),
           actions: [
-            FilledButton.icon(
-              onPressed: () async {
-                final url = _downloadUrl;
-                if (url != null)
-                  await launchUrl(Uri.parse(url),
-                      mode: LaunchMode.externalApplication);
-              },
-              icon: const Icon(Icons.system_update_alt),
-              label: const Text('Download update'),
-            ),
+            Obx(() {
+              if (isDownloading.value) return const SizedBox.shrink();
+              return FilledButton.icon(
+                onPressed: () async {
+                  final ok = await _downloadAndInstall();
+                  if (!ok && Get.isDialogOpen == true) {
+                    Get.snackbar(
+                      'Update failed',
+                      'Check internet and storage, then tap Update now again.',
+                    );
+                  }
+                },
+                icon: const Icon(Icons.system_update_alt),
+                label: const Text('Update now'),
+              );
+            }),
           ],
         ),
       ),
       barrierDismissible: false,
     );
     _dialogOpen = false;
+  }
+
+  Future<bool> _downloadAndInstall() async {
+    final url = _downloadUrl;
+    final name = _expectedFileName;
+    if (url == null || name == null) return false;
+    if (!Platform.isAndroid) return false;
+
+    isDownloading.value = true;
+    downloadProgress.value = 0.0;
+    try {
+      final storage = await getExternalStorageDirectory();
+      final dir = Directory(
+        storage != null
+            ? '${storage.path}/apk_updates'
+            : '${(await getApplicationDocumentsDirectory()).path}/apk_updates',
+      );
+      await dir.create(recursive: true);
+      final file = File('${dir.path}/$name');
+      await Dio().download(
+        url,
+        file.path,
+        options: Options(
+          receiveTimeout: const Duration(minutes: 20),
+          headers: const {'Cache-Control': 'no-cache'},
+        ),
+        onReceiveProgress: (received, total) {
+          if (total > 0) downloadProgress.value = received / total;
+        },
+      );
+      if (!file.existsSync() || file.lengthSync() < 1024) return false;
+
+      final installed = await _installChannel.invokeMethod<bool>(
+            'installApk',
+            {'path': file.path},
+          ) ??
+          false;
+      return installed;
+    } catch (_) {
+      return false;
+    } finally {
+      isDownloading.value = false;
+    }
   }
 }

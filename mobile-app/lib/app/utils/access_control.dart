@@ -21,8 +21,12 @@ class AccessControl {
 
   static Map<String, bool> get permissions => _storage.getPermissions();
 
+  /// Assigned SaaS plan expired / unpaid — operational modules must stay off.
+  static bool get serviceStopped => _storage.getUser()?.serviceStopped == true;
+
   static bool canAccess(String key) {
     if (!isFieldAppUser) return false;
+    if (serviceStopped) return false;
     if (key == 'payslips' || key == 'branches' || key == 'callLogs') return false;
     if (key == 'users') return isBranchManager && permissions['users'] != false;
     return permissions[key] == true;

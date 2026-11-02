@@ -139,7 +139,7 @@ export default function LiveTeamMap({ team = [], selectedId = null, onSelect, ro
   }, [route]);
 
   const sorted = useMemo(() => {
-    const order = { live: 0,weak_gps:1,gps_pending:1,location_off:1,permission_required:1, delayed: 1, offline: 2, checked_out: 3 };
+    const order = { live: 0, weak_gps: 1, gps_pending: 1, location_off: 1, airplane_mode: 1, no_network: 1, background_required: 1, permission_required: 1, delayed: 1, offline: 2, checked_out: 3 };
     return [...team].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
   }, [team]);
 

@@ -13,6 +13,7 @@ function enforceCompanyAccess(req, res, next) {
   }
   if (/^super-admin(\/|$)/.test(route)) return error(res, 'Super Admin access required', 403);
   if (/^auth(\/|$)/.test(route) || route === 'settings/public') return next();
+  if (/^packages\/(subscription|renewal-requests)$/.test(route)) return next();
   if (route === 'payslips/mine' && req.method === 'GET') return next();
   // Branch lookups and own enrollment support other enabled modules without granting management access.
   if (req.method === 'GET' && route === 'branches') return next();

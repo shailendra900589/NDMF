@@ -8,6 +8,7 @@ import 'ndfa_api_service.dart';
 import 'storage_service.dart';
 import 'sync_service.dart';
 import 'tracking_service.dart';
+import 'app_update_service.dart';
 import '../../utils/attendance_state.dart';
 
 /// Keeps mobile app in sync with web backend (no separate app backend).
@@ -46,6 +47,9 @@ class DataRefreshService extends GetxService with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       refreshAll(silent: true);
+      if (Get.isRegistered<AppUpdateService>()) {
+        unawaited(Get.find<AppUpdateService>().enforceRequiredUpdate());
+      }
     }
   }
 

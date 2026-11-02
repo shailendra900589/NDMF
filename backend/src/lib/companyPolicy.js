@@ -15,8 +15,7 @@ function companyFor(user) {
   const company=require('./db').getCollection('companies').find(c => c.id === user.companyId) || null;
   const subscription=company?.packageSubscription;
   if(!subscription)return company;
-  const day=require('./packages').indiaToday();
-  const active=subscription.startsOn<=day && day<subscription.endsOn;
+  const active=require('./packages').subscriptionSummary(subscription).isActive;
   const modules={},actions={};
   for(const key of Object.keys(MODULES)){
     modules[key]=active && subscription.modules?.[key]===true && company.modules?.[key]!==false;

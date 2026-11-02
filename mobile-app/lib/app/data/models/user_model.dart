@@ -14,6 +14,8 @@ class UserModel {
   final bool faceEnrollmentComplete;
   /// Org policy from admin — when false, no face enrollment gate or check-in verify.
   final bool faceAttendanceRequired;
+  /// Company SaaS plan summary from /auth (null when not assigned).
+  final Map<String, dynamic>? subscription;
 
   UserModel({
     required this.id,
@@ -27,7 +29,16 @@ class UserModel {
     Map<String, bool>? permissions,
     this.faceEnrollmentComplete = false,
     this.faceAttendanceRequired = true,
+    this.subscription,
   }) : permissions = permissions ?? AppPermissions.defaultsForRole(role);
+
+  bool get serviceStopped {
+    final s = subscription;
+    if (s == null) return false;
+    final status = s['status']?.toString();
+    if (status == null || status == 'not_assigned') return false;
+    return s['isActive'] != true;
+  }
 
   bool get isFieldOrBranch =>
       role == UserRole.fieldOfficer || role == UserRole.branchManager;
@@ -43,6 +54,10 @@ class UserModel {
       (e) => e.name == json['role'],
       orElse: () => UserRole.fieldOfficer,
     );
+    final company = json['company'] is Map ? Map<String, dynamic>.from(json['company'] as Map) : null;
+    final sub = company?['subscription'] is Map
+        ? Map<String, dynamic>.from(company!['subscription'] as Map)
+        : (json['subscription'] is Map ? Map<String, dynamic>.from(json['subscription'] as Map) : null);
     return UserModel(
       id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
@@ -58,6 +73,7 @@ class UserModel {
       ),
       faceEnrollmentComplete: json['faceEnrollmentComplete'] == true,
       faceAttendanceRequired: json['faceAttendanceRequired'] != false,
+      subscription: sub,
     );
   }
 
@@ -73,6 +89,7 @@ class UserModel {
         'permissions': permissions,
         'faceEnrollmentComplete': faceEnrollmentComplete,
         'faceAttendanceRequired': faceAttendanceRequired,
+        if (subscription != null) 'company': {'subscription': subscription},
       };
 
   UserModel copyWith({
@@ -84,6 +101,7 @@ class UserModel {
     Map<String, bool>? permissions,
     bool? faceEnrollmentComplete,
     bool? faceAttendanceRequired,
+    Map<String, dynamic>? subscription,
   }) {
     return UserModel(
       id: id,
@@ -97,6 +115,7 @@ class UserModel {
       permissions: permissions ?? this.permissions,
       faceEnrollmentComplete: faceEnrollmentComplete ?? this.faceEnrollmentComplete,
       faceAttendanceRequired: faceAttendanceRequired ?? this.faceAttendanceRequired,
+      subscription: subscription ?? this.subscription,
     );
   }
 }

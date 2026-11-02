@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../data/services/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
+import '../utils/access_control.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -64,10 +67,18 @@ class NoPermissionsState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const EmptyState(
-      icon: Icons.lock_outline,
-      title: 'No modules assigned',
-      message: 'Ask your branch to turn on the work you need.',
+    final stopped = AccessControl.serviceStopped;
+    final plan = Get.find<StorageService>().getUser()?.subscription;
+    final name = plan?['name']?.toString();
+    final ends = plan?['endsOn']?.toString();
+    return EmptyState(
+      icon: stopped ? Icons.pause_circle_outline : Icons.lock_outline,
+      title: stopped ? 'Service stopped' : 'No modules assigned',
+      message: stopped
+          ? 'Your company plan${name != null && name.isNotEmpty ? ' ($name)' : ''}'
+              '${ends != null && ends.isNotEmpty ? ' expired on $ends' : ' is inactive'}. '
+              'Ask your company admin to renew from the web Plan & Billing page.'
+          : 'Ask your branch to turn on the work you need.',
     );
   }
 }

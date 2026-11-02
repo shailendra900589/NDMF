@@ -4,6 +4,7 @@ import { lazy, Suspense } from 'react';
 const DeveloperAccess = lazy(() => import('./pages/DeveloperAccess'));
 const SuperAdmin = lazy(() => import('./pages/SuperAdmin'));
 const Packages = lazy(() => import('./pages/Packages'));
+const Subscription = lazy(() => import('./pages/Subscription'));
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CustomerListings from './pages/CustomerListings';
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="branches" element={<PermissionRoute permission="branches"><Branches /></PermissionRoute>} />
         <Route path="payroll" element={<PermissionRoute permission="payslips"><PaySlips /></PermissionRoute>} />
         <Route path="payslips" element={<Navigate to="/payroll" replace />} />
+        <Route path="subscription" element={<Suspense fallback={<div role="status">Loading plan and billing…</div>}><Subscription /></Suspense>} />
         <Route path="profile" element={<Profile />} />
         <Route path="notices" element={<PermissionRoute permission="notices"><TeamWorkspace key="notices" kind="notices" /></PermissionRoute>} />
         <Route path="visits" element={<PermissionRoute permission="visits"><TeamWorkspace key="visits" kind="visits" /></PermissionRoute>} />

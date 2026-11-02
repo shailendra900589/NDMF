@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import api, { usersApi, branchesApi, customersApi } from '../api/api';
 import PageHeader from '../components/PageHeader';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { useSession } from '../auth/Session';
 import { canPerformStored } from '../utils/permissions';
 
@@ -10,14 +11,18 @@ export default function TeamWorkspace({kind}) {
   const {user}=useSession();
   const notices=kind==='notices';
   const canCreate=(notices ? user.role==='admin' : ['admin','branchManager'].includes(user.role)) && canPerformStored(kind,'create');
-  const [records,setRecords]=useState([]),[people,setPeople]=useState([]),[branches,setBranches]=useState([]),[customers,setCustomers]=useState([]),[targetIds,setTargetIds]=useState([]),[customerSearch,setCustomerSearch]=useState('');
+  const [records,setRecords]=useState([]),[people,setPeople]=useState([]),[branches,setBranches]=useState([]),[customers,setCustomers]=useState([]),[targetIds,setTargetIds]=useState([]);
   const [form,setForm]=useState({...blank}),[editing,setEditing]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const scopedCustomers=customers.filter(c=>!form.branch || c.branch===form.branch);
-  const visibleCustomers=scopedCustomers.filter(c=>`${c.name||''} ${c.mobile||''} ${c.address||''} ${c.branch||''}`.toLowerCase().includes(customerSearch.toLowerCase().trim()));
-  const selectedCustomers=customers.filter(c=>targetIds.includes(`customer:${c.id}`));
+  const customerOptions=useMemo(()=>scopedCustomers.map(c=>({
+    value:`customer:${c.id}`,
+    label:c.name || 'Unnamed customer',
+    meta:`${c.mobile || 'Mobile not recorded'} · ${c.branch || 'No branch'}`,
+    hint:c.address || 'Address not recorded',
+  })),[scopedCustomers]);
   const refresh=async()=>{const r=await api.get(`/workspace/${kind}`);setRecords(r.data || []);};
   useEffect(()=>{
-    setRecords([]); setEditing(false); setForm({...blank}); setTargetIds([]); setCustomerSearch(''); setMessage('');
+    setRecords([]); setEditing(false); setForm({...blank}); setTargetIds([]); setMessage('');
     refresh().catch(e=>setMessage(e.message));
     if(canCreate) {
       usersApi.getAll().then(r=>setPeople(r.data || [])).catch(e=>setMessage(e.message));
@@ -45,25 +50,43 @@ export default function TeamWorkspace({kind}) {
     }catch(e){setMessage(e.message);}finally{setBusy(false);}
   }
   return <div className="team-workspace"><PageHeader title={notices?'Notice & Announcement':'Visit schedules'} description={notices?'Publish targeted team updates and track read acknowledgements.':'Plan staff and shop visits, record outcomes, and schedule repeat visits.'}>
-    {canCreate && <button className="btn btn-primary" onClick={()=>{setForm({...blank});setTargetIds([]);setCustomerSearch('');setEditing(true);}}>{notices?'+ Publish notice':'+ Schedule visit'}</button>}
+    {canCreate && <button className="btn btn-primary" onClick={()=>{setForm({...blank});setTargetIds([]);setEditing(true);}}>{notices?'+ Publish notice':'+ Schedule visit'}</button>}
   </PageHeader>
   {message && <p role="status">{message}</p>}
   {editing && <form className="card team-workspace__form" onSubmit={save}>
-    <div className="team-workspace__formhead"><div><span className="eyebrow">{notices?'New communication':'New planned visit'}</span><h2>{notices?'Publish a clear staff notice':'Schedule customer visits'}</h2><p>{notices?'Choose who receives it and whether an acknowledgement is needed.':'Assign one employee, choose customers and send GPS-enabled visit tasks directly to their app.'}</p></div>{!notices&&<span className="team-workspace__form-status">{targetIds.length ? `${targetIds.length} customer${targetIds.length===1?'':'s'} selected` : 'Draft visit plan'}</span>}</div>
-    {!notices&&<ol className="visit-flow" aria-label="Visit scheduling steps"><li className="is-current"><span>1</span><div><strong>Assign</strong><small>Choose branch and employee</small></div></li><li className={targetIds.length?'is-current':''}><span>2</span><div><strong>Select customers</strong><small>One task is created per customer</small></div></li><li><span>3</span><div><strong>Review & send</strong><small>Employee gets visit GPS details</small></div></li></ol>}
+    <div className="team-workspace__formhead"><div><span className="eyebrow">{notices?'New communication':'New planned visit'}</span><h2>{notices?'Publish a clear staff notice':'Schedule customer visits'}</h2><p>{notices?'Choose who receives it and whether an acknowledgement is needed.':'Assign one employee, multi-select customers and send GPS-enabled visit tasks directly to their app.'}</p></div>{!notices&&<span className="team-workspace__form-status">{targetIds.length ? `${targetIds.length} customer${targetIds.length===1?'':'s'} selected` : 'Draft visit plan'}</span>}</div>
+    {!notices&&<ol className="visit-flow" aria-label="Visit scheduling steps"><li className="is-current"><span>1</span><div><strong>Assign</strong><small>Choose branch and employee</small></div></li><li className={targetIds.length?'is-current':''}><span>2</span><div><strong>Select customers</strong><small>Multi-select · one task per customer</small></div></li><li><span>3</span><div><strong>Review & send</strong><small>Employee gets visit GPS details</small></div></li></ol>}
     <div className="team-workspace__grid">
       {notices && <label>Title<input className="form-input" required maxLength={150} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>}
-      <label>Branch<SearchableSelect value={form.branch} onChange={e=>setForm({...form,branch:e.target.value,userId:''})}><option value="">{user.role==='admin'?'All branches':'Your branch'}</option>{branches.map(b=><option key={b.id} value={b.name}>{b.name}</option>)}</SearchableSelect></label>
+      <label>Branch<SearchableSelect value={form.branch} onChange={e=>{setForm({...form,branch:e.target.value,userId:''});setTargetIds([]);}}><option value="">{user.role==='admin'?'All branches':'Your branch'}</option>{branches.map(b=><option key={b.id} value={b.name}>{b.name}</option>)}</SearchableSelect></label>
       <label>{notices?'Audience':'Assign employee'}<SearchableSelect required={!notices} value={form.userId} onChange={e=>setForm({...form,userId:e.target.value})}><option value="">{notices?'All employees in selected branches':'Search all employees'}</option>{people.map(p=><option key={p.id} value={p.id}>{p.name} · {p.employeeId} · {p.branch || 'No branch'}</option>)}</SearchableSelect></label>
       {!notices && <label>Scheduled time (IST)<input className="form-input" type="datetime-local" required value={form.scheduledAt} onChange={e=>setForm({...form,scheduledAt:e.target.value})}/></label>}
     </div>
     <label className="team-workspace__details">Details<textarea className="form-input" rows={4} required maxLength={4000} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label>
-    {!notices && <section className="team-workspace__targets" aria-label="Existing customers"><div className="team-workspace__target-head"><div><span className="team-workspace__step">Step 2</span><strong>Choose customers</strong><p>Search by name, mobile, address or branch. Saved address and GPS destination are sent to the employee’s app automatically.</p></div><div className="team-workspace__selection-actions"><span>{targetIds.length ? `${targetIds.length} selected` : 'None selected'}</span>{targetIds.length>0&&<button type="button" onClick={()=>setTargetIds([])}>Clear selection</button>}</div></div>
-      <div className="team-workspace__search"><span aria-hidden="true">⌕</span><input className="form-input" value={customerSearch} onChange={e=>setCustomerSearch(e.target.value)} placeholder="Search customer, mobile, address or branch…" aria-label="Search customers"/><small>{form.branch ? `${scopedCustomers.length} customers in ${form.branch}` : `${scopedCustomers.length} customers across all branches`}</small></div>
-      {selectedCustomers.length>0&&<div className="team-workspace__selected" aria-label="Selected customers">{selectedCustomers.map(c=><span key={c.id}>{c.name}<button type="button" aria-label={`Remove ${c.name}`} onClick={()=>setTargetIds(ids=>ids.filter(id=>id!==`customer:${c.id}`))}>×</button></span>)}</div>}
-      <div className="team-workspace__customer-list">{visibleCustomers.map(c=>{const id=`customer:${c.id}`,checked=targetIds.includes(id);return <label className={checked?'is-selected':''} key={id}><input type="checkbox" checked={checked} onChange={e=>setTargetIds(e.target.checked?[...targetIds,id]:targetIds.filter(x=>x!==id))}/><span className="team-workspace__customer-avatar">{(c.name||'?').trim().slice(0,1).toUpperCase()}</span><span><strong>{c.name}</strong><small>{c.mobile || 'Mobile not recorded'} · {c.branch || 'No branch'}</small><em>{c.address || 'Address not recorded'}</em></span><b>{checked?'Selected':'Select'}</b></label>})}{!scopedCustomers.length&&<div className="team-workspace__customer-empty"><strong>No customers available</strong><span>{form.branch?'No approved customer belongs to this branch yet.':'Add or approve customers first, then return here to schedule their visit.'}</span></div>}{!!scopedCustomers.length&&!visibleCustomers.length&&<div className="team-workspace__customer-empty"><strong>No customers match this search</strong><span>Try a different name, mobile number, address or branch.</span></div>}</div></section>}
+    {!notices && <section className="team-workspace__targets" aria-label="Existing customers">
+      <div className="team-workspace__target-head">
+        <div>
+          <span className="team-workspace__step">Step 2</span>
+          <strong>Choose customers</strong>
+          <p>Open the multi-select dropdown, search, and pick one or many customers. Address and GPS destination go to the employee app automatically — one visit task per selected customer.</p>
+        </div>
+        <div className="team-workspace__selection-actions">
+          <span>{targetIds.length ? `${targetIds.length} selected` : 'None selected'}</span>
+        </div>
+      </div>
+      <MultiSelectDropdown
+        label="Customers"
+        options={customerOptions}
+        value={targetIds}
+        onChange={setTargetIds}
+        placeholder="Select one or more customers…"
+        searchPlaceholder="Search customer, mobile, address or branch…"
+        emptyLabel={scopedCustomers.length ? 'No customers match this search' : (form.branch ? 'No approved customer belongs to this branch yet.' : 'Add or approve customers first, then return here to schedule visits.')}
+      />
+      <p className="team-workspace__dropdown-hint">{form.branch ? `${scopedCustomers.length} customers in ${form.branch}` : `${scopedCustomers.length} customers across all branches`} · Tip: use “Select all shown” after filtering a branch or search.</p>
+    </section>}
     {notices && <label className="team-workspace__important"><input type="checkbox" checked={form.important} onChange={e=>setForm({...form,important:e.target.checked})}/><span><strong>Important notice</strong><small>Employees must acknowledge they have read it.</small></span></label>}
-    <div className="row-actions team-workspace__actions"><div><strong>{notices?'Ready to publish':'Ready to create visit tasks'}</strong>{!notices&&<small>{targetIds.length ? `${targetIds.length} task${targetIds.length===1?'':'s'} will be sent to the selected employee.`:'Select at least one customer to continue.'}</small>}</div><span><button disabled={busy || (!notices&&!targetIds.length)} className="btn btn-primary">{busy?'Saving…':notices?'Publish notice':targetIds.length?`Create ${targetIds.length} visit task${targetIds.length===1?'':'s'}`:'Create visit tasks'}</button><button type="button" className="btn btn-outline" onClick={()=>setEditing(false)}>Cancel</button></span></div>
+    <div className="row-actions team-workspace__actions"><div><strong>{notices?'Ready to publish':'Ready to create visit tasks'}</strong>{!notices&&<small>{targetIds.length ? `${targetIds.length} task${targetIds.length===1?'':'s'} will be sent to the selected employee.`:'Select at least one customer from the dropdown to continue.'}</small>}</div><span><button disabled={busy || (!notices&&!targetIds.length)} className="btn btn-primary">{busy?'Saving…':notices?'Publish notice':targetIds.length?`Create ${targetIds.length} visit task${targetIds.length===1?'':'s'}`:'Create visit tasks'}</button><button type="button" className="btn btn-outline" onClick={()=>setEditing(false)}>Cancel</button></span></div>
   </form>}
   {!records.length && <div className="card team-workspace__empty">No {notices?'announcements':'visits'} yet.</div>}
   {records.map(r=><article className="card team-workspace__record" key={r.id}>
@@ -82,7 +105,7 @@ export default function TeamWorkspace({kind}) {
     <div className="row-actions">
       {notices && (r.recipientIds?.includes(user.id) || !r.recipientIds) && <button className="btn btn-outline" disabled={busy || !!(r.acknowledgedAt || r.acknowledgements?.[user.id])} onClick={()=>action(r)}>{r.acknowledgedAt || r.acknowledgements?.[user.id]?'Acknowledged':'I have read this notice'}</button>}
       {!notices && ['scheduled','in_progress'].includes(r.status) && canPerformStored('visits','update') && canCreate && <button disabled={busy} className="btn btn-outline" onClick={()=>action(r,'cancelled')}>Cancel visit</button>}
-    {!notices && canCreate && <button className="btn btn-outline" onClick={()=>{setForm({...blank,description:r.description,branch:r.branch,userId:r.recipientIds?.[0] || ''});setTargetIds(r.customerId?[`customer:${r.customerId}`]:[]);setCustomerSearch('');setEditing(true);window.scrollTo({top:0,behavior:'smooth'});}}>Schedule visit again</button>}
+    {!notices && canCreate && <button className="btn btn-outline" onClick={()=>{setForm({...blank,description:r.description,branch:r.branch,userId:r.recipientIds?.[0] || ''});setTargetIds(r.customerId?[`customer:${r.customerId}`]:[]);setEditing(true);window.scrollTo({top:0,behavior:'smooth'});}}>Schedule visit again</button>}
     </div>
   </article>)}
   </div>;

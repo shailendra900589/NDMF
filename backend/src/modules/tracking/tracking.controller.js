@@ -155,14 +155,14 @@ exports.heartbeat=(req,res)=>{
   const row={id:req.user.id,userId:req.user.id,receivedAt:new Date().toISOString(),locationEnabled:body.locationEnabled===true,permission:body.permission==='granted'?'granted':'denied',backgroundAllowed:body.backgroundAllowed===true,trackingActive:body.trackingActive===true,appVersion:String(body.appVersion || 'unknown').slice(0,30),issue:String(body.issue || '').slice(0,200)};
   const previous=findById('trackingDevices',req.user.id);
   row.batteryPercent=typeof body.batteryPercent==='number'&&Number.isInteger(body.batteryPercent)&&body.batteryPercent>=0&&body.batteryPercent<=100?body.batteryPercent:null;
-  for(const key of ['charging','powerSaveMode','batteryOptimizationExempt'])row[key]=typeof body[key]==='boolean'?body[key]:null;
+  for(const key of ['charging','powerSaveMode','batteryOptimizationExempt','airplaneMode','networkAvailable'])row[key]=typeof body[key]==='boolean'?body[key]:null;
   row.trackingEngine=body.trackingEngine==='android_native'?'android_native':'flutter';
   row.locationOffAt=previous?.locationOffAt || null;
   row.locationEvents=[...(previous?.locationEvents || [])];
-  if(!previous || previous.locationEnabled!==row.locationEnabled){
-    row.locationEvents.push({enabled:row.locationEnabled,reportedAt:row.receivedAt});
+  if(!previous || previous.locationEnabled!==row.locationEnabled || previous.airplaneMode!==row.airplaneMode){
+    row.locationEvents.push({enabled:row.locationEnabled,airplaneMode:row.airplaneMode===true,reportedAt:row.receivedAt});
     row.locationEvents=row.locationEvents.slice(-30);
-    if(!row.locationEnabled)row.locationOffAt=row.receivedAt;
+    if(!row.locationEnabled || row.airplaneMode===true)row.locationOffAt=row.receivedAt;
   }
   upsert('trackingDevices',row,{deferMs:LIVE_WRITE_DELAY_MS});
   return success(res,{receivedAt:row.receivedAt,onDuty:!!currentShift(req.user.id,Date.now()) && !currentShift(req.user.id,Date.now()).checkOutTime},'App heartbeat received');
@@ -280,6 +280,8 @@ exports.getLiveTeam = (req, res) => {
         powerSaveMode:heartbeat?.powerSaveMode ?? null,
         batteryOptimizationExempt:heartbeat?.batteryOptimizationExempt ?? null,
         locationEnabled:heartbeat?.locationEnabled ?? null,
+        airplaneMode:heartbeat?.airplaneMode ?? null,
+        networkAvailable:heartbeat?.networkAvailable ?? null,
         locationOffAt:heartbeat?.locationOffAt ?? null,
         locationEvents:heartbeat?.locationEvents || [],
         trackingEngine:heartbeat?.trackingEngine || null,

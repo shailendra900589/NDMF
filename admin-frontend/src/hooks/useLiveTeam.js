@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { trackingApi } from '../api/api';
 
 /** Polls the live team positions; pauses while the browser tab is hidden. */
-export default function useLiveTeam(intervalMs = 15000, enabled = true) {
+export default function useLiveTeam(intervalMs = 10000, enabled = true) {
   const [team, setTeam] = useState([]);
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState(null);
@@ -68,9 +68,12 @@ export const STATUS_LABELS = {
   live: 'Live',
   delayed: 'Delayed',
   offline: 'App updates stopped',
-  weak_gps:'GPS accuracy reduced',
-  gps_pending:'App connected · GPS pending',
-  location_off:'Location switched off',
-  permission_required:'Location permission needed',
+  weak_gps: 'GPS accuracy reduced',
+  gps_pending: 'App connected · GPS pending',
+  location_off: 'GPS / location switched off',
+  airplane_mode: 'Airplane mode on',
+  no_network: 'No internet on phone',
+  background_required: 'Background location needed',
+  permission_required: 'Location permission needed',
   checked_out: 'Checked out',
 };

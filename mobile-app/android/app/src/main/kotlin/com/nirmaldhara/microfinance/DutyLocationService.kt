@@ -18,7 +18,21 @@ import java.util.concurrent.TimeUnit
 
 /** Visible on-duty collection and durable upload independent of Flutter timers. */
 class DutyLocationService : Service(), LocationListener {
-    companion object { @Volatile var running = false }
+    companion object {
+        @Volatile var running = false
+
+        fun startIfStored(context: Context) {
+            val prefs = context.getSharedPreferences("duty_location", MODE_PRIVATE)
+            if (!prefs.getBoolean("active", false)) return
+            if (prefs.getString("token", "").orEmpty().isBlank()) return
+            val duty = Intent(context, DutyLocationService::class.java)
+            try {
+                if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(duty)
+                else context.startService(duty)
+                DutyLocationWatchdog.schedule(context)
+            } catch (_: Exception) { /* OEM may block background start; Flutter retry on open. */ }
+        }
+    }
     private val worker = Executors.newSingleThreadScheduledExecutor()
     private val main = Handler(Looper.getMainLooper())
     private lateinit var locations: LocationManager
@@ -51,8 +65,9 @@ class DutyLocationService : Service(), LocationListener {
         val notification=builder.setContentTitle("MyStaff Smart · On duty").setContentText("GPS and device status shared with your company until checkout. Tap to open.").setSmallIcon(android.R.drawable.ic_menu_mylocation).setOngoing(true).setContentIntent(open).build()
         try {
             if(Build.VERSION.SDK_INT>=29)startForeground(2841,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION) else startForeground(2841,notification)
-        } catch (_: Exception) { stopSelf(); return }
+        } catch (_: Exception) { running=false; stopSelf(); return }
         running=true
+        DutyLocationWatchdog.schedule(this)
         wake=(getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"MyStaffSmart:DutyGPS").apply { setReferenceCounted(false); acquire(10*60*1000L) }
         if(Build.VERSION.SDK_INT>=33)registerReceiver(providerChange,IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION),Context.RECEIVER_NOT_EXPORTED)
         else registerReceiver(providerChange,IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION))
@@ -60,11 +75,12 @@ class DutyLocationService : Service(), LocationListener {
         worker.scheduleWithFixedDelay({
             try {
                 if(!prefs.getBoolean("active",false))return@scheduleWithFixedDelay
-                if(wake?.isHeld!=true)wake?.acquire(10*60*1000L)
+                if(wake?.isHeld!=true)wake?.acquire(30*60*1000L)
+                maybeSeedFromLastKnown()
                 heartbeat()
                 upload()
             }catch(_: Exception) { /* Keep durable fixes and retry next cycle. */ }
-        },3,15,TimeUnit.SECONDS)
+        },2,12,TimeUnit.SECONDS)
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if(!running)return START_NOT_STICKY
@@ -78,10 +94,9 @@ class DutyLocationService : Service(), LocationListener {
         }
         if(!prefs.getBoolean("active",false)){stopSelf();return START_NOT_STICKY}
         subscribe()
-        // Redeliver the original start intent after process recovery. The
-        // token is also durably stored, so a locked-screen process restart
-        // can resume the same on-duty queue without waiting for Flutter.
-        return START_REDELIVER_INTENT
+        DutyLocationWatchdog.schedule(this)
+        // Sticky restart when the OS reclaims the process during an open shift.
+        return START_STICKY
     }
     @Suppress("MissingPermission")
     private fun subscribe(){
@@ -91,7 +106,7 @@ class DutyLocationService : Service(), LocationListener {
             // Attendance requires a real GPS route. Do not mix coarse
             // network-provider fixes into a route that is shown to admins.
             if(locations.allProviders.contains(LocationManager.GPS_PROVIDER)&&locations.isProviderEnabled(LocationManager.GPS_PROVIDER)){
-                locations.requestLocationUpdates(LocationManager.GPS_PROVIDER,10000L,0f,this,Looper.getMainLooper())
+                locations.requestLocationUpdates(LocationManager.GPS_PROVIDER,5000L,0f,this,Looper.getMainLooper())
             }
             issue=if(enabled())"Waiting for a fresh GPS fix" else "Device location is switched off"
         }catch(_: Exception){issue="Location permission or provider unavailable"}
@@ -139,18 +154,51 @@ class DutyLocationService : Service(), LocationListener {
         }catch(e:Exception){lastNetworkIssue="Server unavailable: ${e.javaClass.simpleName}";return null
         }finally{connection.disconnect()}
     }
+    private fun airplaneOn(): Boolean = try {
+        android.provider.Settings.Global.getInt(contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) == 1
+    } catch (_: Exception) { false }
+
+    private fun networkAvailable(): Boolean = try {
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    } catch (_: Exception) { true }
+
+    @Suppress("MissingPermission")
+    private fun maybeSeedFromLastKnown() {
+        if (!prefs.getBoolean("active", false) || !precisePermission()) return
+        val queue = try { JSONArray(prefs.getString("queue", "[]")) } catch (_: Exception) { return }
+        val lastAt = if (queue.length() > 0) queue.getJSONObject(queue.length() - 1).optString("recordedAt") else ""
+        val stale = lastAt.isBlank() || (System.currentTimeMillis() - Date.parse(lastAt)) > 90_000L
+        if (!stale) return
+        try {
+            val last = locations.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: return
+            if (last.isFromMockProvider || !last.hasAccuracy() || last.accuracy > 35f) return
+            val age = SystemClock.elapsedRealtimeNanos() - last.elapsedRealtimeNanos
+            if (age < 0 || age > 120L * 1000000000L) return
+            onLocationChanged(last)
+        } catch (_: Exception) { }
+    }
+
     private fun heartbeat(){
         val battery=registerReceiver(null,IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level=battery?.getIntExtra(BatteryManager.EXTRA_LEVEL,-1)?:-1
         val scale=battery?.getIntExtra(BatteryManager.EXTRA_SCALE,100)?:100
         val status=battery?.getIntExtra(BatteryManager.EXTRA_STATUS,-1)
         val power=getSystemService(POWER_SERVICE) as PowerManager
+        val airplane=airplaneOn()
+        val online=networkAvailable()
+        if(airplane) issue="Airplane mode is on"
+        else if(!enabled()) issue="Device location is switched off"
         val payload=JSONObject().put("locationEnabled",enabled()).put("permission",if(precisePermission())"granted" else "denied")
             .put("backgroundAllowed",true).put("trackingActive",running).put("appVersion",prefs.getString("version","unknown"))
             .put("issue",if(lastNetworkIssue.isNotBlank())lastNetworkIssue else issue).put("powerSaveMode",power.isPowerSaveMode).put("batteryOptimizationExempt",power.isIgnoringBatteryOptimizations(packageName))
             .put("charging",status==BatteryManager.BATTERY_STATUS_CHARGING||status==BatteryManager.BATTERY_STATUS_FULL).put("trackingEngine","android_native")
+            .put("airplaneMode",airplane).put("networkAvailable",online)
         if(level>=0&&scale>0)payload.put("batteryPercent",(level*100/scale).coerceIn(0,100))
         val response=post("/tracking/heartbeat",payload)
+        // Only stop after a confirmed check-out from the server — never while still on duty.
         if(response?.optJSONObject("data")?.optBoolean("onDuty",true)==false){prefs.edit().putBoolean("active",false).commit();main.post{stopSelf()}}
     }
     private fun upload(){
@@ -164,6 +212,7 @@ class DutyLocationService : Service(), LocationListener {
         }
     }
     override fun onDestroy(){
+        if (!prefs.getBoolean("active", false)) DutyLocationWatchdog.cancel(this)
         running=false
         try{locations.removeUpdates(this)}catch(_: Exception){}
         if(registered)try{unregisterReceiver(providerChange)}catch(_: Exception){}

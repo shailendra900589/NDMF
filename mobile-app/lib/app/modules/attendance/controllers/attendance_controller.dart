@@ -69,7 +69,7 @@ class AttendanceController extends GetxController {
       await _api.syncSession();
       await loadHistory();
       if (!stateConfirmed.value || !canCheckIn) return;
-      if (!await _location.requestPermission()) return;
+      if (!await _location.ensureReadyForAttendance()) return;
       // Acquire GPS while the camera does its local live capture. Consume errors
       // immediately so cancelling the camera cannot leave an unhandled future.
       Object? gpsError;
@@ -87,7 +87,11 @@ class AttendanceController extends GetxController {
       if (loc != null &&
           DateTime.now().difference(loc.timestamp).inSeconds > 30)
         loc = await _location.getPosition();
-      if (loc == null) return;
+      if (loc == null) {
+        Get.snackbar('GPS required',
+            'Accurate GPS is mandatory for check-in. Turn on location and try again.');
+        return;
+      }
 
       final saved = await _api.markAttendance(
         isCheckIn: true,
@@ -99,6 +103,8 @@ class AttendanceController extends GetxController {
         mocked: loc.isMocked,
       );
       todayRecord = saved;
+      await _tracking.syncWithAttendanceState(saved);
+      final dutyGps = await _tracking.ensureDutyTrackingStarted();
       unawaited(loadHistory());
       Get.snackbar(
         'Success',
@@ -106,6 +112,14 @@ class AttendanceController extends GetxController {
             ? 'Checked in • face + GPS verified'
             : 'Checked in • GPS verified',
       );
+      if (!dutyGps) {
+        Get.snackbar(
+          'Background GPS required',
+          'Allow location “All the time” and disable battery restrictions so live tracking works until check-out.',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 7),
+        );
+      }
     } catch (e) {
       Get.snackbar('Check-in failed', apiErrorMessage(e));
     } finally {
@@ -125,7 +139,7 @@ class AttendanceController extends GetxController {
             'No open check-in was found for your account.');
         return;
       }
-      if (!await _location.requestPermission()) return;
+      if (!await _location.ensureReadyForAttendance()) return;
       Object? gpsError;
       final position = _location.getPosition().catchError((Object e) {
         gpsError = e;

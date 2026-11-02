@@ -57,17 +57,86 @@ class LocationService extends GetxService {
     return true;
   }
 
-  /// Background access is requested only after the user has started duty.
-  /// A foreground location service still runs with while-in-use access, but
-  /// Android may pause it under aggressive battery policies without this grant.
+  /// Background “Allow all the time” is required for on-duty GPS. Without it
+  /// Android will pause sharing when the screen is off.
   Future<bool> requestDutyBackgroundPermission() async {
     final allowed = await requestPermission();
-    if (!allowed || !GetPlatform.isAndroid) return allowed;
+    if (!allowed) return false;
+    if (!GetPlatform.isAndroid) return true;
     try {
       final status = await permissions.Permission.locationAlways.status;
       if (status.isGranted) return true;
       final requested = await permissions.Permission.locationAlways.request();
-      return requested.isGranted;
+      if (requested.isGranted) return true;
+      await Get.dialog(AlertDialog(
+          title: const Text('Background location required'),
+          content: const Text(
+              'Choose “Allow all the time” for location so duty GPS keeps running after check-in. Attendance cannot continue without this.'),
+          actions: [
+            TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () async {
+                  await Geolocator.openAppSettings();
+                  Get.back();
+                },
+                child: const Text('Open settings'))
+          ]));
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// GPS on + precise permission + background access before attendance punch.
+  Future<bool> ensureReadyForAttendance() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      await Get.dialog(AlertDialog(
+          title: const Text('Turn on GPS'),
+          content: const Text(
+              'Device location must be ON to mark attendance. Flight mode or GPS off is not allowed.'),
+          actions: [
+            TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () async {
+                  await Geolocator.openLocationSettings();
+                  Get.back();
+                },
+                child: const Text('Open location settings'))
+          ]));
+      return false;
+    }
+    if (!await requestDutyBackgroundPermission()) {
+      Get.snackbar('Background required',
+          'Allow location “all the time” before marking attendance.');
+      return false;
+    }
+    if (GetPlatform.isAndroid) {
+      try {
+        if (!await permissions.Permission.ignoreBatteryOptimizations.isGranted) {
+          await permissions.Permission.ignoreBatteryOptimizations.request();
+        }
+      } catch (_) {}
+    }
+    try {
+      final live = await getPosition();
+      if (live == null) {
+        Get.snackbar(
+          'Live GPS required',
+          'A fresh GPS fix is mandatory before attendance. Move to open sky and retry.',
+        );
+        return false;
+      }
+    } catch (e) {
+      Get.snackbar('Live GPS required', e.toString());
+      return false;
+    }
+    return true;
+  }
+
+  Future<bool> isBackgroundAllowed() async {
+    if (!GetPlatform.isAndroid) return true;
+    try {
+      return await permissions.Permission.locationAlways.isGranted;
     } catch (_) {
       return false;
     }

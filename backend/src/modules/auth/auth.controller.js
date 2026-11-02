@@ -16,6 +16,7 @@ const { stripFaceSecrets } = require('../../lib/faceMatch');
 const DEMO_OTP = '123456';
 const { context } = require('../../lib/tenantContext');
 const { companyFor, allModules } = require('../../lib/companyPolicy');
+const { subscriptionSummary } = require('../../lib/packages');
 
 function generateToken(user) {
   return jwt.sign({ userId: user.id, role: user.role }, jwtSecret, { expiresIn: '7d' });
@@ -27,7 +28,7 @@ function sanitizeUser(user) {
   if (user.role === 'superAdmin') return { ...safe, permissions: {}, company: null };
   const company = companyFor(user);
   safe.permissions = effectivePermissions(user);
-  safe.company = company ? { id: company.id, name: company.name, code: company.code, logoUrl: company.logoUrl || '' } : null;
+  safe.company = company ? { id: company.id, name: company.name, code: company.code, logoUrl: company.logoUrl || '', subscription: subscriptionSummary(company.packageSubscription) } : null;
   safe.actions = Object.fromEntries(Object.keys(allModules()).map(k => [k, Object.fromEntries(['create','update','delete','approve','export'].map(a => [a, company?.actions?.[k]?.[a] !== false && user.platformActions?.[k]?.[a] !== false]))]));
   return context.run({ companyId: user.companyId, userId: user.id }, () => require('../../lib/privateUploads').signMedia({ ...safe, ...settingsForClient(),...(['fieldOfficer','branchManager'].includes(user.role)?{faceAttendanceRequired:true}:{}) }));
 }

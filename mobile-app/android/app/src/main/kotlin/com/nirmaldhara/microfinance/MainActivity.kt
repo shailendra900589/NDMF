@@ -8,6 +8,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import androidx.core.content.FileProvider
+import java.io.File
 import android.provider.Settings
 import android.telecom.TelecomManager
 import android.telephony.PhoneStateListener
@@ -21,6 +25,8 @@ class MainActivity : FlutterActivity() {
     private val securityChannel = "com.nirmaldhara.microfinance/security"
     private val telephonyChannel = "com.nirmaldhara.microfinance/telephony"
     private val recordingChannel = "com.nirmaldhara.microfinance/call_recording"
+    private val appUpdateChannel = "com.nirmaldhara.microfinance/app_update"
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     @Volatile
     private var lastCallState: String = "idle"
@@ -51,7 +57,7 @@ class MainActivity : FlutterActivity() {
                                     .putExtra("owner",call.argument<String>("owner"))
                                     .putExtra("version",call.argument<String>("version"))
                                 if(Build.VERSION.SDK_INT>=26)startForegroundService(duty) else startService(duty)
-                                result.success(true)
+                                mainHandler.postDelayed({ result.success(DutyLocationService.running) }, 450)
                             }
                         }
                         "stop" -> {
@@ -124,6 +130,37 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, appUpdateChannel)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "installApk" -> {
+                        val path = call.argument<String>("path").orEmpty()
+                        val file = File(path)
+                        if (!file.isFile) {
+                            result.success(false)
+                            return@setMethodCallHandler
+                        }
+                        try {
+                            val uri = FileProvider.getUriForFile(
+                                this,
+                                "$packageName.fileprovider",
+                                file
+                            )
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "application/vnd.android.package-archive")
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("INSTALL", e.message, null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, recordingChannel)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -161,6 +198,12 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         applyCallWindow(intent)
+        DutyLocationService.startIfStored(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        DutyLocationService.startIfStored(this)
     }
 
     override fun onNewIntent(intent: Intent) {

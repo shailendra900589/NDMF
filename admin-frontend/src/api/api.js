@@ -146,4 +146,4 @@ export const platformApi = {
 export default api;
 
 export const developerApi = { overview: () => api.get("/developer/manage"), action: (path, data = {}) => api.post(`/developer/manage/${path}`, data) };
-export const packageApi = {overview:()=>api.get('/super-admin/packages'),create:data=>api.post('/super-admin/packages',data),update:(id,data)=>api.put(`/super-admin/packages/${id}`,data),assign:(id,data)=>api.post(`/super-admin/packages/assign/${id}`,data),requestStatus:(id,status)=>api.put(`/super-admin/packages/requests/${id}/status`,{status})};
+export const packageApi = {overview:()=>api.get('/super-admin/packages'),create:data=>api.post('/super-admin/packages',data),update:(id,data)=>api.put(`/super-admin/packages/${id}`,data),assign:(id,data)=>api.post(`/super-admin/packages/assign/${id}`,data),requestStatus:(id,status)=>api.put(`/super-admin/packages/requests/${id}/status`,{status}),renewalStatus:(id,status)=>api.put(`/super-admin/packages/renewal-requests/${id}/status`,{status}),subscription:()=>api.get('/packages/subscription'),requestRenewal:()=>api.post('/packages/renewal-requests')};
