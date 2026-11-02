@@ -9,7 +9,7 @@ export default function ConsoleScope({ children }) {
     return <Navigate to="/super-admin" replace />;
   }
   if (user.role !== 'superAdmin' && pathname.startsWith('/super-admin')) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   if (user.role !== 'superAdmin' && user.company?.subscription?.isActive === false && user.company?.subscription?.status !== 'not_assigned' && pathname !== '/subscription' && pathname !== '/profile') {
     return <Navigate to="/subscription" replace />;

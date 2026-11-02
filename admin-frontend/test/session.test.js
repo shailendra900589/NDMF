@@ -30,7 +30,7 @@ test('protected console uses verified role and refreshes all consumers together'
     authApi.me = async () => ({ data: { id: 'platform', role: 'admin' } });
     await act(async () => listeners.get('focus')());
     assert.deepEqual(tree.root.findAllByType('span').map(n => n.children[0]), ['admin', 'admin']);
-    assert.equal(tree.root.findAllByType('span')[0].props['data-path'], '/');
+    assert.equal(tree.root.findAllByType('span')[0].props['data-path'], '/dashboard');
     authApi.me = async () => { throw { status: 403, message: 'Account is disabled' }; };
     await act(async () => listeners.get('focus')());
     assert.equal(values.has('ndfa_token'), false);

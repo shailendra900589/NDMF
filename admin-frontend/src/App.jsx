@@ -37,14 +37,15 @@ function HomeRoute() {
 }
 function SuperAdminRoute({ apiAccess = false, packages = false }) {
   const { user } = useSession();
-  return user.role === 'superAdmin' ? <Suspense fallback={<div>Loading company console…</div>}><>{packages ? <Packages/> : apiAccess ? <DeveloperAccess /> : <SuperAdmin />}</></Suspense> : <Navigate to="/" replace />;
+  return user.role === 'superAdmin' ? <Suspense fallback={<div>Loading company console…</div>}><>{packages ? <Packages/> : apiAccess ? <DeveloperAccess /> : <SuperAdmin />}</></Suspense> : <Navigate to="/dashboard" replace />;
 }
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<VerifiedSession><ConsoleScope><Layout /></ConsoleScope></VerifiedSession>}>
-        <Route index element={<HomeRoute />} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<HomeRoute />} />
         <Route path="super-admin/api" element={<SuperAdminRoute apiAccess />} />
         <Route path="super-admin/packages" element={<SuperAdminRoute packages />} />
         <Route path="super-admin" element={<SuperAdminRoute />} />
@@ -62,7 +63,7 @@ export default function App() {
         <Route path="profile" element={<Profile />} />
         <Route path="notices" element={<PermissionRoute permission="notices"><TeamWorkspace key="notices" kind="notices" /></PermissionRoute>} />
         <Route path="visits" element={<PermissionRoute permission="visits"><TeamWorkspace key="visits" kind="visits" /></PermissionRoute>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
   );
