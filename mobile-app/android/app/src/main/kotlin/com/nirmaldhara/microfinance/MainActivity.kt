@@ -50,22 +50,14 @@ class MainActivity : FlutterActivity() {
                         "start" -> {
                             val token=call.argument<String>("token").orEmpty()
                             val base=call.argument<String>("baseUrl").orEmpty()
-                            if(token.isBlank()||!base.startsWith("https://")) {
-                                result.success(false)
-                            } else {
-                                DutyLocationService.lastStartFailed = false
+                            if(token.isBlank()||!base.startsWith("https://")){result.success(false)}
+                            else {
                                 val duty=Intent(this,DutyLocationService::class.java)
                                     .putExtra("token",token).putExtra("baseUrl",base)
                                     .putExtra("owner",call.argument<String>("owner"))
                                     .putExtra("version",call.argument<String>("version"))
-                                try {
-                                    if(Build.VERSION.SDK_INT>=26) startForegroundService(duty)
-                                    else startService(duty)
-                                } catch (e: Exception) {
-                                    result.error("DUTY_LOCATION", e.message ?: "Could not start duty service", null)
-                                    return@setMethodCallHandler
-                                }
-                                waitForDutyServiceRunning(result, attempt = 0)
+                                if(Build.VERSION.SDK_INT>=26)startForegroundService(duty) else startService(duty)
+                                mainHandler.postDelayed({ result.success(DutyLocationService.running) }, 450)
                             }
                         }
                         "stop" -> {
@@ -237,18 +229,6 @@ class MainActivity : FlutterActivity() {
         } else {
             pending.success("denied")
         }
-    }
-
-    private fun waitForDutyServiceRunning(result: MethodChannel.Result, attempt: Int) {
-        if (DutyLocationService.running) {
-            result.success(true)
-            return
-        }
-        if (DutyLocationService.lastStartFailed || attempt >= 25) {
-            result.success(false)
-            return
-        }
-        mainHandler.postDelayed({ waitForDutyServiceRunning(result, attempt + 1) }, 100)
     }
 
     private fun openAppSettings(): Boolean {

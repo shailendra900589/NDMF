@@ -63,56 +63,21 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
   static const _nativeChannel =
       MethodChannel('com.nirmaldhara.microfinance/duty_location');
   bool _nativeActive = false;
-
-  /// Native FG service and/or Flutter stream actively collecting or uploading.
-  bool get isGpsPipelineActive =>
-      _nativeActive || _positionStream != null;
-
-  Future<bool> _pollNativeRunning({int attempts = 20}) async {
-    if (!GetPlatform.isAndroid) return false;
-    for (var i = 0; i < attempts; i++) {
-      try {
-        final running =
-            await _nativeChannel.invokeMethod<bool>('running') ?? false;
-        if (running) {
-          _nativeActive = true;
-          return true;
-        }
-      } catch (_) {}
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
-    _nativeActive = false;
-    return false;
-  }
-
   Future<void> _startNative() async {
     if (!GetPlatform.isAndroid || !ApiConstants.useRemoteApi) return;
     try {
       _appVersion ??= (await PackageInfo.fromPlatform()).version;
-      final started = await _nativeChannel.invokeMethod<bool>('start', {
+      _nativeActive = await _nativeChannel.invokeMethod<bool>('start', {
             'token': _storage.getToken(),
             'owner': _storage.getUser()?.id,
             'baseUrl': ApiConstants.baseUrl,
             'version': _appVersion
           }) ??
           false;
-      _nativeActive =
-          started ? true : await _pollNativeRunning();
     } catch (_) {
       _nativeActive = false;
       gpsStatus.value = 'Open Attendance to enable background GPS';
     }
-  }
-
-  /// Watchdog + heartbeats (+ native when possible). Runs even when GPS is off.
-  Future<bool> _armOnDutyPipeline() async {
-    await _startNative();
-    _trackingTimer?.cancel();
-    _trackingTimer =
-        Timer.periodic(_nativeWatchInterval, (_) => unawaited(_tick()));
-    _ensureHeartbeatTimer();
-    unawaited(_heartbeat(force: true));
-    return _nativeActive || _positionStream != null;
   }
 
   Future<void> _stopNative() async {
@@ -388,6 +353,9 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
     _starting = true;
     try {
       _trackingOwner = _storage.getUser()?.id;
+      // Once on duty, tracking stays marked active until check-out even if GPS
+      // is temporarily off — heartbeats keep reporting that state to admin.
+      isTracking.value = true;
 
       final locationOn = await Geolocator.isLocationServiceEnabled();
       final existingPermission = await Geolocator.checkPermission();
@@ -397,9 +365,12 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
         gpsStatus.value = !locationOn
             ? 'Device location is switched off'
             : 'Enable precise location permission to resume duty GPS';
-        await _armOnDutyPipeline();
-        // On duty for attendance, but GPS fixes are paused until settings change.
-        isTracking.value = true;
+        // Keep native heartbeat alive so admin still sees GPS-off / airplane status.
+        await _startNative();
+        _trackingTimer?.cancel();
+        _trackingTimer =
+            Timer.periodic(_nativeWatchInterval, (_) => unawaited(_tick()));
+        unawaited(_heartbeat());
         if (!silent) {
           Get.snackbar('Duty tracking', gpsStatus.value);
         }
@@ -409,8 +380,7 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
         final hasPermission = await _locationService.requestPermission();
         if (!hasPermission) {
           gpsStatus.value = 'Location permission required';
-          await _armOnDutyPipeline();
-          isTracking.value = true;
+          unawaited(_heartbeat());
           return;
         }
       }
@@ -421,8 +391,7 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
       }
       unawaited(_prepareBackgroundTracking());
 
-      await _armOnDutyPipeline();
-      isTracking.value = true;
+      await _startNative();
       gpsStatus.value = 'Searching for GPS…';
       final now = DateTime.now();
 
@@ -431,16 +400,22 @@ class TrackingService extends GetxService with WidgetsBindingObserver {
       if (_nativeActive) {
         await _positionStream?.cancel();
         _positionStream = null;
+        _trackingTimer?.cancel();
+        _trackingTimer =
+            Timer.periodic(_nativeWatchInterval, (_) => unawaited(_tick()));
         gpsStatus.value = 'On duty — background GPS sharing is active';
-        if (!silent) {
+        _ensureHeartbeatTimer();
+        unawaited(_heartbeat(force: true));
+        if (!silent)
           Get.snackbar(
               'Duty tracking on', 'Background GPS stays on until check-out');
-        }
         return;
       }
 
       _trackingTimer?.cancel();
       _trackingTimer = Timer.periodic(_pingInterval, (_) => unawaited(_tick()));
+      _ensureHeartbeatTimer();
+      unawaited(_heartbeat(force: true));
       try {
         await _restartStream();
       } catch (e) {

@@ -20,8 +20,6 @@ import java.util.concurrent.TimeUnit
 class DutyLocationService : Service(), LocationListener {
     companion object {
         @Volatile var running = false
-        /** Foreground notification could not start; [running] stays false. */
-        @Volatile var lastStartFailed = false
 
         fun startIfStored(context: Context) {
             val prefs = context.getSharedPreferences("duty_location", MODE_PRIVATE)
@@ -65,16 +63,10 @@ class DutyLocationService : Service(), LocationListener {
         val open=PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val builder=if(Build.VERSION.SDK_INT>=26) Notification.Builder(this,"duty_native") else Notification.Builder(this)
         val notification=builder.setContentTitle("MyStaff Smart · On duty").setContentText("GPS and device status shared with your company until checkout. Tap to open.").setSmallIcon(android.R.drawable.ic_menu_mylocation).setOngoing(true).setContentIntent(open).build()
-        lastStartFailed = false
         try {
             if(Build.VERSION.SDK_INT>=29)startForeground(2841,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION) else startForeground(2841,notification)
-        } catch (_: Exception) {
-            lastStartFailed = true
-            running = false
-            stopSelf()
-            return
-        }
-        running = true
+        } catch (_: Exception) { running=false; stopSelf(); return }
+        running=true
         DutyLocationWatchdog.schedule(this)
         wake=(getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"MyStaffSmart:DutyGPS").apply { setReferenceCounted(false); acquire(10*60*1000L) }
         if(Build.VERSION.SDK_INT>=33)registerReceiver(providerChange,IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION),Context.RECEIVER_NOT_EXPORTED)
