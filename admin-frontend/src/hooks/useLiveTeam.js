@@ -67,7 +67,7 @@ export function timeAgo(iso, now = Date.now()) {
 export const STATUS_LABELS = {
   live: 'Live',
   delayed: 'Delayed',
-  offline: 'App updates stopped',
+  offline: 'Duty signal lost',
   weak_gps: 'GPS accuracy reduced',
   gps_pending: 'App connected · GPS pending',
   location_off: 'GPS / location switched off',

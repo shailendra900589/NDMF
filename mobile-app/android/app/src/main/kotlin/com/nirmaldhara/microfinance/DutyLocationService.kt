@@ -80,7 +80,7 @@ class DutyLocationService : Service(), LocationListener {
                 heartbeat()
                 upload()
             }catch(_: Exception) { /* Keep durable fixes and retry next cycle. */ }
-        },2,12,TimeUnit.SECONDS)
+        },1,8,TimeUnit.SECONDS)
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if(!running)return START_NOT_STICKY
@@ -129,6 +129,8 @@ class DutyLocationService : Service(), LocationListener {
                 if(last!=point.getString("recordedAt"))queue.put(point)
                 val bounded=JSONArray();for(i in maxOf(0,queue.length()-6000) until queue.length())bounded.put(queue.get(i))
                 prefs.edit().putString("queue",bounded.toString()).commit()
+                heartbeat()
+                upload()
             }catch(_: Exception){}
         }
     }

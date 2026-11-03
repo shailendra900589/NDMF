@@ -10,12 +10,10 @@ const { attendanceDay } = require('../../lib/attendanceDay');
 /** Route history is kept for this many days. */
 const RETENTION_DAYS = Math.max(1, parseInt(process.env.TRACKING_RETENTION_DAYS || '90', 10));
 
-/** Live position counts as "live" when the last fix is this fresh. */
-const LIVE_WINDOW_MS = 45 * 1000;
-const DELAYED_WINDOW_MS = 5 * 60 * 1000;
 /** Heavy day reports are written to the database at most this often. */
 const REPORT_WRITE_DELAY_MS = 30 * 1000;
-const LIVE_WRITE_DELAY_MS = 15 * 1000;
+const LIVE_WRITE_DELAY_MS = 5 * 1000;
+const DEVICE_WRITE_DELAY_MS = 0;
 const DUTY_GRACE_MS = 2 * 60 * 1000;
 /** A check-in left open longer than this is treated as forgotten, not on duty. */
 const MAX_SHIFT_MS = 20 * 60 * 60 * 1000;
@@ -133,8 +131,34 @@ function recordFixes(user, rawPoints) {
     upsert('tracking', shiftReport, { deferMs: REPORT_WRITE_DELAY_MS });
     if (current && att.id === current.id) report = shiftReport;
   }
-  if (latest) saveLive(user, latest);
+  if (latest) {
+    saveLive(user, latest);
+    touchDeviceFromGps(user.id, latest.at);
+  }
   return { onDuty, accepted, totalKm: report?.totalKm || 0, report };
+}
+
+/** GPS upload proves the duty pipeline is alive even if heartbeat HTTP was delayed. */
+function touchDeviceFromGps(userId, fixAtMs) {
+  const prev = findById('trackingDevices', userId) || {
+    id: userId,
+    userId,
+    permission: 'granted',
+    locationEnabled: true,
+    trackingActive: true,
+    backgroundAllowed: true,
+    trackingEngine: 'android_native',
+  };
+  const nowIso = new Date().toISOString();
+  upsert(
+    'trackingDevices',
+    {
+      ...prev,
+      lastGpsAt: new Date(fixAtMs).toISOString(),
+      lastFixReceivedAt: nowIso,
+    },
+    { single: true, deferMs: DEVICE_WRITE_DELAY_MS },
+  );
 }
 
 /** Single fix sent every ~15 seconds while on duty. */
@@ -164,8 +188,10 @@ exports.heartbeat=(req,res)=>{
     row.locationEvents=row.locationEvents.slice(-30);
     if(!row.locationEnabled || row.airplaneMode===true)row.locationOffAt=row.receivedAt;
   }
-  upsert('trackingDevices',row,{deferMs:LIVE_WRITE_DELAY_MS});
-  return success(res,{receivedAt:row.receivedAt,onDuty:!!currentShift(req.user.id,Date.now()) && !currentShift(req.user.id,Date.now()).checkOutTime},'App heartbeat received');
+  upsert('trackingDevices', row, { single: true, deferMs: DEVICE_WRITE_DELAY_MS });
+  const shift = currentShift(req.user.id, Date.now());
+  const onDuty = !!shift && !shift.checkOutTime;
+  return success(res, { receivedAt: row.receivedAt, onDuty }, 'App heartbeat received');
 };
 
 /** Batch of fixes, e.g. collected while the phone had no internet. */
@@ -273,6 +299,7 @@ exports.getLiveTeam = (req, res) => {
         deviceOnline:health.deviceOnline,
         statusReason:health.reason,
         appLastSeenAt:heartbeat?.receivedAt || null,
+        gpsIngestAt:heartbeat?.lastFixReceivedAt || heartbeat?.lastGpsAt || null,
         appVersion:heartbeat?.appVersion || null,
         backgroundAllowed:heartbeat?.backgroundAllowed ?? null,
         batteryPercent:heartbeat?.batteryPercent ?? null,
