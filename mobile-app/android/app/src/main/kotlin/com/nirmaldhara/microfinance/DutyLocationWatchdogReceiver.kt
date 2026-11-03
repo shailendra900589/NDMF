@@ -9,5 +9,6 @@ class DutyLocationWatchdogReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action != DutyLocationWatchdog.ACTION) return
         DutyLocationService.startIfStored(context)
+        DutyLocationWatchdog.schedule(context)
     }
 }

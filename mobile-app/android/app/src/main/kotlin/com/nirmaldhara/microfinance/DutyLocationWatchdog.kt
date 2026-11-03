@@ -10,14 +10,20 @@ import android.os.SystemClock
 object DutyLocationWatchdog {
     const val ACTION = "com.nirmaldhara.microfinance.DUTY_LOCATION_WATCHDOG"
     private const val REQUEST = 2910
-    private const val INTERVAL_MS = 5 * 60 * 1000L
+    /** Re-arm while on duty so OEM battery tools cannot leave tracking stopped. */
+    private const val INTERVAL_MS = 3 * 60 * 1000L
 
     fun schedule(context: Context) {
+        val prefs = context.getSharedPreferences("duty_location", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("active", false)) {
+            cancel(context)
+            return
+        }
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, DutyLocationWatchdogReceiver::class.java).setAction(ACTION)
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val pending = PendingIntent.getBroadcast(context, REQUEST, intent, flags)
-        val trigger = SystemClock.elapsedRealtime() + 60_000L
+        val trigger = SystemClock.elapsedRealtime() + INTERVAL_MS
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pending)
@@ -26,7 +32,7 @@ object DutyLocationWatchdog {
                     AlarmManager.ELAPSED_REALTIME_WAKEUP,
                     trigger,
                     INTERVAL_MS,
-                    pending
+                    pending,
                 )
             }
         } catch (_: Exception) {
@@ -34,7 +40,7 @@ object DutyLocationWatchdog {
                 AlarmManager.ELAPSED_REALTIME_WAKEUP,
                 trigger,
                 INTERVAL_MS,
-                pending
+                pending,
             )
         }
     }

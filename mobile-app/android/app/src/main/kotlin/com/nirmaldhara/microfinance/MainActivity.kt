@@ -57,7 +57,7 @@ class MainActivity : FlutterActivity() {
                                     .putExtra("owner",call.argument<String>("owner"))
                                     .putExtra("version",call.argument<String>("version"))
                                 if(Build.VERSION.SDK_INT>=26)startForegroundService(duty) else startService(duty)
-                                mainHandler.postDelayed({ result.success(DutyLocationService.running) }, 450)
+                                pollDutyRunning(result, 0)
                             }
                         }
                         "stop" -> {
@@ -304,6 +304,18 @@ class MainActivity : FlutterActivity() {
         } catch (_: Exception) {
             false
         }
+    }
+
+    private fun pollDutyRunning(result: MethodChannel.Result, attempt: Int) {
+        if (DutyLocationService.running) {
+            result.success(true)
+            return
+        }
+        if (attempt >= 12) {
+            result.success(false)
+            return
+        }
+        mainHandler.postDelayed({ pollDutyRunning(result, attempt + 1) }, 250)
     }
 
     private fun mapCallState(state: Int): String {

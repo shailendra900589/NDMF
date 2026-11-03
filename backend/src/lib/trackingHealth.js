@@ -1,5 +1,5 @@
 /** Fresh GPS fix → Live / weak GPS (matches admin map). */
-const LIVE_GPS_MS = 60 * 1000;
+const LIVE_GPS_MS = 90 * 1000;
 /** Heartbeat or GPS ingest counts as “device connected”. */
 const DEVICE_SIGNAL_MS = 3 * 60 * 1000;
 /** On-duty native duty tracking: show Delayed instead of Offline until this age. */
